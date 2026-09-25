@@ -14,16 +14,569 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          address: string | null
+          code: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      line_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          qty_per_unit: number
+          quotation_line_id: string
+          sku_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          qty_per_unit?: number
+          quotation_line_id: string
+          sku_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          qty_per_unit?: number
+          quotation_line_id?: string
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_recipes_quotation_line_id_fkey"
+            columns: ["quotation_line_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "line_recipes_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          ceo_approved: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deposit_received: boolean
+          id: string
+          name: string
+          notes: string | null
+          po_date: string | null
+          po_number: string | null
+          site_address: string | null
+          status: number
+          updated_at: string
+        }
+        Insert: {
+          ceo_approved?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deposit_received?: boolean
+          id?: string
+          name: string
+          notes?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          site_address?: string | null
+          status?: number
+          updated_at?: string
+        }
+        Update: {
+          ceo_approved?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deposit_received?: boolean
+          id?: string
+          name?: string
+          notes?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          site_address?: string | null
+          status?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotation_lines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_header: boolean
+          line_no: number
+          qty: number | null
+          quotation_id: string
+          sales_component_id: string | null
+          sales_name: string
+          unit: string | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_header?: boolean
+          line_no?: number
+          qty?: number | null
+          quotation_id: string
+          sales_component_id?: string | null
+          sales_name: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_header?: boolean
+          line_no?: number
+          qty?: number | null
+          quotation_id?: string
+          sales_component_id?: string | null
+          sales_name?: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_lines_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_lines_sales_component_id_fkey"
+            columns: ["sales_component_id"]
+            isOneToOne: false
+            referencedRelation: "sales_components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          created_at: string
+          discount: number
+          doc_date: string
+          doc_no: string
+          id: string
+          notes: string | null
+          project_id: string
+          revision: number
+          updated_at: string
+          vat_percent: number
+        }
+        Insert: {
+          created_at?: string
+          discount?: number
+          doc_date?: string
+          doc_no: string
+          id?: string
+          notes?: string | null
+          project_id: string
+          revision?: number
+          updated_at?: string
+          vat_percent?: number
+        }
+        Update: {
+          created_at?: string
+          discount?: number
+          doc_date?: string
+          doc_no?: string
+          id?: string
+          notes?: string | null
+          project_id?: string
+          revision?: number
+          updated_at?: string
+          vat_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipe_items: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          qty_per_unit: number
+          sales_component_id: string
+          sku_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          qty_per_unit?: number
+          sales_component_id: string
+          sku_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          qty_per_unit?: number
+          sales_component_id?: string
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_items_sales_component_id_fkey"
+            columns: ["sales_component_id"]
+            isOneToOne: false
+            referencedRelation: "sales_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_items_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_components: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          id: string
+          notes: string | null
+          sales_name: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sales_name: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sales_name?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sku_costs: {
+        Row: {
+          sku_id: string
+          supplier: string | null
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          sku_id: string
+          supplier?: string | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          sku_id?: string
+          supplier?: string | null
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_costs_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skus: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          stock_qty: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          stock_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          stock_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      work_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          issued_qty: number
+          item_name: string
+          note: string | null
+          qty: number
+          sku_id: string | null
+          unit: string | null
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issued_qty?: number
+          item_name: string
+          note?: string | null
+          qty?: number
+          sku_id?: string | null
+          unit?: string | null
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issued_qty?: number
+          item_name?: string
+          note?: string | null
+          qty?: number
+          sku_id?: string | null
+          unit?: string | null
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_items_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_items_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          doc_no: string
+          id: string
+          instructions: string | null
+          project_id: string
+          released_at: string | null
+          released_by: string | null
+          scheduled_date: string | null
+          status: string
+          title: string
+          updated_at: string
+          wo_type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          doc_no: string
+          id?: string
+          instructions?: string | null
+          project_id: string
+          released_at?: string | null
+          released_by?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          wo_type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          doc_no?: string
+          id?: string
+          instructions?: string | null
+          project_id?: string
+          released_at?: string | null
+          released_by?: string | null
+          scheduled_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          wo_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_see_money: { Args: { _user_id: string }; Returns: boolean }
+      claim_ceo: { Args: never; Returns: boolean }
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "ceo" | "sales" | "production" | "technician"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +703,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["ceo", "sales", "production", "technician"],
+    },
   },
 } as const
