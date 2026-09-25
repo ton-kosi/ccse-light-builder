@@ -1,0 +1,48 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { AppRole } from "@/lib/erp";
+
+export type Me = {
+  userId: string | null;
+  email: string | null;
+  fullName: string;
+  roles: AppRole[];
+};
+
+export function meQueryKey() {
+  return ["me"] as const;
+}
+
+export async function fetchMe(): Promise<Me> {
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (!user) return { userId: null, email: null, fullName: "", roles: [] };
+
+  const [{ data: profile }, { data: roles }] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", user.id),
+  ]);
+
+  return {
+    userId: user.id,
+    email: user.email ?? null,
+    fullName: profile?.full_name ?? "",
+    roles: (roles ?? []).map((r) => r.role as AppRole),
+  };
+}
+
+export function useMe() {
+  const query = useQuery({ queryKey: meQueryKey(), queryFn: fetchMe, staleTime: 30_000 });
+  const roles = query.data?.roles ?? [];
+  const has = (...r: AppRole[]) => r.some((x) => roles.includes(x));
+  return {
+    ...query,
+    me: query.data,
+    roles,
+    isCeo: has("ceo"),
+    canSeeMoney: has("ceo", "sales"),
+    canEditSales: has("ceo", "sales"),
+    canEditProduction: has("ceo", "sales", "production"),
+    hasNoRole: query.isSuccess && roles.length === 0,
+  };
+}
