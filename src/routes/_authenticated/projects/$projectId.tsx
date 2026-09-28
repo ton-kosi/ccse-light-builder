@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import {
   PROJECT_STATUSES,
   RELEASE_MIN_STATUS,
@@ -51,7 +52,7 @@ function ProjectDetail() {
   });
 
   const updateProject = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
+    mutationFn: async (patch: TablesUpdate<"projects">) => {
       const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
       if (error) throw error;
     },
@@ -274,7 +275,7 @@ function QuotationSection({ projectId, canEdit }: { projectId: string; canEdit: 
   });
 
   const updateQuotation = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
+    mutationFn: async (patch: TablesUpdate<"quotations">) => {
       const { error } = await supabase.from("quotations").update(patch).eq("id", quotation!.id);
       if (error) throw error;
     },
@@ -464,7 +465,7 @@ function AddBoqLine({
       className="mt-6 grid gap-3 border-t border-border pt-4 md:grid-cols-6"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!salesName.trim()) return toast.error("กรุณากรอกชื่อรายการ");
+        if (!salesName.trim()) { toast.error("กรุณากรอกชื่อรายการ"); return; }
         onAdd({
           sales_name: salesName,
           description,

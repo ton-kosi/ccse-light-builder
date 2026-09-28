@@ -20,6 +20,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
+import { Route as AuthenticatedWorkOrdersWoIdRouteImport } from './routes/_authenticated/work-orders/$woId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -78,6 +79,12 @@ const AuthenticatedWorkOrdersIndexRoute =
     path: '/work-orders/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWorkOrdersWoIdRoute =
+  AuthenticatedWorkOrdersWoIdRouteImport.update({
+    id: '/work-orders/$woId',
+    path: '/work-orders/$woId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/skus': typeof AuthenticatedSkusRoute
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -100,6 +108,7 @@ export interface FileRoutesByTo {
   '/skus': typeof AuthenticatedSkusRoute
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/work-orders': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -114,6 +123,7 @@ export interface FileRoutesById {
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/users'
     | '/projects/$projectId'
+    | '/work-orders/$woId'
     | '/projects/'
     | '/work-orders/'
   fileRoutesByTo: FileRoutesByTo
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/users'
     | '/projects/$projectId'
+    | '/work-orders/$woId'
     | '/projects'
     | '/work-orders'
   id:
@@ -153,6 +165,7 @@ export interface FileRouteTypes {
     | '/_authenticated/skus'
     | '/_authenticated/users'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/work-orders/$woId'
     | '/_authenticated/projects/'
     | '/_authenticated/work-orders/'
   fileRoutesById: FileRoutesById
@@ -242,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/work-orders/$woId': {
+      id: '/_authenticated/work-orders/$woId'
+      path: '/work-orders/$woId'
+      fullPath: '/work-orders/$woId'
+      preLoaderRoute: typeof AuthenticatedWorkOrdersWoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -252,6 +272,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
+  AuthenticatedWorkOrdersWoIdRoute: typeof AuthenticatedWorkOrdersWoIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
   AuthenticatedWorkOrdersIndexRoute: typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -263,6 +284,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
+  AuthenticatedWorkOrdersWoIdRoute: AuthenticatedWorkOrdersWoIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
   AuthenticatedWorkOrdersIndexRoute: AuthenticatedWorkOrdersIndexRoute,
 }

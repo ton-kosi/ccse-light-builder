@@ -278,8 +278,8 @@ export function AddRecipeItem({
       onSubmit={(e) => {
         e.preventDefault();
         const n = toNumber(qty);
-        if (!skuId) return toast.error("กรุณาเลือก SKU");
-        if (n === null) return toast.error("กรุณากรอกจำนวนเป็นตัวเลข");
+        if (!skuId) { toast.error("กรุณาเลือก SKU"); return; }
+        if (n === null) { toast.error("กรุณากรอกจำนวนเป็นตัวเลข"); return; }
         onAdd({ sku_id: skuId, qty: n, note });
         setQty("1");
         setNote("");

@@ -202,7 +202,7 @@ export function Field({
   );
 }
 
-export function Th({ children }: { children: React.ReactNode }) {
+export function Th({ children }: { children?: React.ReactNode }) {
   return <th className="px-3 py-2 font-medium">{children}</th>;
 }
 
@@ -211,7 +211,7 @@ export function Td({
   colSpan,
   className = "",
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   colSpan?: number;
   className?: string;
 }) {
