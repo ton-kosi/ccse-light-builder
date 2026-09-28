@@ -182,7 +182,7 @@ function WorkOrderDetail() {
                 { toast.error(
                   `ปล่อยงานไม่ได้: สถานะโปรเจกต์ต้องถึงขั้น ${RELEASE_MIN_STATUS} ก่อน`,
                 ); return; }
-              const patch: Record<string, unknown> = { status: e.target.value };
+              const patch: TablesUpdate<"work_orders"> = { status: e.target.value };
               if (e.target.value !== "draft" && !wo.released_at)
                 patch["released_at"] = new Date().toISOString();
               updateWo.mutate(patch);
