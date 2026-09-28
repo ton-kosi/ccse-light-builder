@@ -464,7 +464,7 @@ function AddBoqLine({
       className="mt-6 grid gap-3 border-t border-border pt-4 md:grid-cols-6"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!salesName.trim()) return toast.error("กรุณากรอกชื่อรายการ");
+        if (!salesName.trim()) { toast.error("กรุณากรอกชื่อรายการ"); return; }
         onAdd({
           sales_name: salesName,
           description,

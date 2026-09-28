@@ -178,9 +178,9 @@ function WorkOrderDetail() {
             value={wo.status}
             onChange={(e) => {
               if (e.target.value !== "draft" && !canRelease)
-                return toast.error(
+                { toast.error(
                   `ปล่อยงานไม่ได้: สถานะโปรเจกต์ต้องถึงขั้น ${RELEASE_MIN_STATUS} ก่อน`,
-                );
+                ); return; }
               const patch: Record<string, unknown> = { status: e.target.value };
               if (e.target.value !== "draft" && !wo.released_at)
                 patch["released_at"] = new Date().toISOString();
@@ -300,7 +300,7 @@ function IssuedInput({
           variant="outline"
           onClick={() => {
             const n = toNumber(value);
-            if (n === null) return toast.error("กรุณากรอกตัวเลข");
+            if (n === null) { toast.error("กรุณากรอกตัวเลข"); return; }
             onSave(n);
           }}
         >
@@ -330,8 +330,8 @@ function AddWoItem({
       onSubmit={(e) => {
         e.preventDefault();
         const n = toNumber(qty);
-        if (!skuId) return toast.error("กรุณาเลือกสินค้า");
-        if (n === null) return toast.error("กรุณากรอกจำนวนเป็นตัวเลข");
+        if (!skuId) { toast.error("กรุณาเลือกสินค้า"); return; }
+        if (n === null) { toast.error("กรุณากรอกจำนวนเป็นตัวเลข"); return; }
         onAdd({ sku_id: skuId, qty: n, note });
         setQty("1");
         setNote("");

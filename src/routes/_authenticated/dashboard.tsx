@@ -64,7 +64,7 @@ function Dashboard() {
 
   async function claimCeo() {
     const { data, error } = await supabase.rpc("claim_ceo");
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     if (data) {
       toast.success("รับสิทธิ์ผู้บริหาร (CEO) เรียบร้อย");
       queryClient.invalidateQueries({ queryKey: meQueryKey() });

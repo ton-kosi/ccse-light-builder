@@ -233,7 +233,7 @@ function StockAdjust({
         variant="outline"
         onClick={() => {
           const n = toNumber(value);
-          if (n === null) return toast.error("กรุณากรอกตัวเลข");
+          if (n === null) { toast.error("กรุณากรอกตัวเลข"); return; }
           onSave(n);
         }}
       >
