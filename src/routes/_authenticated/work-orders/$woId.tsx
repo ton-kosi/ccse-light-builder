@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import { RELEASE_MIN_STATUS, WO_STATUSES, statusLabel, woStatusLabel, woTypeLabel } from "@/lib/erp";
 import { formatDate, formatQty, toNumber } from "@/lib/format";
 
@@ -66,7 +67,7 @@ function WorkOrderDetail() {
   });
 
   const updateWo = useMutation({
-    mutationFn: async (patch: Record<string, never>) => {
+    mutationFn: async (patch: TablesUpdate<"work_orders">) => {
       const { error } = await supabase.from("work_orders").update(patch).eq("id", woId);
       if (error) throw error;
     },

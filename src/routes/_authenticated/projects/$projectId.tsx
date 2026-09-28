@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 import {
   PROJECT_STATUSES,
   RELEASE_MIN_STATUS,
@@ -51,7 +52,7 @@ function ProjectDetail() {
   });
 
   const updateProject = useMutation({
-    mutationFn: async (patch: Record<string, never>) => {
+    mutationFn: async (patch: TablesUpdate<"projects">) => {
       const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
       if (error) throw error;
     },
@@ -274,7 +275,7 @@ function QuotationSection({ projectId, canEdit }: { projectId: string; canEdit: 
   });
 
   const updateQuotation = useMutation({
-    mutationFn: async (patch: Record<string, never>) => {
+    mutationFn: async (patch: TablesUpdate<"quotations">) => {
       const { error } = await supabase.from("quotations").update(patch).eq("id", quotation!.id);
       if (error) throw error;
     },
