@@ -51,7 +51,7 @@ function ProjectDetail() {
   });
 
   const updateProject = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
+    mutationFn: async (patch: Record<string, never>) => {
       const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
       if (error) throw error;
     },
@@ -274,7 +274,7 @@ function QuotationSection({ projectId, canEdit }: { projectId: string; canEdit: 
   });
 
   const updateQuotation = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
+    mutationFn: async (patch: Record<string, never>) => {
       const { error } = await supabase.from("quotations").update(patch).eq("id", quotation!.id);
       if (error) throw error;
     },

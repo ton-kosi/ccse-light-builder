@@ -66,7 +66,7 @@ function WorkOrderDetail() {
   });
 
   const updateWo = useMutation({
-    mutationFn: async (patch: Record<string, unknown>) => {
+    mutationFn: async (patch: Record<string, never>) => {
       const { error } = await supabase.from("work_orders").update(patch).eq("id", woId);
       if (error) throw error;
     },
