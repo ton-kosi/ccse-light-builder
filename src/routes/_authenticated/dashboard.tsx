@@ -62,16 +62,6 @@ function Dashboard() {
     },
   });
 
-  async function claimCeo() {
-    const { data, error } = await supabase.rpc("claim_ceo");
-    if (error) { toast.error(error.message); return; }
-    if (data) {
-      toast.success("รับสิทธิ์ผู้บริหาร (CEO) เรียบร้อย");
-      queryClient.invalidateQueries({ queryKey: meQueryKey() });
-    } else {
-      toast.error("มีผู้ใช้สิทธิ์ CEO อยู่แล้ว กรุณาให้ CEO กำหนดสิทธิ์ให้คุณ");
-    }
-  }
 
   const byStatus = PROJECT_STATUSES.map((s) => ({
     ...s,
@@ -88,12 +78,8 @@ function Dashboard() {
       {hasNoRole ? (
         <div className="mb-6 rounded-lg border border-border bg-card p-4">
           <p className="text-sm">
-            บัญชีนี้ยังไม่ได้กำหนดสิทธิ์ จึงดูข้อมูลได้จำกัด — ถ้าคุณเป็นผู้ตั้งระบบคนแรก
-            กดรับสิทธิ์ผู้บริหารได้เลย
+            บัญชีนี้ยังไม่ได้กำหนดสิทธิ์ กรุณาติดต่อผู้ดูแลระบบ (admin) เพื่อกำหนดบทบาทให้คุณ
           </p>
-          <Button className="mt-3" size="sm" onClick={claimCeo}>
-            รับสิทธิ์ผู้บริหาร (CEO)
-          </Button>
         </div>
       ) : null}
 

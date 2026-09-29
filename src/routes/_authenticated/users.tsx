@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/users")({
 const ALL_ROLES: AppRole[] = ["ceo", "sales", "production", "technician"];
 
 function UsersPage() {
-  const { isCeo } = useMe();
+  const { isAdmin: isCeo } = useMe();
   const queryClient = useQueryClient();
 
   const { data: profiles } = useQuery({
