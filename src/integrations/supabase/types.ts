@@ -360,6 +360,27 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          created_at: string
+          id: boolean
+          min_remnant_m: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          min_remnant_m?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          min_remnant_m?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sku_costs: {
         Row: {
           sku_id: string
@@ -559,7 +580,6 @@ export type Database = {
     }
     Functions: {
       can_see_money: { Args: { _user_id: string }; Returns: boolean }
-      claim_ceo: { Args: never; Returns: boolean }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
