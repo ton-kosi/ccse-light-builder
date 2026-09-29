@@ -63,7 +63,7 @@
 
 :root {
   --radius: 0.5rem;
-  --font-sans: "IBM Plex Sans Thai", "IBM Plex Sans", system-ui, sans-serif;
+  --font-sans: "Noto Sans Thai", system-ui, sans-serif;
   --background: oklch(0.985 0.004 95);
   --foreground: oklch(0.24 0.03 250);
   --card: oklch(1 0 0);

@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/projects/$projectId")({
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditSales, canEditProduction, isCeo } = useMe();
+  const { canSeeMoney, canEditSales, canEditProduction, isAdmin: isCeo } = useMe();
   const queryClient = useQueryClient();
 
   const { data: project, isLoading } = useQuery({

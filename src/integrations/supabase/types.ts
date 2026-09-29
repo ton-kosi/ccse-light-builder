@@ -360,6 +360,27 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          created_at: string
+          id: boolean
+          min_remnant_m: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          min_remnant_m?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          min_remnant_m?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sku_costs: {
         Row: {
           sku_id: string
@@ -559,7 +580,6 @@ export type Database = {
     }
     Functions: {
       can_see_money: { Args: { _user_id: string }; Returns: boolean }
-      claim_ceo: { Args: never; Returns: boolean }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
@@ -576,7 +596,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "ceo" | "sales" | "production" | "technician"
+      app_role:
+        | "admin"
+        | "sales"
+        | "production"
+        | "technician"
+        | "estimator"
+        | "stock"
+        | "accounting"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -704,7 +731,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["ceo", "sales", "production", "technician"],
+      app_role: [
+        "admin",
+        "sales",
+        "production",
+        "technician",
+        "estimator",
+        "stock",
+        "accounting",
+      ],
     },
   },
 } as const
