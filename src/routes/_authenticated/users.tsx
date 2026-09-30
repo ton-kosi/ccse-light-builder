@@ -78,7 +78,7 @@ function UsersPage() {
     return (
       <div>
         <PageHeader title="ผู้ใช้และสิทธิ์" />
-        <p className="text-sm text-muted-foreground">หน้านี้เฉพาะผู้บริหาร (CEO) เท่านั้น</p>
+        <p className="text-sm text-muted-foreground">หน้านี้เฉพาะผู้ดูแลระบบ (admin) เท่านั้น</p>
       </div>
     );
   }

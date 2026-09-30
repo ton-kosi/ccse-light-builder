@@ -1,3 +1,4 @@
+import { ROLE_LABELS } from "@/lib/erp";
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -135,7 +136,7 @@ function Dashboard() {
       </div>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        สิทธิ์ของคุณ: {roles.length ? roles.join(", ") : "ยังไม่กำหนด"} — ฝ่ายผลิตและช่างจะไม่เห็น
+        สิทธิ์ของคุณ: {roles.length ? roles.map((r) => ROLE_LABELS[r]).join(", ") : "ยังไม่กำหนด"} — ฝ่ายผลิตและช่างจะไม่เห็น
         ใบเสนอราคา ราคา และต้นทุนทั้งระบบ
       </p>
     </div>
