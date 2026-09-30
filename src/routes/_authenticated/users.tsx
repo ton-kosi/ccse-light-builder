@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/users")({
   component: UsersPage,
 });
 
-const ALL_ROLES: AppRole[] = ["ceo", "sales", "production", "technician"];
+const ALL_ROLES: AppRole[] = ["admin", "sales", "estimator", "stock", "production", "accounting", "technician"];
 
 function UsersPage() {
   const { isAdmin: isCeo } = useMe();
