@@ -39,10 +39,11 @@ export function useMe() {
     ...query,
     me: query.data,
     roles,
-    isCeo: has("ceo"),
-    canSeeMoney: has("ceo", "sales"),
-    canEditSales: has("ceo", "sales"),
-    canEditProduction: has("ceo", "sales", "production"),
+    has,
+    isAdmin: has("admin"),
+    canSeeMoney: has("admin"),
+    canEditSales: has("admin", "sales"),
+    canEditProduction: has("admin", "sales", "estimator", "stock", "production"),
     hasNoRole: query.isSuccess && roles.length === 0,
   };
 }

@@ -1,9 +1,19 @@
-export type AppRole = "ceo" | "sales" | "production" | "technician";
+export type AppRole =
+  | "admin"
+  | "sales"
+  | "estimator"
+  | "stock"
+  | "production"
+  | "accounting"
+  | "technician";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  ceo: "ผู้บริหาร (CEO)",
+  admin: "ผู้ดูแลระบบ",
   sales: "ฝ่ายขาย",
+  estimator: "ฝ่ายถอดแบบ/ประเมินราคา",
+  stock: "ฝ่ายคลังสินค้า",
   production: "ฝ่ายผลิต",
+  accounting: "ฝ่ายบัญชี",
   technician: "ช่างติดตั้ง",
 };
 

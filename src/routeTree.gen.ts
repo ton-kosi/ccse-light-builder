@@ -15,6 +15,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedComponentsRouteImport } from './routes/_authenticated/components'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedPurchaseRequestsRouteImport } from './routes/_authenticated/purchase-requests'
+import { Route as AuthenticatedRemnantsRouteImport } from './routes/_authenticated/remnants'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
@@ -49,6 +52,22 @@ const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPurchaseRequestsRoute =
+  AuthenticatedPurchaseRequestsRouteImport.update({
+    id: '/purchase-requests',
+    path: '/purchase-requests',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRemnantsRoute = AuthenticatedRemnantsRouteImport.update({
+  id: '/remnants',
+  path: '/remnants',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSkusRoute = AuthenticatedSkusRouteImport.update({
@@ -92,6 +111,9 @@ export interface FileRoutesByFullPath {
   '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/remnants': typeof AuthenticatedRemnantsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -105,6 +127,9 @@ export interface FileRoutesByTo {
   '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/remnants': typeof AuthenticatedRemnantsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -120,6 +145,9 @@ export interface FileRoutesById {
   '/_authenticated/components': typeof AuthenticatedComponentsRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/_authenticated/remnants': typeof AuthenticatedRemnantsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
@@ -135,6 +163,9 @@ export interface FileRouteTypes {
     | '/components'
     | '/customers'
     | '/dashboard'
+    | '/purchase-requests'
+    | '/remnants'
+    | '/settings'
     | '/skus'
     | '/users'
     | '/projects/$projectId'
@@ -148,6 +179,9 @@ export interface FileRouteTypes {
     | '/components'
     | '/customers'
     | '/dashboard'
+    | '/purchase-requests'
+    | '/remnants'
+    | '/settings'
     | '/skus'
     | '/users'
     | '/projects/$projectId'
@@ -162,6 +196,9 @@ export interface FileRouteTypes {
     | '/_authenticated/components'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
+    | '/_authenticated/purchase-requests'
+    | '/_authenticated/remnants'
+    | '/_authenticated/settings'
     | '/_authenticated/skus'
     | '/_authenticated/users'
     | '/_authenticated/projects/$projectId'
@@ -220,6 +257,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/purchase-requests': {
+      id: '/_authenticated/purchase-requests'
+      path: '/purchase-requests'
+      fullPath: '/purchase-requests'
+      preLoaderRoute: typeof AuthenticatedPurchaseRequestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/remnants': {
+      id: '/_authenticated/remnants'
+      path: '/remnants'
+      fullPath: '/remnants'
+      preLoaderRoute: typeof AuthenticatedRemnantsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/skus': {
       id: '/_authenticated/skus'
       path: '/skus'
@@ -269,6 +327,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedComponentsRoute: typeof AuthenticatedComponentsRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPurchaseRequestsRoute: typeof AuthenticatedPurchaseRequestsRoute
+  AuthenticatedRemnantsRoute: typeof AuthenticatedRemnantsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
@@ -281,6 +342,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedComponentsRoute: AuthenticatedComponentsRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPurchaseRequestsRoute: AuthenticatedPurchaseRequestsRoute,
+  AuthenticatedRemnantsRoute: AuthenticatedRemnantsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,

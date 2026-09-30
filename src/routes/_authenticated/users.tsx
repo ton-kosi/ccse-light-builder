@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/users")({
   component: UsersPage,
 });
 
-const ALL_ROLES: AppRole[] = ["ceo", "sales", "production", "technician"];
+const ALL_ROLES: AppRole[] = ["admin", "sales", "estimator", "stock", "production", "accounting", "technician"];
 
 function UsersPage() {
   const { isAdmin: isCeo } = useMe();
@@ -78,7 +78,7 @@ function UsersPage() {
     return (
       <div>
         <PageHeader title="ผู้ใช้และสิทธิ์" />
-        <p className="text-sm text-muted-foreground">หน้านี้เฉพาะผู้บริหาร (CEO) เท่านั้น</p>
+        <p className="text-sm text-muted-foreground">หน้านี้เฉพาะผู้ดูแลระบบ (admin) เท่านั้น</p>
       </div>
     );
   }
