@@ -3,37 +3,53 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CsvImport, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
-import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/skus")({
   head: () => ({
     meta: [
-      { title: "คลังสินค้า SKU | CCSE ERP" },
-      { name: "description", content: "รายการสินค้าจริงที่เบิกจากคลัง พร้อมยอดคงเหลือ" },
-      { property: "og:title", content: "คลังสินค้า SKU | CCSE ERP" },
-      { property: "og:description", content: "รายการสินค้าจริงที่เบิกจากคลังของ CCSE" },
+      { title: "สต็อกสินค้า SKU | CCSE ERP" },
+      { name: "description", content: "ทะเบียนสินค้าจริงในคลัง ยอดคงเหลือคำนวณจากการรับ/เบิก/ปรับยอด" },
+      { property: "og:title", content: "สต็อกสินค้า SKU | CCSE ERP" },
+      { property: "og:description", content: "ทะเบียนสินค้าและความเคลื่อนไหวสต็อกของ CCSE" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SkusPage,
 });
 
+type Sku = Tables<"skus">;
+const MOVE_TYPES = [
+  { value: "receive", label: "รับของ (+)" },
+  { value: "issue", label: "เบิกออก (−)" },
+  { value: "adjust", label: "ปรับยอด (±)" },
+] as const;
+const moveLabel = (t: string) => MOVE_TYPES.find((m) => m.value === t)?.label ?? t;
+
+const EMPTY = {
+  code: "", name: "", unit: "ชิ้น", source: "domestic", lead_time_days: "0", min_stock: "0",
+  is_roll: false, roll_length_m: "", roll_family: "", cut_step_cm: "", max_piece_m: "", notes: "",
+  unit_cost: "",
+};
+type Form = typeof EMPTY;
+
 function SkusPage() {
-  const { canEditProduction, canSeeMoney } = useMe();
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    code: "",
-    name: "",
-    unit: "ชิ้น",
-    category: "",
-    stock_qty: "0",
-    unit_cost: "",
-  });
+  const { canEditMaster, canSeeMoney } = useMe();
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
+  const [moving, setMoving] = useState<Sku | null>(null);
+  const [history, setHistory] = useState<Sku | null>(null);
 
   const { data: skus, isLoading } = useQuery({
     queryKey: ["skus"],
@@ -43,128 +59,110 @@ function SkusPage() {
       return data;
     },
   });
-
+  const { data: onHand } = useQuery({
+    queryKey: ["sku_on_hand"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sku_on_hand").select("*");
+      if (error) throw error;
+      return new Map(data.map((r) => [r.sku_id, Number(r.on_hand ?? 0)]));
+    },
+  });
   const { data: costs } = useQuery({
     queryKey: ["sku_costs"],
     enabled: canSeeMoney,
     queryFn: async () => {
       const { data, error } = await supabase.from("sku_costs").select("*");
       if (error) throw error;
-      return data;
+      return new Map(data.map((c) => [c.sku_id, Number(c.unit_cost)]));
     },
   });
 
-  const costBySku = new Map((costs ?? []).map((c) => [c.sku_id, c]));
-
-  const create = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase
-        .from("skus")
-        .insert({
-          code: form.code,
-          name: form.name,
-          unit: form.unit || "ชิ้น",
-          category: form.category || null,
-          stock_qty: toNumber(form.stock_qty) ?? 0,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+  const save = useMutation({
+    mutationFn: async ({ id, form }: { id: string | null; form: Form }) => {
+      const row = formToRow(form);
+      let skuId = id;
+      if (id) {
+        const { error } = await supabase.from("skus").update(row).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("skus").insert(row).select("id").single();
+        if (error) throw error;
+        skuId = data.id;
+      }
       const cost = toNumber(form.unit_cost);
-      if (canSeeMoney && cost !== null) {
-        const { error: cErr } = await supabase
-          .from("sku_costs")
-          .upsert({ sku_id: data.id, unit_cost: cost });
-        if (cErr) throw cErr;
+      if (canSeeMoney && cost !== null && skuId) {
+        const { error } = await supabase.from("sku_costs").upsert({ sku_id: skuId, unit_cost: cost });
+        if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success("บันทึกสินค้าแล้ว");
-      setForm({ code: "", name: "", unit: "ชิ้น", category: "", stock_qty: "0", unit_cost: "" });
-      queryClient.invalidateQueries({ queryKey: ["skus"] });
-      queryClient.invalidateQueries({ queryKey: ["sku_costs"] });
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["skus"] });
+      qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
+      qc.invalidateQueries({ queryKey: ["sku_costs"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendly(e.message)),
   });
 
-  const updateStock = useMutation({
-    mutationFn: async ({ id, qty }: { id: string; qty: number }) => {
-      const { error } = await supabase.from("skus").update({ stock_qty: qty }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("ปรับยอดคงเหลือแล้ว");
-      queryClient.invalidateQueries({ queryKey: ["skus"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  async function importRows(rows: Record<string, string>[]) {
+    const payload: TablesInsert<"skus">[] = rows.map((r, i) => {
+      if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
+      const isRoll = boolCsv(r.is_roll);
+      return {
+        code: r.code,
+        name: r.name,
+        unit: r.unit || "ชิ้น",
+        source: r.source === "import" ? "import" : "domestic",
+        lead_time_days: numCsv(r.lead_time_days) ?? 0,
+        min_stock: numCsv(r.min_stock) ?? 0,
+        is_roll: isRoll,
+        roll_length_m: isRoll ? numCsv(r.roll_length_m) : null,
+        roll_family: r.roll_family || null,
+        cut_step_cm: numCsv(r.cut_step_cm),
+        max_piece_m: numCsv(r.max_piece_m),
+      };
+    });
+    const { error } = await supabase.from("skus").upsert(payload, { onConflict: "code" });
+    if (error) throw new Error(friendly(error.message));
+    qc.invalidateQueries({ queryKey: ["skus"] });
+    qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
+    return payload.length;
+  }
+
+  const s = search.trim().toLowerCase();
+  const list = (skus ?? []).filter(
+    (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
+  );
+  const cols = 9 + (canSeeMoney ? 1 : 0) + (canEditMaster ? 1 : 0);
 
   return (
     <div>
       <PageHeader
-        title="คลังสินค้า (SKU)"
-        description="สินค้าจริงที่เบิกออกจากคลัง เช่น LED strip 14.4W/m — ต่างจากชื่อที่ใช้ขาย"
+        title="สต็อก (SKU)"
+        description="สินค้าจริงที่เบิกจากคลัง — ยอดคงเหลือคำนวณจากรายการรับ/เบิก/ปรับยอดเท่านั้น"
         actions={
-          canEditProduction ? (
-            <Button size="sm" onClick={() => setOpen((v) => !v)}>
-              {open ? "ปิดฟอร์ม" : "เพิ่มสินค้า"}
-            </Button>
+          canEditMaster ? (
+            <>
+              <CsvImport
+                label="นำเข้า CSV"
+                columns="code,name,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m"
+                onRows={importRows}
+              />
+              <Button size="sm" onClick={() => setEditing({ id: null, form: { ...EMPTY } })}>
+                เพิ่มสินค้า
+              </Button>
+            </>
           ) : null
         }
       />
 
-      {open && canEditProduction ? (
-        <form
-          className="mb-6 grid gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-        >
-          <Field label="รหัส SKU *">
-            <Input
-              required
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
-          </Field>
-          <Field label="ชื่อสินค้า *">
-            <Input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <Field label="หน่วย">
-            <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-          </Field>
-          <Field label="หมวด">
-            <Input
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            />
-          </Field>
-          <Field label="ยอดคงเหลือ">
-            <Input
-              value={form.stock_qty}
-              onChange={(e) => setForm({ ...form, stock_qty: e.target.value })}
-            />
-          </Field>
-          {canSeeMoney ? (
-            <Field label="ต้นทุนต่อหน่วย (บาท)">
-              <Input
-                value={form.unit_cost}
-                onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
-              />
-            </Field>
-          ) : null}
-          <div className="md:col-span-3">
-            <Button type="submit" size="sm" disabled={create.isPending}>
-              บันทึก
-            </Button>
-          </div>
-        </form>
-      ) : null}
+      <Input
+        className="mb-4 max-w-sm"
+        placeholder="ค้นหารหัส ชื่อ หรือตระกูลม้วน..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
@@ -172,73 +170,314 @@ function SkusPage() {
             <tr>
               <Th>รหัส</Th>
               <Th>ชื่อสินค้า</Th>
-              <Th>หมวด</Th>
               <Th>หน่วย</Th>
+              <Th>แหล่ง</Th>
+              <Th>Lead time (วัน)</Th>
+              <Th>ม้วน</Th>
+              <Th>ตระกูลม้วน</Th>
+              <Th>ขั้นต่ำ</Th>
               <Th>คงเหลือ</Th>
               {canSeeMoney ? <Th>ต้นทุน/หน่วย</Th> : null}
-              {canEditProduction ? <Th>ปรับยอด</Th> : null}
+              {canEditMaster ? <Th>{""}</Th> : null}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr>
-                <Td colSpan={7}>กำลังโหลด...</Td>
-              </tr>
-            ) : skus?.length ? (
-              skus.map((s) => (
-                <tr key={s.id} className="border-t border-border">
-                  <Td className="font-mono text-xs">{s.code}</Td>
-                  <Td className="font-medium">{s.name}</Td>
-                  <Td>{s.category ?? "-"}</Td>
-                  <Td>{s.unit}</Td>
-                  <Td>{formatQty(Number(s.stock_qty))}</Td>
-                  {canSeeMoney ? (
-                    <Td>{formatTHB(Number(costBySku.get(s.id)?.unit_cost ?? 0))}</Td>
-                  ) : null}
-                  {canEditProduction ? (
+              <tr><Td colSpan={cols}>กำลังโหลด...</Td></tr>
+            ) : list.length ? (
+              list.map((k) => {
+                const qty = onHand?.get(k.id) ?? 0;
+                const low = qty < Number(k.min_stock);
+                return (
+                  <tr key={k.id} className="border-t border-border">
+                    <Td className="font-mono text-xs">{k.code}</Td>
+                    <Td className="font-medium">{k.name}</Td>
+                    <Td>{k.unit}</Td>
+                    <Td>{k.source === "import" ? "นำเข้า" : "ในประเทศ"}</Td>
+                    <Td>{k.lead_time_days}</Td>
+                    <Td>{k.is_roll ? `${formatQty(Number(k.roll_length_m))} ม.` : "-"}</Td>
+                    <Td className="font-mono text-xs">{k.roll_family ?? "-"}</Td>
+                    <Td>{formatQty(Number(k.min_stock))}</Td>
                     <Td>
-                      <StockAdjust
-                        current={Number(s.stock_qty)}
-                        onSave={(qty) => updateStock.mutate({ id: s.id, qty })}
-                      />
+                      <button
+                        className={"underline-offset-2 hover:underline " + (low ? "font-semibold text-destructive" : "")}
+                        onClick={() => setHistory(k)}
+                        title="ดูประวัติความเคลื่อนไหว"
+                      >
+                        {formatQty(qty)}
+                      </button>
                     </Td>
-                  ) : null}
-                </tr>
-              ))
+                    {canSeeMoney ? <Td>{formatTHB(costs?.get(k.id) ?? 0)}</Td> : null}
+                    {canEditMaster ? (
+                      <Td className="whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setMoving(k)}>
+                            ปรับยอด/รับของ
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditing({ id: k.id, form: rowToForm(k, costs?.get(k.id)) })}
+                          >
+                            แก้ไข
+                          </Button>
+                        </div>
+                      </Td>
+                    ) : null}
+                  </tr>
+                );
+              })
             ) : (
-              <tr>
-                <Td colSpan={7}>ยังไม่มีสินค้าในคลัง</Td>
-              </tr>
+              <tr><Td colSpan={cols}>{s ? "ไม่พบสินค้าที่ค้นหา" : "ยังไม่มีสินค้าในคลัง"}</Td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? "แก้ไขสินค้า" : "เพิ่มสินค้า"}</DialogTitle>
+          </DialogHeader>
+          {editing ? (
+            <SkuForm
+              initial={editing.form}
+              canSeeMoney={canSeeMoney}
+              pending={save.isPending}
+              onSubmit={(form) => save.mutate({ id: editing.id, form })}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!moving} onOpenChange={(o) => !o && setMoving(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ปรับยอด/รับของ — {moving?.code}</DialogTitle>
+          </DialogHeader>
+          {moving ? (
+            <MovementForm
+              sku={moving}
+              onHand={onHand?.get(moving.id) ?? 0}
+              onDone={() => {
+                setMoving(null);
+                qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
+                qc.invalidateQueries({ queryKey: ["stock_movements"] });
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!history} onOpenChange={(o) => !o && setHistory(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>ความเคลื่อนไหว — {history?.code} {history?.name}</DialogTitle>
+          </DialogHeader>
+          {history ? <MovementHistory skuId={history.id} unit={history.unit} /> : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function StockAdjust({
-  current,
-  onSave,
-}: {
-  current: number;
-  onSave: (qty: number) => void;
-}) {
-  const [value, setValue] = useState(String(current));
+function friendly(msg: string) {
+  if (msg.includes("skus_code_key")) return "รหัส SKU นี้มีอยู่แล้ว";
+  if (msg.includes("skus_roll_len_chk")) return "สินค้าม้วนต้องมีความยาวม้วน 5 หรือ 10 ม. (สินค้าไม่ใช่ม้วนต้องเว้นว่าง)";
+  return msg;
+}
+
+function rowToForm(k: Sku, cost?: number): Form {
+  const s = (v: number | null) => (v === null ? "" : String(v));
+  return {
+    code: k.code, name: k.name, unit: k.unit, source: k.source,
+    lead_time_days: String(k.lead_time_days), min_stock: String(k.min_stock),
+    is_roll: k.is_roll, roll_length_m: s(k.roll_length_m), roll_family: k.roll_family ?? "",
+    cut_step_cm: s(k.cut_step_cm), max_piece_m: s(k.max_piece_m), notes: k.notes ?? "",
+    unit_cost: cost === undefined ? "" : String(cost),
+  };
+}
+
+function formToRow(f: Form): TablesInsert<"skus"> {
+  return {
+    code: f.code.trim(),
+    name: f.name.trim(),
+    unit: f.unit.trim() || "ชิ้น",
+    source: f.source,
+    lead_time_days: toNumber(f.lead_time_days) ?? 0,
+    min_stock: toNumber(f.min_stock) ?? 0,
+    is_roll: f.is_roll,
+    roll_length_m: f.is_roll ? toNumber(f.roll_length_m) : null,
+    roll_family: f.roll_family.trim() || null,
+    cut_step_cm: toNumber(f.cut_step_cm),
+    max_piece_m: toNumber(f.max_piece_m),
+    notes: f.notes.trim() || null,
+  };
+}
+
+const selectCls = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
+
+function SkuForm({
+  initial, canSeeMoney, pending, onSubmit,
+}: { initial: Form; canSeeMoney: boolean; pending: boolean; onSubmit: (f: Form) => void }) {
+  const [f, setF] = useState(initial);
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setF({ ...f, [k]: e.target.value });
   return (
-    <div className="flex items-center gap-2">
-      <Input className="h-8 w-24" value={value} onChange={(e) => setValue(e.target.value)} />
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          const n = toNumber(value);
-          if (n === null) { toast.error("กรุณากรอกตัวเลข"); return; }
-          onSave(n);
-        }}
-      >
-        บันทึก
-      </Button>
+    <form
+      className="grid gap-4 sm:grid-cols-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (f.is_roll && !["5", "10"].includes(f.roll_length_m)) {
+          toast.error("สินค้าม้วนต้องเลือกความยาวม้วน 5 หรือ 10 ม.");
+          return;
+        }
+        onSubmit(f);
+      }}
+    >
+      <Field label="รหัส SKU *"><Input required value={f.code} onChange={set("code")} /></Field>
+      <Field label="ชื่อสินค้า *"><Input required value={f.name} onChange={set("name")} /></Field>
+      <Field label="หน่วย"><Input value={f.unit} onChange={set("unit")} /></Field>
+      <Field label="แหล่งที่มา">
+        <select className={selectCls} value={f.source} onChange={set("source")}>
+          <option value="domestic">ในประเทศ</option>
+          <option value="import">นำเข้า</option>
+        </select>
+      </Field>
+      <Field label="Lead time (วัน)"><Input value={f.lead_time_days} onChange={set("lead_time_days")} /></Field>
+      <Field label="สต็อกขั้นต่ำ"><Input value={f.min_stock} onChange={set("min_stock")} /></Field>
+      <div className="flex items-center gap-2 sm:col-span-2">
+        <Checkbox
+          id="is_roll"
+          checked={f.is_roll}
+          onCheckedChange={(v) => setF({ ...f, is_roll: v === true, roll_length_m: v === true ? f.roll_length_m || "5" : "" })}
+        />
+        <label htmlFor="is_roll" className="text-sm">เป็นสินค้าม้วน</label>
+      </div>
+      {f.is_roll ? (
+        <Field label="ความยาวม้วน (ม.)">
+          <select className={selectCls} value={f.roll_length_m} onChange={set("roll_length_m")}>
+            <option value="5">5 ม.</option>
+            <option value="10">10 ม.</option>
+          </select>
+        </Field>
+      ) : null}
+      <Field label="ตระกูลม้วน (เช่น JEDIFLEX-R18-2700K)">
+        <Input value={f.roll_family} onChange={set("roll_family")} />
+      </Field>
+      <Field label="ระยะตัด (ซม.)"><Input value={f.cut_step_cm} onChange={set("cut_step_cm")} /></Field>
+      <Field label="ความยาวชิ้นสูงสุด (ม.)"><Input value={f.max_piece_m} onChange={set("max_piece_m")} /></Field>
+      {canSeeMoney ? (
+        <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
+      ) : null}
+      <Field label="หมายเหตุ" className="sm:col-span-2"><Input value={f.notes} onChange={set("notes")} /></Field>
+      <div className="sm:col-span-2">
+        <Button type="submit" size="sm" disabled={pending}>บันทึก</Button>
+      </div>
+    </form>
+  );
+}
+
+function MovementForm({ sku, onHand, onDone }: { sku: Sku; onHand: number; onDone: () => void }) {
+  const [type, setType] = useState<"receive" | "issue" | "adjust">("receive");
+  const [qty, setQty] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [note, setNote] = useState("");
+
+  const { data: projects } = useQuery({
+    queryKey: ["projects", "options"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("projects").select("id, code, name").order("code", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const n = toNumber(qty);
+      if (n === null || n === 0) throw new Error("กรุณากรอกจำนวนที่ไม่ใช่ 0");
+      const signed = type === "receive" ? Math.abs(n) : type === "issue" ? -Math.abs(n) : n;
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("stock_movements").insert({
+        sku_id: sku.id,
+        qty: signed,
+        type,
+        project_id: projectId || null,
+        note: note.trim() || null,
+        created_by: u.user?.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("บันทึกความเคลื่อนไหวแล้ว"); onDone(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); add.mutate(); }}>
+      <div className="text-sm text-muted-foreground">
+        คงเหลือปัจจุบัน: <span className="font-semibold text-foreground">{formatQty(onHand)} {sku.unit}</span>
+      </div>
+      <Field label="ประเภท">
+        <select className={selectCls} value={type} onChange={(e) => setType(e.target.value as typeof type)}>
+          {MOVE_TYPES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+      </Field>
+      <Field label={type === "adjust" ? "จำนวน (ใส่ − เพื่อลดยอด)" : `จำนวน (${sku.unit})`}>
+        <Input required value={qty} onChange={(e) => setQty(e.target.value)} />
+      </Field>
+      <Field label="โปรเจกต์ (ถ้ามี)">
+        <select className={selectCls} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+          <option value="">— ไม่ระบุ —</option>
+          {(projects ?? []).map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+        </select>
+      </Field>
+      <Field label="หมายเหตุ"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <div><Button type="submit" size="sm" disabled={add.isPending}>บันทึก</Button></div>
+    </form>
+  );
+}
+
+function MovementHistory({ skuId, unit }: { skuId: string; unit: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["stock_movements", skuId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select("id, qty, type, note, created_at, projects(code)")
+        .eq("sku_id", skuId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data;
+    },
+  });
+  return (
+    <div className="max-h-[60vh] overflow-y-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-secondary text-left text-xs text-muted-foreground">
+          <tr><Th>วันที่</Th><Th>ประเภท</Th><Th>จำนวน</Th><Th>โปรเจกต์</Th><Th>หมายเหตุ</Th></tr>
+        </thead>
+        <tbody>
+          {isLoading ? (
+            <tr><Td colSpan={5}>กำลังโหลด...</Td></tr>
+          ) : data?.length ? (
+            data.map((m) => (
+              <tr key={m.id} className="border-t border-border">
+                <Td>{formatDate(m.created_at)}</Td>
+                <Td>{moveLabel(m.type)}</Td>
+                <Td className={Number(m.qty) < 0 ? "text-destructive" : ""}>
+                  {Number(m.qty) > 0 ? "+" : ""}{formatQty(Number(m.qty))} {unit}
+                </Td>
+                <Td>{(m.projects as { code: string } | null)?.code ?? "-"}</Td>
+                <Td>{m.note ?? "-"}</Td>
+              </tr>
+            ))
+          ) : (
+            <tr><Td colSpan={5}>ยังไม่มีความเคลื่อนไหว</Td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
