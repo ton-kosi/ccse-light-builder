@@ -44,6 +44,8 @@ export function useMe() {
     canSeeMoney: has("admin"),
     canEditSales: has("admin", "sales"),
     canEditProduction: has("admin", "sales", "estimator", "stock", "production"),
+    canEditMaster: has("admin", "estimator", "stock"),
+    canViewMaster: roles.some((r) => r !== "technician"),
     hasNoRole: query.isSuccess && roles.length === 0,
   };
 }
