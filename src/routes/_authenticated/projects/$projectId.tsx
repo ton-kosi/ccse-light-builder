@@ -553,12 +553,12 @@ function LineRecipeEditor({
   });
 
   const { data: stdItems } = useQuery({
-    queryKey: ["recipe_items", componentId],
+    queryKey: ["recipes", componentId],
     enabled: !!componentId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recipes")
-        .select("id, qty_per_unit, note, skus(code, name, unit)")
+        .select("id, qty_per_unit, skus(code, name, unit)")
         .eq("component_id", componentId!);
       if (error) throw error;
       return data;
@@ -632,7 +632,7 @@ function LineRecipeEditor({
               <li key={it.id} className="flex items-center gap-3">
                 <span>
                   • {sku?.name} ({sku?.code}) — {formatQty(Number(it.qty_per_unit))} {sku?.unit}
-                  {it.note ? ` · ${it.note}` : ""}
+                  {"note" in it && it.note ? ` · ${it.note}` : ""}
                 </span>
                 {canEdit ? (
                   <Button size="sm" variant="outline" onClick={() => remove.mutate(it.id)}>
