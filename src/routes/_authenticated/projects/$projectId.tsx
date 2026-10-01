@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
-import { AddRecipeItem } from "@/routes/_authenticated/components";
+import { AddRecipeItem } from "@/components/AddRecipeItem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -199,7 +199,7 @@ function QuotationSection({ projectId, canEdit }: { projectId: string; canEdit: 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotation_lines")
-        .select("*, sales_components(sales_name, unit)")
+        .select("*, sales_components(name, unit)")
         .eq("quotation_id", quotation!.id)
         .order("line_no");
       if (error) throw error;
@@ -212,7 +212,7 @@ function QuotationSection({ projectId, canEdit }: { projectId: string; canEdit: 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales_components")
-        .select("id, code, sales_name, unit")
+        .select("id, code, sales_name:name, unit")
         .order("code");
       if (error) throw error;
       return data;
@@ -553,13 +553,13 @@ function LineRecipeEditor({
   });
 
   const { data: stdItems } = useQuery({
-    queryKey: ["recipe_items", componentId],
+    queryKey: ["recipes", componentId],
     enabled: !!componentId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("recipe_items")
-        .select("id, qty_per_unit, note, skus(code, name, unit)")
-        .eq("sales_component_id", componentId!);
+        .from("recipes")
+        .select("id, qty_per_unit, skus(code, name, unit)")
+        .eq("component_id", componentId!);
       if (error) throw error;
       return data;
     },
@@ -632,7 +632,7 @@ function LineRecipeEditor({
               <li key={it.id} className="flex items-center gap-3">
                 <span>
                   • {sku?.name} ({sku?.code}) — {formatQty(Number(it.qty_per_unit))} {sku?.unit}
-                  {it.note ? ` · ${it.note}` : ""}
+                  {"note" in it && it.note ? ` · ${it.note}` : ""}
                 </span>
                 {canEdit ? (
                   <Button size="sm" variant="outline" onClick={() => remove.mutate(it.id)}>

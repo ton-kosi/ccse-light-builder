@@ -93,6 +93,13 @@ export type Database = {
             foreignKeyName: "line_recipes_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "line_recipes_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "skus"
             referencedColumns: ["id"]
           },
@@ -285,41 +292,48 @@ export type Database = {
           },
         ]
       }
-      recipe_items: {
+      recipes: {
         Row: {
+          component_id: string
           created_at: string
           id: string
-          note: string | null
           qty_per_unit: number
-          sales_component_id: string
           sku_id: string
+          updated_at: string
         }
         Insert: {
+          component_id: string
           created_at?: string
           id?: string
-          note?: string | null
           qty_per_unit?: number
-          sales_component_id: string
           sku_id: string
+          updated_at?: string
         }
         Update: {
+          component_id?: string
           created_at?: string
           id?: string
-          note?: string | null
           qty_per_unit?: number
-          sales_component_id?: string
           sku_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "recipe_items_sales_component_id_fkey"
-            columns: ["sales_component_id"]
+            foreignKeyName: "recipes_component_id_fkey"
+            columns: ["component_id"]
             isOneToOne: false
             referencedRelation: "sales_components"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "recipe_items_sku_id_fkey"
+            foreignKeyName: "recipes_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "recipes_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
             referencedRelation: "skus"
@@ -329,32 +343,38 @@ export type Database = {
       }
       sales_components: {
         Row: {
-          category: string | null
           code: string
           created_at: string
           id: string
+          install_category: string | null
+          is_roll_product: boolean
+          name: string
           notes: string | null
-          sales_name: string
+          roll_family: string | null
           unit: string
           updated_at: string
         }
         Insert: {
-          category?: string | null
           code: string
           created_at?: string
           id?: string
+          install_category?: string | null
+          is_roll_product?: boolean
+          name: string
           notes?: string | null
-          sales_name: string
+          roll_family?: string | null
           unit?: string
           updated_at?: string
         }
         Update: {
-          category?: string | null
           code?: string
           created_at?: string
           id?: string
+          install_category?: string | null
+          is_roll_product?: boolean
+          name?: string
           notes?: string | null
-          sales_name?: string
+          roll_family?: string | null
           unit?: string
           updated_at?: string
         }
@@ -405,6 +425,13 @@ export type Database = {
             foreignKeyName: "sku_costs_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: true
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_costs_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: true
             referencedRelation: "skus"
             referencedColumns: ["id"]
           },
@@ -412,39 +439,112 @@ export type Database = {
       }
       skus: {
         Row: {
-          category: string | null
           code: string
           created_at: string
+          cut_step_cm: number | null
           id: string
+          is_roll: boolean
+          lead_time_days: number
+          max_piece_m: number | null
+          min_stock: number
           name: string
           notes: string | null
-          stock_qty: number
+          roll_family: string | null
+          roll_length_m: number | null
+          source: string
           unit: string
           updated_at: string
         }
         Insert: {
-          category?: string | null
           code: string
           created_at?: string
+          cut_step_cm?: number | null
           id?: string
+          is_roll?: boolean
+          lead_time_days?: number
+          max_piece_m?: number | null
+          min_stock?: number
           name: string
           notes?: string | null
-          stock_qty?: number
+          roll_family?: string | null
+          roll_length_m?: number | null
+          source?: string
           unit?: string
           updated_at?: string
         }
         Update: {
-          category?: string | null
           code?: string
           created_at?: string
+          cut_step_cm?: number | null
           id?: string
+          is_roll?: boolean
+          lead_time_days?: number
+          max_piece_m?: number | null
+          min_stock?: number
           name?: string
           notes?: string | null
-          stock_qty?: number
+          roll_family?: string | null
+          roll_length_m?: number | null
+          source?: string
           unit?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          project_id: string | null
+          qty: number
+          sku_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          project_id?: string | null
+          qty: number
+          sku_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          project_id?: string | null
+          qty?: number
+          sku_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -502,6 +602,13 @@ export type Database = {
           work_order_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "work_order_items_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
           {
             foreignKeyName: "work_order_items_sku_id_fkey"
             columns: ["sku_id"]
@@ -576,10 +683,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      sku_on_hand: {
+        Row: {
+          on_hand: number | null
+          sku_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      can_edit_master: { Args: { _uid: string }; Returns: boolean }
       can_see_money: { Args: { _user_id: string }; Returns: boolean }
+      can_view_master: { Args: { _uid: string }; Returns: boolean }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]
