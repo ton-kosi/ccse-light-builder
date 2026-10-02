@@ -39,8 +39,8 @@ type NavItem = { to: string; label: string; icon: LucideIcon; roles: AppRole[] |
 export const NAV: NavItem[] = [
   { to: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard, roles: "all" },
   { to: "/projects", label: "โปรเจกต์", icon: FolderKanban, roles: "all" },
-  { to: "/skus", label: "สต็อก", icon: Boxes, roles: ["admin", "stock", "production", "estimator"] },
-  { to: "/components", label: "ชิ้นส่วนขายและสูตร", icon: Layers, roles: ["admin", "sales", "estimator", "production"] },
+  { to: "/skus", label: "สต็อก", icon: Boxes, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
+  { to: "/components", label: "ชิ้นส่วนขายและสูตร", icon: Layers, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "stock", "production", "accounting"] },
   { to: "/remnants", label: "เศษม้วน", icon: Scissors, roles: ["admin", "stock", "production"] },
   { to: "/customers", label: "ลูกค้า", icon: Building2, roles: ["admin", "sales", "accounting"] },
