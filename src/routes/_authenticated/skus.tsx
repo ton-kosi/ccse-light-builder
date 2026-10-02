@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CsvImport, boolCsv, numCsv } from "@/components/CsvImport";
+import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 
@@ -105,7 +105,7 @@ function SkusPage() {
     onError: (e: Error) => toast.error(friendly(e.message)),
   });
 
-  async function importRows(rows: Record<string, string>[]) {
+  async function importRows(rows: CsvRow[]) {
     const payload: TablesInsert<"skus">[] = rows.map((r, i) => {
       if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
       const isRoll = boolCsv(r.is_roll);

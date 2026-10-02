@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddRecipeItem } from "@/components/AddRecipeItem";
-import { CsvImport, boolCsv, numCsv } from "@/components/CsvImport";
+import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
 import { formatQty, toNumber } from "@/lib/format";
 
@@ -94,7 +94,7 @@ function ComponentsPage() {
     onError: (e: Error) => toast.error(friendly(e.message)),
   });
 
-  async function importComps(rows: Record<string, string>[]) {
+  async function importComps(rows: CsvRow[]) {
     const payload: TablesInsert<"sales_components">[] = rows.map((r, i) => {
       if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
       const cat = r.install_category || null;
@@ -110,7 +110,7 @@ function ComponentsPage() {
     return payload.length;
   }
 
-  async function importRecipes(rows: Record<string, string>[]) {
+  async function importRecipes(rows: CsvRow[]) {
     const [{ data: cs, error: e1 }, { data: ss, error: e2 }] = await Promise.all([
       supabase.from("sales_components").select("id, code"),
       supabase.from("skus").select("id, code"),
@@ -119,8 +119,8 @@ function ComponentsPage() {
     const cMap = new Map(cs!.map((c) => [c.code, c.id]));
     const sMap = new Map(ss!.map((s) => [s.code, s.id]));
     const payload = rows.map((r, i) => {
-      const component_id = cMap.get(r.component_code);
-      const sku_id = sMap.get(r.sku_code);
+      const component_id = cMap.get(r.component_code ?? "");
+      const sku_id = sMap.get(r.sku_code ?? "");
       if (!component_id) throw new Error(`แถว ${i + 2}: ไม่พบชิ้นส่วนรหัส "${r.component_code}"`);
       if (!sku_id) throw new Error(`แถว ${i + 2}: ไม่พบ SKU รหัส "${r.sku_code}"`);
       const qty = numCsv(r.qty_per_unit);
