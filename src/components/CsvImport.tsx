@@ -4,7 +4,10 @@ import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Minimal CSV parser (handles quotes, commas, newlines in quotes, BOM). */
-export function parseCsv(text: string): Record<string, string>[] {
+type CsvKey = "code" | "name" | "unit" | "source" | "lead_time_days" | "min_stock" | "is_roll" | "roll_length_m" | "roll_family" | "cut_step_cm" | "max_piece_m" | "install_category" | "is_roll_product" | "component_code" | "sku_code" | "qty_per_unit";
+export type CsvRow = Partial<Record<CsvKey, string>>;
+
+export function parseCsv(text: string): CsvRow[] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -26,9 +29,9 @@ export function parseCsv(text: string): Record<string, string>[] {
   if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
   const nonEmpty = rows.filter((r) => r.some((x) => x.trim() !== ""));
   if (!nonEmpty.length) return [];
-  const header = nonEmpty[0].map((h) => h.trim().toLowerCase());
+  const header = (nonEmpty[0] ?? []).map((h) => h.trim().toLowerCase());
   return nonEmpty.slice(1).map((r) =>
-    Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])),
+    Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])) as CsvRow,
   );
 }
 
@@ -39,7 +42,7 @@ export function CsvImport({
 }: {
   label: string;
   columns: string;
-  onRows: (rows: Record<string, string>[]) => Promise<number>;
+  onRows: (rows: CsvRow[]) => Promise<number>;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
