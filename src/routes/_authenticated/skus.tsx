@@ -405,7 +405,7 @@ function MovementForm({ sku, onHand, onDone }: { sku: Sku; onHand: number; onDon
         type,
         project_id: projectId || null,
         note: note.trim() || null,
-        created_by: u.user?.id,
+        created_by: u.user?.id ?? null,
       });
       if (error) throw error;
     },
