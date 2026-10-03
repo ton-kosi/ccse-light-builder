@@ -105,6 +105,47 @@ export type Database = {
           },
         ]
       }
+      payment_terms: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          percent: number
+          quotation_id: string
+          seq: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          percent?: number
+          quotation_id: string
+          seq?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          percent?: number
+          quotation_id?: string
+          seq?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_terms_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -126,51 +167,104 @@ export type Database = {
         }
         Relationships: []
       }
+      project_status_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_status: number | null
+          id: string
+          project_id: string
+          to_status: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: number | null
+          id?: string
+          project_id: string
+          to_status: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: number | null
+          id?: string
+          project_id?: string
+          to_status?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_status_log_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
-          ceo_approved: boolean
+          attn: string | null
           code: string
           created_at: string
           created_by: string | null
           customer_id: string | null
-          deposit_received: boolean
           id: string
+          install_days_actual: number | null
+          install_days_max: number | null
+          install_days_min: number | null
+          install_start_date: string | null
           name: string
           notes: string | null
+          overrun_rate_per_day: number | null
           po_date: string | null
           po_number: string | null
+          released_by: string | null
+          selected_option: string | null
           site_address: string | null
           status: number
           updated_at: string
         }
         Insert: {
-          ceo_approved?: boolean
+          attn?: string | null
           code: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
-          deposit_received?: boolean
           id?: string
+          install_days_actual?: number | null
+          install_days_max?: number | null
+          install_days_min?: number | null
+          install_start_date?: string | null
           name: string
           notes?: string | null
+          overrun_rate_per_day?: number | null
           po_date?: string | null
           po_number?: string | null
+          released_by?: string | null
+          selected_option?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
         }
         Update: {
-          ceo_approved?: boolean
+          attn?: string | null
           code?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
-          deposit_received?: boolean
           id?: string
+          install_days_actual?: number | null
+          install_days_max?: number | null
+          install_days_min?: number | null
+          install_start_date?: string | null
           name?: string
           notes?: string | null
+          overrun_rate_per_day?: number | null
           po_date?: string | null
           po_number?: string | null
+          released_by?: string | null
+          selected_option?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
@@ -192,6 +286,7 @@ export type Database = {
           id: string
           is_header: boolean
           line_no: number
+          option_name: string | null
           qty: number | null
           quotation_id: string
           sales_component_id: string | null
@@ -206,6 +301,7 @@ export type Database = {
           id?: string
           is_header?: boolean
           line_no?: number
+          option_name?: string | null
           qty?: number | null
           quotation_id: string
           sales_component_id?: string | null
@@ -220,6 +316,7 @@ export type Database = {
           id?: string
           is_header?: boolean
           line_no?: number
+          option_name?: string | null
           qty?: number | null
           quotation_id?: string
           sales_component_id?: string | null
@@ -248,38 +345,47 @@ export type Database = {
       quotations: {
         Row: {
           created_at: string
+          date: string
+          delivery_text: string | null
           discount: number
-          doc_date: string
-          doc_no: string
           id: string
+          is_current: boolean
           notes: string | null
           project_id: string
-          revision: number
+          ref_no: string
+          rev: string
           updated_at: string
+          validity_days: number | null
           vat_percent: number
         }
         Insert: {
           created_at?: string
+          date?: string
+          delivery_text?: string | null
           discount?: number
-          doc_date?: string
-          doc_no: string
           id?: string
+          is_current?: boolean
           notes?: string | null
           project_id: string
-          revision?: number
+          ref_no: string
+          rev?: string
           updated_at?: string
+          validity_days?: number | null
           vat_percent?: number
         }
         Update: {
           created_at?: string
+          date?: string
+          delivery_text?: string | null
           discount?: number
-          doc_date?: string
-          doc_no?: string
           id?: string
+          is_current?: boolean
           notes?: string | null
           project_id?: string
-          revision?: number
+          ref_no?: string
+          rev?: string
           updated_at?: string
+          validity_days?: number | null
           vat_percent?: number
         }
         Relationships: [
@@ -695,6 +801,10 @@ export type Database = {
       can_edit_master: { Args: { _uid: string }; Returns: boolean }
       can_see_money: { Args: { _user_id: string }; Returns: boolean }
       can_view_master: { Args: { _uid: string }; Returns: boolean }
+      create_quotation_revision: {
+        Args: { _project_id: string }
+        Returns: string
+      }
       has_any_role: {
         Args: {
           _roles: Database["public"]["Enums"]["app_role"][]

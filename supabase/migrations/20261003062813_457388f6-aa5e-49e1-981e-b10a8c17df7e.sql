@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.log_project_status() FROM authenticated;
