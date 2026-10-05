@@ -62,7 +62,7 @@ export type Database = {
           id: string
           note: string | null
           qty_per_unit: number
-          quotation_line_id: string
+          quote_line_id: string
           sku_id: string
         }
         Insert: {
@@ -70,7 +70,7 @@ export type Database = {
           id?: string
           note?: string | null
           qty_per_unit?: number
-          quotation_line_id: string
+          quote_line_id: string
           sku_id: string
         }
         Update: {
@@ -78,15 +78,15 @@ export type Database = {
           id?: string
           note?: string | null
           qty_per_unit?: number
-          quotation_line_id?: string
+          quote_line_id?: string
           sku_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "line_recipes_quotation_line_id_fkey"
-            columns: ["quotation_line_id"]
+            foreignKeyName: "line_recipes_quote_line_id_fkey"
+            columns: ["quote_line_id"]
             isOneToOne: false
-            referencedRelation: "quotation_lines"
+            referencedRelation: "quote_lines"
             referencedColumns: ["id"]
           },
           {
@@ -279,69 +279,6 @@ export type Database = {
           },
         ]
       }
-      quotation_lines: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_header: boolean
-          line_no: number
-          option_name: string | null
-          qty: number | null
-          quotation_id: string
-          sales_component_id: string | null
-          sales_name: string
-          unit: string | null
-          unit_price: number | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_header?: boolean
-          line_no?: number
-          option_name?: string | null
-          qty?: number | null
-          quotation_id: string
-          sales_component_id?: string | null
-          sales_name: string
-          unit?: string | null
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_header?: boolean
-          line_no?: number
-          option_name?: string | null
-          qty?: number | null
-          quotation_id?: string
-          sales_component_id?: string | null
-          sales_name?: string
-          unit?: string | null
-          unit_price?: number | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quotation_lines_quotation_id_fkey"
-            columns: ["quotation_id"]
-            isOneToOne: false
-            referencedRelation: "quotations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotation_lines_sales_component_id_fkey"
-            columns: ["sales_component_id"]
-            isOneToOne: false
-            referencedRelation: "sales_components"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       quotations: {
         Row: {
           created_at: string
@@ -394,6 +331,81 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_lines: {
+        Row: {
+          circuit_note: string | null
+          component_id: string | null
+          created_at: string
+          customer_text: string | null
+          cut_lengths: number[] | null
+          discount_percent: number
+          id: string
+          item_no: string | null
+          kind: string
+          option_name: string | null
+          qty: number | null
+          quotation_id: string
+          sort_order: number
+          unit: string | null
+          unit_price: number | null
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          circuit_note?: string | null
+          component_id?: string | null
+          created_at?: string
+          customer_text?: string | null
+          cut_lengths?: number[] | null
+          discount_percent?: number
+          id?: string
+          item_no?: string | null
+          kind?: string
+          option_name?: string | null
+          qty?: number | null
+          quotation_id: string
+          sort_order?: number
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          circuit_note?: string | null
+          component_id?: string | null
+          created_at?: string
+          customer_text?: string | null
+          cut_lengths?: number[] | null
+          discount_percent?: number
+          id?: string
+          item_no?: string | null
+          kind?: string
+          option_name?: string | null
+          qty?: number | null
+          quotation_id?: string
+          sort_order?: number
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_lines_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "sales_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_lines_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
             referencedColumns: ["id"]
           },
         ]
