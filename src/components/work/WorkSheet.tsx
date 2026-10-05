@@ -82,7 +82,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
     if (l.kind === "heading") groups.push({ heading: l, rows: [] });
     else {
       if (!groups.length) groups.push({ heading: null, rows: [] });
-      groups[groups.length - 1].rows.push(l);
+      groups[groups.length - 1]!.rows.push(l);
     }
   }
 
