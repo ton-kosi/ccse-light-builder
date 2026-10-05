@@ -266,7 +266,7 @@ export function BoqGrid({
     let v: string | number | null;
     if (numeric) {
       v = toNumber(raw);
-      if (raw.trim() && v === null) return toast.error("กรุณากรอกตัวเลข");
+      if (raw.trim() && v === null) { toast.error("กรุณากรอกตัวเลข"); return; }
       if (k === "discount_percent") v = v ?? 0;
     } else v = raw.trim() || null;
     const cur = l[k] === null || l[k] === undefined ? null : numeric ? Number(l[k]) : l[k];
@@ -276,7 +276,7 @@ export function BoqGrid({
 
   const commitCut = (l: GridLine, raw: string) => {
     const arr = parseCutLengths(raw);
-    if (arr === undefined) return toast.error('รูปแบบความยาวตัดไม่ถูกต้อง เช่น "1.50+1.50+1.40"');
+    if (arr === undefined) { toast.error('รูปแบบความยาวตัดไม่ถูกต้อง เช่น "1.50+1.50+1.40"'); return; }
     if (formatCutLengths(arr) === formatCutLengths(l.cut_lengths)) return;
     const patch: TablesUpdate<"quote_lines"> = { cut_lengths: arr };
     const oldSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;

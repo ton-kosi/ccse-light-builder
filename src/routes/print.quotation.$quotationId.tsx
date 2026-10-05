@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { kindText } from "@/components/boq/BoqGrid";
 import { computeTotals, lineAmount, optKey, optionNames } from "@/lib/boq";
@@ -128,16 +129,16 @@ function PrintQuotation() {
             const special = kindText(l.kind);
             const showQty = !heading && l.qty !== null;
             return (
-              <>
+              <Fragment key={l.id}>
                 {optHeader ? (
-                  <tr key={l.id + "-opt"}>
+                  <tr>
                     <td />
                     <td colSpan={6} className="pt-2 font-bold underline">
                       OPTION {ok}
                     </td>
                   </tr>
                 ) : null}
-                <tr key={l.id} className={"align-top " + (heading ? "font-bold" : "")}>
+                <tr className={"align-top " + (heading ? "font-bold" : "")}>
                   <td className="py-0.5">{l.item_no ?? ""}</td>
                   <td className={"py-0.5 " + (heading ? "pt-2" : "")}>{desc}</td>
                   <td className="py-0.5 text-right tabular-nums">{showQty ? formatQty(Number(l.qty)) : ""}</td>
@@ -156,7 +157,7 @@ function PrintQuotation() {
                     </td>
                   )}
                 </tr>
-              </>
+              </Fragment>
             );
           })}
         </tbody>

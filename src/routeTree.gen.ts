@@ -24,6 +24,7 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
 import { Route as AuthenticatedWorkOrdersWoIdRouteImport } from './routes/_authenticated/work-orders/$woId'
+import { Route as PrintQuotationQuotationIdRouteImport } from './routes/print.quotation.$quotationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -104,6 +105,12 @@ const AuthenticatedWorkOrdersWoIdRoute =
     path: '/work-orders/$woId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const PrintQuotationQuotationIdRoute =
+  PrintQuotationQuotationIdRouteImport.update({
+    id: '/print/quotation/$quotationId',
+    path: '/print/quotation/$quotationId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -134,6 +142,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/work-orders': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -152,6 +161,7 @@ export interface FileRoutesById {
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/projects/$projectId'
     | '/work-orders/$woId'
+    | '/print/quotation/$quotationId'
     | '/projects/'
     | '/work-orders/'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/projects/$projectId'
     | '/work-orders/$woId'
+    | '/print/quotation/$quotationId'
     | '/projects'
     | '/work-orders'
   id:
@@ -203,6 +215,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/work-orders/$woId'
+    | '/print/quotation/$quotationId'
     | '/_authenticated/projects/'
     | '/_authenticated/work-orders/'
   fileRoutesById: FileRoutesById
@@ -211,6 +224,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PrintQuotationQuotationIdRoute: typeof PrintQuotationQuotationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -320,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkOrdersWoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/print/quotation/$quotationId': {
+      id: '/print/quotation/$quotationId'
+      path: '/print/quotation/$quotationId'
+      fullPath: '/print/quotation/$quotationId'
+      preLoaderRoute: typeof PrintQuotationQuotationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -360,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PrintQuotationQuotationIdRoute: PrintQuotationQuotationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
