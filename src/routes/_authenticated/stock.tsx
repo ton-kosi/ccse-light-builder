@@ -7,6 +7,7 @@ import { Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatQty } from "@/lib/format";
+import { useMe } from "@/hooks/useMe";
 
 export const Route = createFileRoute("/_authenticated/stock")({
   head: () => ({
@@ -27,6 +28,8 @@ const STATUS_RANK: Record<Status, number> = { urgent: 0, order: 1, ok: 2 };
 
 function StockPage() {
   const [search, setSearch] = useState("");
+  const { has } = useMe();
+  const canPR = has("admin", "stock");
   const [filter, setFilter] = useState<"all" | Status>("all");
 
   const { data: skus } = useQuery({
@@ -54,7 +57,18 @@ function StockPage() {
     },
   });
 
+  const { data: ordered } = useQuery({
+    queryKey: ["purchase_requests", "ordered"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("purchase_requests").select("sku_id, qty").eq("status", "ordered");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const rows = useMemo(() => {
+    const oo = new Map<string, number>();
+    for (const p of ordered ?? []) oo.set(p.sku_id, (oo.get(p.sku_id) ?? 0) + Number(p.qty));
     const oh = new Map((onHand ?? []).map((r) => [r.sku_id, Number(r.on_hand ?? 0)]));
     const soft = new Map<string, number>();
     const hard = new Map<string, number>();
@@ -67,12 +81,12 @@ function StockPage() {
       const onHandQty = oh.get(k.id) ?? 0;
       const s = soft.get(k.id) ?? 0;
       const h = hard.get(k.id) ?? 0;
-      const onOrder = 0; // ใบขอซื้อยังไม่เปิดใช้งาน — จะดึงจากใบขอซื้อสถานะ 'ordered'
+      const onOrder = oo.get(k.id) ?? 0;
       const toOrder = Math.max(0, s + h + Number(k.min_stock) - onHandQty - onOrder);
       const status: Status = toOrder <= 0 ? "ok" : k.source === "import" ? "urgent" : "order";
       return { k, onHandQty, s, h, available: onHandQty - h, onOrder, toOrder, status };
     });
-  }, [skus, onHand, demand]);
+  }, [skus, onHand, demand, ordered]);
 
   const q = search.trim().toLowerCase();
   const list = rows
@@ -120,6 +134,7 @@ function StockPage() {
               <Th>ขั้นต่ำ</Th>
               <Th>ต้องสั่ง</Th>
               <Th>สถานะ</Th>
+              {canPR ? <Th></Th> : null}
             </tr>
           </thead>
           <tbody>
@@ -148,17 +163,26 @@ function StockPage() {
                     </span>
                   )}
                 </Td>
+                {canPR ? (
+                  <Td>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/purchase-requests" search={{ sku: r.k.id, qty: r.toOrder > 0 ? r.toOrder : undefined, kind: r.k.source === "import" ? "import" : "domestic" }}>
+                        สร้างใบขอซื้อ
+                      </Link>
+                    </Button>
+                  </Td>
+                ) : null}
               </tr>
             ))}
             {list.length === 0 ? (
-              <tr><td colSpan={11} className="px-3 py-4 text-muted-foreground">ไม่พบรายการ</td></tr>
+              <tr><td colSpan={13} className="px-3 py-4 text-muted-foreground">ไม่พบรายการ</td></tr>
             ) : null}
           </tbody>
         </table>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
         คำนวณจากใบเสนอราคาปัจจุบันของแต่ละโปรเจกต์ (รายการหลัก + Option ที่ลูกค้าเลือก; ชนิด ราคา/แสดง/FOC) ·
-        ต้องสั่ง = MAX(0, จอง + ล็อก + ขั้นต่ำ − คงเหลือ − กำลังสั่ง) · "กำลังสั่ง" จะแสดงเมื่อเปิดใช้ใบขอซื้อ
+        ต้องสั่ง = MAX(0, จอง + ล็อก + ขั้นต่ำ − คงเหลือ − กำลังสั่ง) · กำลังสั่ง = ใบขอซื้อสถานะ "สั่งแล้ว"
       </p>
     </div>
   );
