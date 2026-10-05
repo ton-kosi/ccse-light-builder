@@ -8,6 +8,7 @@ import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { QuotationSection } from "@/components/boq/QuotationSection";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { WorkSheet } from "@/components/work/WorkSheet";
+import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
 import { computeTotals, optionNames } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +44,7 @@ type QLine = Tables<"quote_lines">;
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditSales, canEditProduction, isAdmin } = useMe();
+  const { canSeeMoney, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
   const queryClient = useQueryClient();
   const { quotation, lines } = useCurrentQuotation(projectId, canSeeMoney);
 
@@ -81,14 +82,6 @@ function ProjectDetail() {
   if (!project) return <p className="text-sm text-muted-foreground">ไม่พบโปรเจกต์นี้</p>;
 
   const customer = project.customers as { name: string } | null;
-  const net = quotation
-    ? computeTotals(
-        lines,
-        Number(quotation.discount ?? 0),
-        Number(quotation.vat_percent ?? 0),
-        project.selected_option,
-      ).net
-    : 0;
 
   return (
     <div className="space-y-6">
@@ -112,7 +105,7 @@ function ProjectDetail() {
           <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
           <TabsTrigger value="boq">BOQ</TabsTrigger>
           <TabsTrigger value="work">ใบ Work</TabsTrigger>
-          <TabsTrigger value="payment">งวดเงิน</TabsTrigger>
+          {canManagePayments ? <TabsTrigger value="payment">งวดเงิน</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -151,7 +144,7 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="payment" className="mt-4">
-          {canSeeMoney ? <PaymentTermsSection quotation={quotation} net={net} /> : <HiddenMoney />}
+          {canManagePayments ? <PaymentTermsSection projectId={projectId} /> : <HiddenMoney />}
         </TabsContent>
       </Tabs>
     </div>
@@ -462,182 +455,6 @@ function StatusLog({ projectId }: { projectId: string }) {
   );
 }
 
-/* ---------------- Payment terms ---------------- */
-
-function PaymentTermsSection({
-  quotation,
-  net,
-}: {
-  quotation: Tables<"quotations"> | null;
-  net: number;
-}) {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", percent: "", note: "" });
-  const qid = quotation?.id;
-  const { data: terms } = useQuery({
-    queryKey: ["payment_terms", qid],
-    enabled: !!qid,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payment_terms")
-        .select("*")
-        .eq("quotation_id", qid!)
-        .order("seq");
-      if (error) throw error;
-      return data;
-    },
-  });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["payment_terms", qid] });
-  const add = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("payment_terms").insert({
-        quotation_id: qid!,
-        seq: (terms?.length ?? 0) + 1,
-        name: form.name.trim(),
-        percent: toNumber(form.percent) ?? 0,
-        note: form.note || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      setForm({ name: "", percent: "", note: "" });
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"payment_terms"> }) => {
-      const { error } = await supabase.from("payment_terms").update(patch).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payment_terms").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (!quotation)
-    return (
-      <section className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
-        สร้างใบเสนอราคาในแท็บ BOQ ก่อน จึงจะกำหนดงวดเงินได้
-      </section>
-    );
-
-  const totalPct = (terms ?? []).reduce((s, t) => s + Number(t.percent), 0);
-  const pctWrong = !!terms?.length && totalPct !== 100;
-
-  return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold">
-        งวดเงิน — {quotation.ref_no} Rev {quotation.rev}
-      </h2>
-      <p className="text-xs text-muted-foreground">ยอดสุทธิ {formatTHB(net)} บาท</p>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-secondary text-left text-xs text-muted-foreground">
-            <tr>
-              <Th>งวด</Th>
-              <Th>ชื่องวด</Th>
-              <Th>%</Th>
-              <Th>จำนวนเงิน (บาท)</Th>
-              <Th>หมายเหตุ</Th>
-              <Th></Th>
-            </tr>
-          </thead>
-          <tbody>
-            {(terms ?? []).map((t) => (
-              <tr key={t.id} className="border-t border-border">
-                <Td>{t.seq}</Td>
-                <Td>
-                  <Input
-                    className="h-8"
-                    defaultValue={t.name}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v && v !== t.name) update.mutate({ id: t.id, patch: { name: v } });
-                    }}
-                  />
-                </Td>
-                <Td>
-                  <Input
-                    className="h-8 w-20"
-                    defaultValue={String(t.percent)}
-                    onBlur={(e) => {
-                      const n = toNumber(e.target.value) ?? 0;
-                      if (n !== Number(t.percent)) update.mutate({ id: t.id, patch: { percent: n } });
-                    }}
-                  />
-                </Td>
-                <Td>{formatTHB((net * Number(t.percent)) / 100)}</Td>
-                <Td>
-                  <Input
-                    className="h-8"
-                    defaultValue={t.note ?? ""}
-                    onBlur={(e) => {
-                      if (e.target.value !== (t.note ?? ""))
-                        update.mutate({ id: t.id, patch: { note: e.target.value || null } });
-                    }}
-                  />
-                </Td>
-                <Td>
-                  <Button size="sm" variant="outline" onClick={() => remove.mutate(t.id)}>
-                    ลบ
-                  </Button>
-                </Td>
-              </tr>
-            ))}
-            <tr className="border-t border-border font-semibold">
-              <Td colSpan={2}>รวม</Td>
-              <Td className={pctWrong ? "text-destructive" : ""}>{formatQty(totalPct)}%</Td>
-              <Td>{formatTHB((net * totalPct) / 100)}</Td>
-              <Td colSpan={2}>
-                {pctWrong ? (
-                  <span className="text-xs font-normal text-destructive">ผลรวมควรเท่ากับ 100%</span>
-                ) : null}
-              </Td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <form
-        className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!form.name.trim()) {
-            toast.error("กรุณากรอกชื่องวด");
-            return;
-          }
-          add.mutate();
-        }}
-      >
-        <Field label="ชื่องวด *" className="md:col-span-2">
-          <Input
-            value={form.name}
-            placeholder="เช่น มัดจำ"
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </Field>
-        <Field label="%">
-          <Input value={form.percent} onChange={(e) => setForm({ ...form, percent: e.target.value })} />
-        </Field>
-        <Field label="หมายเหตุ">
-          <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-        </Field>
-        <div className="flex items-end">
-          <Button size="sm" type="submit" disabled={add.isPending}>
-            เพิ่มงวด
-          </Button>
-        </div>
-      </form>
-    </section>
-  );
-}
 
 
 /* ---------------- Work orders ---------------- */

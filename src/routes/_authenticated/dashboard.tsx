@@ -9,7 +9,8 @@ import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useMe, meQueryKey } from "@/hooks/useMe";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatTHB } from "@/lib/format";
+import { DueBadge } from "@/components/payments/PaymentTermsSection";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const { me, roles, hasNoRole } = useMe();
+  const { me, roles, hasNoRole, canManagePayments } = useMe();
   const queryClient = useQueryClient();
 
   // make sure a profile row exists for this user
@@ -63,6 +64,18 @@ function Dashboard() {
     },
   });
 
+
+  const { data: dueTerms } = useQuery({
+    queryKey: ["payment_schedule", "due"],
+    enabled: canManagePayments,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("payment_schedule", {});
+      if (error) throw error;
+      return (data ?? [])
+        .filter((t) => t.due_status === "due")
+        .sort((a, b) => (a.due_since ?? "").localeCompare(b.due_since ?? ""));
+    },
+  });
 
   const byStatus = PROJECT_STATUSES.map((s) => ({
     ...s,
@@ -134,6 +147,42 @@ function Dashboard() {
           </ul>
         </section>
       </div>
+
+      {canManagePayments ? (
+        <section className="mt-6 rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-3 text-sm font-semibold">ฝ่ายบัญชี — งวดเงินที่ถึงเวลาเบิก (เก่าสุดก่อน)</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2">ถึงกำหนดตั้งแต่</th><th className="px-3 py-2">โปรเจกต์</th>
+                  <th className="px-3 py-2">ใบเสนอราคา</th><th className="px-3 py-2">งวด</th>
+                  <th className="px-3 py-2 text-right">จำนวนเงิน (บาท)</th><th className="px-3 py-2">สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(dueTerms ?? []).map((t) => (
+                  <tr key={t.id} className="border-t border-border">
+                    <td className="px-3 py-2">{t.due_since ? formatDate(t.due_since) : "—"}</td>
+                    <td className="px-3 py-2">
+                      <Link to="/projects/$projectId" params={{ projectId: t.project_id }} className="text-primary hover:underline">
+                        {t.project_code} — {t.project_name}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">{t.ref_no} Rev {t.rev}</td>
+                    <td className="px-3 py-2">{t.seq}. {t.name}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatTHB(Number(t.amount ?? 0))}</td>
+                    <td className="px-3 py-2"><DueBadge s={t.due_status} /></td>
+                  </tr>
+                ))}
+                {dueTerms?.length === 0 ? (
+                  <tr><td colSpan={6} className="px-3 py-2 text-muted-foreground">ไม่มีงวดที่ถึงเวลาเบิก</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <p className="mt-6 text-xs text-muted-foreground">
         สิทธิ์ของคุณ: {roles.length ? roles.map((r) => ROLE_LABELS[r]).join(", ") : "ยังไม่กำหนด"} — ฝ่ายผลิตและช่างจะไม่เห็น
