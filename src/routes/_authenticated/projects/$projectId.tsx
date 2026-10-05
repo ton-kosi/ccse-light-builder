@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { QuotationSection } from "@/components/boq/QuotationSection";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
+import { WorkSheet } from "@/components/work/WorkSheet";
 import { computeTotals, optionNames } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,7 +141,8 @@ function ProjectDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="work" className="mt-4">
+        <TabsContent value="work" className="mt-4 space-y-6">
+          <WorkSheet projectId={projectId} />
           <WorkOrderSection
             projectId={projectId}
             projectStatus={project.status}
