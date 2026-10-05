@@ -33,6 +33,7 @@ function ProjectsPage() {
     code: "",
     name: "",
     customer_id: "",
+    attn: "",
     site_address: "",
     notes: "",
   });
@@ -64,6 +65,7 @@ function ProjectsPage() {
         code: form.code,
         name: form.name,
         customer_id: form.customer_id || null,
+        attn: form.attn || null,
         site_address: form.site_address || null,
         notes: form.notes || null,
       });
@@ -71,7 +73,7 @@ function ProjectsPage() {
     },
     onSuccess: () => {
       toast.success("สร้างโปรเจกต์แล้ว");
-      setForm({ code: "", name: "", customer_id: "", site_address: "", notes: "" });
+      setForm({ code: "", name: "", customer_id: "", attn: "", site_address: "", notes: "" });
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
@@ -110,7 +112,7 @@ function ProjectsPage() {
             create.mutate();
           }}
         >
-          <Field label="รหัสงาน *">
+          <Field label="รหัสงาน * (เช่น P-PANO)">
             <Input
               required
               value={form.code}
@@ -138,7 +140,10 @@ function ProjectsPage() {
               ))}
             </select>
           </Field>
-          <Field label="สถานที่ติดตั้ง" className="md:col-span-2">
+          <Field label="เรียน (Attn)">
+            <Input value={form.attn} onChange={(e) => setForm({ ...form, attn: e.target.value })} />
+          </Field>
+          <Field label="สถานที่ติดตั้ง">
             <Input
               value={form.site_address}
               onChange={(e) => setForm({ ...form, site_address: e.target.value })}
