@@ -498,6 +498,158 @@ export type Database = {
           },
         ]
       }
+      remnants: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          length_m: number
+          note: string | null
+          reserved_project_id: string | null
+          sku_id: string
+          source_project_id: string | null
+          status: string
+          used_at: string | null
+          used_m: number | null
+          used_project_id: string | null
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          id?: string
+          length_m: number
+          note?: string | null
+          reserved_project_id?: string | null
+          sku_id: string
+          source_project_id?: string | null
+          status?: string
+          used_at?: string | null
+          used_m?: number | null
+          used_project_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          length_m?: number
+          note?: string | null
+          reserved_project_id?: string | null
+          sku_id?: string
+          source_project_id?: string | null
+          status?: string
+          used_at?: string | null
+          used_m?: number | null
+          used_project_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remnants_reserved_project_id_fkey"
+            columns: ["reserved_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remnants_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "remnants_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remnants_source_project_id_fkey"
+            columns: ["source_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remnants_used_project_id_fkey"
+            columns: ["used_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roll_plans: {
+        Row: {
+          created_at: string
+          id: string
+          leftover_m: number
+          pieces: number[]
+          project_id: string
+          remnant_id: string | null
+          roll_family: string
+          roll_length_m: number
+          seq: number
+          sku_id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          leftover_m?: number
+          pieces?: number[]
+          project_id: string
+          remnant_id?: string | null
+          roll_family: string
+          roll_length_m: number
+          seq: number
+          sku_id: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          leftover_m?: number
+          pieces?: number[]
+          project_id?: string
+          remnant_id?: string | null
+          roll_family?: string
+          roll_length_m?: number
+          seq?: number
+          sku_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roll_plans_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roll_plans_remnant_id_fkey"
+            columns: ["remnant_id"]
+            isOneToOne: false
+            referencedRelation: "remnants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roll_plans_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "roll_plans_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_components: {
         Row: {
           code: string
@@ -866,6 +1018,7 @@ export type Database = {
           sku_id: string
         }[]
       }
+      plan_rolls: { Args: { _project_id: string }; Returns: undefined }
       wo_header: {
         Args: { _project_id: string }
         Returns: {

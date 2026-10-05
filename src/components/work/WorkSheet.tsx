@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useMe } from "@/hooks/useMe";
+import { RollPlanSection } from "@/components/work/RollPlanSection";
 import { formatCutLengths } from "@/lib/boq";
 import { RELEASE_MIN_STATUS, statusLabel } from "@/lib/erp";
 import { formatDate, formatQty } from "@/lib/format";
@@ -193,6 +194,9 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
           </>
         ) : null}
       </section>
+
+      <RollPlanSection projectId={projectId} print={print} />
+
 
       <section className={sec}>
         <h3 className="mb-1 font-semibold">2. รายการเบิกของ (Pick list)</h3>
