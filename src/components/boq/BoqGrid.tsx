@@ -483,13 +483,6 @@ export function BoqGrid({
                       </div>
                     </td>
                   </tr>
-                  {openRecipe === l.id ? (
-                    <tr className="border-t border-border bg-secondary/40">
-                      <td colSpan={16} className="px-3 py-3">
-                        <LineRecipeEditor lineId={l.id} componentId={l.component_id} canEdit={canEdit} />
-                      </td>
-                    </tr>
-                  ) : null}
                 </Fragment>
               );
             })}
@@ -514,6 +507,33 @@ export function BoqGrid({
           คอลัมน์พื้นสีเหลือง = <b>ภายใน</b> (ไม่พิมพ์ให้ลูกค้า)
         </span>
       </div>
+      <Sheet open={!!openRecipe} onOpenChange={(o) => !o && setOpenRecipe(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          {(() => {
+            const l = lines.find((x) => x.id === openRecipe);
+            if (!l) return null;
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle>สูตรภายใน</SheetTitle>
+                  <SheetDescription>
+                    {l.item_no ? `${l.item_no} · ` : ""}
+                    {l.customer_text || "—"} · จำนวน {formatQty(Number(l.qty ?? 0))} {l.unit ?? ""}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-4">
+                  <LineRecipeEditor
+                    lineId={l.id}
+                    componentId={l.component_id}
+                    lineQty={Number(l.qty ?? 0)}
+                    canEdit={canEdit}
+                  />
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
