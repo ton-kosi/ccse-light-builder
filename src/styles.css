@@ -43,6 +43,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -63,6 +65,8 @@
 }
 
 :root {
+  --success: oklch(0.55 0.13 150);
+  --warning: oklch(0.72 0.15 70);
   --radius: 0.5rem;
   --font-sans: "Noto Sans Thai", system-ui, sans-serif;
   --background: oklch(0.985 0.004 95);
@@ -101,6 +105,8 @@
 }
 
 .dark {
+  --success: oklch(0.65 0.14 150);
+  --warning: oklch(0.78 0.15 70);
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.208 0.042 265.755);

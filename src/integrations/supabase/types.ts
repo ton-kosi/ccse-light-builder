@@ -814,6 +814,15 @@ export type Database = {
         Args: { _project_id: string }
         Returns: string
       }
+      material_demand: {
+        Args: never
+        Returns: {
+          project_id: string
+          project_status: number
+          qty: number
+          sku_id: string
+        }[]
+      }
     }
     Enums: {
       app_role:
