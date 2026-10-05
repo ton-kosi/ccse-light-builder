@@ -11,13 +11,13 @@ import { Input } from "@/components/ui/input";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, toNumber } from "@/lib/format";
 
-type Search = { sku?: string; qty?: number; kind?: string };
+type Search = { sku?: string | undefined; qty?: number | undefined; kind?: string | undefined };
 
 export const Route = createFileRoute("/_authenticated/purchase-requests")({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    sku: typeof s.sku === "string" ? s.sku : undefined,
-    qty: s.qty !== undefined && !Number.isNaN(Number(s.qty)) ? Number(s.qty) : undefined,
-    kind: typeof s.kind === "string" ? s.kind : undefined,
+    sku: typeof s["sku"] === "string" ? s["sku"] : undefined,
+    qty: s["qty"] !== undefined && !Number.isNaN(Number(s["qty"])) ? Number(s["qty"]) : undefined,
+    kind: typeof s["kind"] === "string" ? s["kind"] : undefined,
   }),
   head: () => ({
     meta: [
