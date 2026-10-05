@@ -61,7 +61,7 @@ export type Database = {
           created_at: string
           id: string
           note: string | null
-          qty_per_unit: number
+          qty: number
           quote_line_id: string
           sku_id: string
         }
@@ -69,7 +69,7 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
-          qty_per_unit?: number
+          qty?: number
           quote_line_id: string
           sku_id: string
         }
@@ -77,7 +77,7 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
-          qty_per_unit?: number
+          qty?: number
           quote_line_id?: string
           sku_id?: string
         }
