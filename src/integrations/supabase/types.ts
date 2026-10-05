@@ -105,6 +105,45 @@ export type Database = {
           },
         ]
       }
+      material_issues: {
+        Row: {
+          id: string
+          issued_at: string
+          issued_by: string | null
+          project_id: string
+          quotation_id: string
+        }
+        Insert: {
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          project_id: string
+          quotation_id: string
+        }
+        Update: {
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          project_id?: string
+          quotation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_issues_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_issues_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: true
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_terms: {
         Row: {
           created_at: string
@@ -810,6 +849,10 @@ export type Database = {
       }
     }
     Functions: {
+      confirm_material_issue: {
+        Args: { _project_id: string }
+        Returns: undefined
+      }
       create_quotation_revision: {
         Args: { _project_id: string }
         Returns: string
@@ -821,6 +864,45 @@ export type Database = {
           project_status: number
           qty: number
           sku_id: string
+        }[]
+      }
+      wo_header: {
+        Args: { _project_id: string }
+        Returns: {
+          issued_at: string
+          quotation_id: string
+          ref_no: string
+          rev: string
+        }[]
+      }
+      wo_lines: {
+        Args: { _project_id: string }
+        Returns: {
+          circuit_note: string
+          component_code: string
+          component_name: string
+          cut_lengths: number[]
+          heading_text: string
+          id: string
+          install_category: string
+          item_no: string
+          kind: string
+          option_name: string
+          qty: number
+          sort_order: number
+          unit: string
+          zone: string
+        }[]
+      }
+      wo_pick_list: {
+        Args: { _project_id: string }
+        Returns: {
+          code: string
+          name: string
+          on_hand: number
+          qty: number
+          sku_id: string
+          unit: string
         }[]
       }
     }
