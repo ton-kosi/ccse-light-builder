@@ -147,32 +147,44 @@ export type Database = {
       payment_terms: {
         Row: {
           created_at: string
+          fixed_amount: number | null
           id: string
           name: string
           note: string | null
           percent: number
           quotation_id: string
+          received: boolean
+          received_date: string | null
           seq: number
+          trigger: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          fixed_amount?: number | null
           id?: string
           name: string
           note?: string | null
           percent?: number
           quotation_id: string
+          received?: boolean
+          received_date?: string | null
           seq?: number
+          trigger?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          fixed_amount?: number | null
           id?: string
           name?: string
           note?: string | null
           percent?: number
           quotation_id?: string
+          received?: boolean
+          received_date?: string | null
           seq?: number
+          trigger?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1016,6 +1028,40 @@ export type Database = {
           project_status: number
           qty: number
           sku_id: string
+        }[]
+      }
+      payment_quote: {
+        Args: { _project_id?: string }
+        Returns: {
+          net_total: number
+          quotation_id: string
+          ref_no: string
+          rev: string
+        }[]
+      }
+      payment_schedule: {
+        Args: { _project_id?: string }
+        Returns: {
+          amount: number
+          due_since: string
+          due_status: string
+          fixed_amount: number
+          id: string
+          name: string
+          net_total: number
+          note: string
+          percent: number
+          project_code: string
+          project_id: string
+          project_name: string
+          project_status: number
+          quotation_id: string
+          received: boolean
+          received_date: string
+          ref_no: string
+          rev: string
+          seq: number
+          trigger: string
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
