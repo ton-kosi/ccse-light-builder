@@ -20,12 +20,12 @@ export const PAY_TRIGGERS: { value: string; label: string }[] = [
 export const DUE_LABELS: Record<string, { label: string; cls: string }> = {
   received: { label: "รับแล้ว", cls: "bg-success/15 text-success" },
   due: { label: "ถึงเวลาเบิก", cls: "bg-destructive/15 text-destructive" },
-  check_progress: { label: "เช็ค progress", cls: "bg-warning/20 text-warning-foreground" },
+  check_progress: { label: "เช็ค progress", cls: "bg-warning/20 text-warning" },
   not_yet: { label: "ยังไม่ถึง", cls: "bg-muted text-muted-foreground" },
 };
 
 export function DueBadge({ s }: { s: string }) {
-  const d = DUE_LABELS[s] ?? DUE_LABELS.not_yet;
+  const d = DUE_LABELS[s] ?? { label: "ยังไม่ถึง", cls: "bg-muted text-muted-foreground" };
   return <span className={"rounded px-2 py-0.5 text-xs font-medium " + d.cls}>{d.label}</span>;
 }
 
