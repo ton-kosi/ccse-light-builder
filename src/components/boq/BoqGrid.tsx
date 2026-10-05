@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { LineRecipeEditor } from "@/components/boq/LineRecipeEditor";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
   formatCutLengths,
@@ -90,7 +91,7 @@ export function BoqGrid({
     queryFn: async () => {
       const [lr, rc, sc] = await Promise.all([
         lineIds.length
-          ? supabase.from("line_recipes").select("quote_line_id, sku_id, qty_per_unit").in("quote_line_id", lineIds)
+          ? supabase.from("line_recipes").select("quote_line_id, sku_id, qty").in("quote_line_id", lineIds)
           : Promise.resolve({ data: [], error: null }),
         compIds.length
           ? supabase.from("recipes").select("component_id, sku_id, qty_per_unit").in("component_id", compIds)
@@ -100,18 +101,20 @@ export function BoqGrid({
       const cost = new Map((sc.data ?? []).map((c) => [c.sku_id, Number(c.unit_cost)]));
       const byLine = new Map<string, number>();
       for (const r of lr.data ?? [])
-        byLine.set(r.quote_line_id, (byLine.get(r.quote_line_id) ?? 0) + Number(r.qty_per_unit) * (cost.get(r.sku_id) ?? 0));
+        byLine.set(r.quote_line_id, (byLine.get(r.quote_line_id) ?? 0) + Number(r.qty) * (cost.get(r.sku_id) ?? 0));
       const byComp = new Map<string, number>();
       for (const r of rc.data ?? [])
         byComp.set(r.component_id, (byComp.get(r.component_id) ?? 0) + Number(r.qty_per_unit) * (cost.get(r.sku_id) ?? 0));
       return { byLine, byComp };
     },
   });
-  const unitCost = (l: GridLine): number | null => {
+  // Line cost = standard recipe × line qty + custom line_recipes (already totals for the line)
+  const lineCost = (l: GridLine): number | null => {
     if (!costs) return null;
-    if (costs.byLine.has(l.id)) return costs.byLine.get(l.id)!;
-    if (l.component_id && costs.byComp.has(l.component_id)) return costs.byComp.get(l.component_id)!;
-    return null;
+    const std = l.component_id ? costs.byComp.get(l.component_id) : undefined;
+    const custom = costs.byLine.get(l.id);
+    if (std === undefined && custom === undefined) return null;
+    return (std ?? 0) * Number(l.qty ?? 0) + (custom ?? 0);
   };
 
   /* ---- mutations ---- */
@@ -208,7 +211,7 @@ export function BoqGrid({
     await persistOrder(next, copies);
     const { data: rec } = await supabase
       .from("line_recipes")
-      .select("quote_line_id, sku_id, qty_per_unit, note")
+      .select("quote_line_id, sku_id, qty, note")
       .in("quote_line_id", block.map((b) => b.id));
     if (rec?.length) {
       const { error } = await supabase.from("line_recipes").insert(
@@ -323,8 +326,7 @@ export function BoqGrid({
                 fade(l) ? "opacity-40" : "",
                 overId === l.id && dragId ? "outline outline-2 outline-primary" : "",
               ].join(" ");
-              const uc = unitCost(l);
-              const cost = uc === null ? null : uc * Number(l.qty ?? 0);
+              const cost = lineCost(l);
               const amount = lineAmount(l);
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
               const txt = (k: Parameters<typeof commitText>[1], c: number, extra = "") => (
@@ -460,9 +462,9 @@ export function BoqGrid({
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2"
-                            onClick={() => setOpenRecipe(openRecipe === l.id ? null : l.id)}
+                            onClick={() => setOpenRecipe(l.id)}
                           >
-                            สูตร
+                            สูตรภายใน
                           </Button>
                         ) : canEdit ? (
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => duplicateCircuit(r)}>
@@ -482,13 +484,6 @@ export function BoqGrid({
                       </div>
                     </td>
                   </tr>
-                  {openRecipe === l.id ? (
-                    <tr className="border-t border-border bg-secondary/40">
-                      <td colSpan={16} className="px-3 py-3">
-                        <LineRecipeEditor lineId={l.id} componentId={l.component_id} canEdit={canEdit} />
-                      </td>
-                    </tr>
-                  ) : null}
                 </Fragment>
               );
             })}
@@ -513,6 +508,33 @@ export function BoqGrid({
           คอลัมน์พื้นสีเหลือง = <b>ภายใน</b> (ไม่พิมพ์ให้ลูกค้า)
         </span>
       </div>
+      <Sheet open={!!openRecipe} onOpenChange={(o) => !o && setOpenRecipe(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          {(() => {
+            const l = lines.find((x) => x.id === openRecipe);
+            if (!l) return null;
+            return (
+              <>
+                <SheetHeader>
+                  <SheetTitle>สูตรภายใน</SheetTitle>
+                  <SheetDescription>
+                    {l.item_no ? `${l.item_no} · ` : ""}
+                    {l.customer_text || "—"} · จำนวน {formatQty(Number(l.qty ?? 0))} {l.unit ?? ""}
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-4">
+                  <LineRecipeEditor
+                    lineId={l.id}
+                    componentId={l.component_id}
+                    lineQty={Number(l.qty ?? 0)}
+                    canEdit={canEdit}
+                  />
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
