@@ -86,7 +86,7 @@ function StockPage() {
     <div>
       <PageHeader
         title="สต็อก"
-        action={
+        actions={
           <Button asChild variant="outline">
             <Link to="/skus">ทะเบียน SKU / รับ-เบิกของ</Link>
           </Button>
