@@ -82,14 +82,6 @@ function ProjectDetail() {
   if (!project) return <p className="text-sm text-muted-foreground">ไม่พบโปรเจกต์นี้</p>;
 
   const customer = project.customers as { name: string } | null;
-  const net = quotation
-    ? computeTotals(
-        lines,
-        Number(quotation.discount ?? 0),
-        Number(quotation.vat_percent ?? 0),
-        project.selected_option,
-      ).net
-    : 0;
 
   return (
     <div className="space-y-6">
