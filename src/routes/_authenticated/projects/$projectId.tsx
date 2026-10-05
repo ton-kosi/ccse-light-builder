@@ -439,7 +439,7 @@ function OverviewTab({
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string | undefined }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -1036,7 +1036,7 @@ function TotalsBox({
   discount,
   vatPct,
 }: {
-  title?: string;
+  title?: string | undefined;
   t: ReturnType<typeof computeTotals>;
   discount: number;
   vatPct: number;
