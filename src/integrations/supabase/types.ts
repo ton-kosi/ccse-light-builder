@@ -330,6 +330,82 @@ export type Database = {
           },
         ]
       }
+      purchase_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          kind: string
+          note: string | null
+          ordered_at: string | null
+          project_id: string | null
+          qty: number
+          received_at: string | null
+          sku_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kind: string
+          note?: string | null
+          ordered_at?: string | null
+          project_id?: string | null
+          qty: number
+          received_at?: string | null
+          sku_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          ordered_at?: string | null
+          project_id?: string | null
+          qty?: number
+          received_at?: string | null
+          sku_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotations: {
         Row: {
           created_at: string
