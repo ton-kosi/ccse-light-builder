@@ -42,6 +42,7 @@ export function useMe() {
     has,
     isAdmin: has("admin"),
     canSeeMoney: has("admin"),
+    canManagePayments: has("admin", "accounting"),
     canEditSales: has("admin", "sales"),
     canEditProduction: has("admin", "sales", "estimator", "stock", "production"),
     canEditMaster: has("admin", "estimator", "stock"),
