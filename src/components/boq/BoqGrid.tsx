@@ -462,9 +462,9 @@ export function BoqGrid({
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2"
-                            onClick={() => setOpenRecipe(openRecipe === l.id ? null : l.id)}
+                            onClick={() => setOpenRecipe(l.id)}
                           >
-                            สูตร
+                            สูตรภายใน
                           </Button>
                         ) : canEdit ? (
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => duplicateCircuit(r)}>
