@@ -55,6 +55,7 @@ export function useWorkSheet(projectId: string) {
 type WoLine = ReturnType<typeof useWorkSheet>["lines"][number];
 
 export function WorkSheet({ projectId, print = false }: { projectId: string; print?: boolean }) {
+  const custName = useCustomerNames();
   const { project, header, lines, pick, isLoading } = useWorkSheet(projectId);
   const { has } = useMe();
   const qc = useQueryClient();
