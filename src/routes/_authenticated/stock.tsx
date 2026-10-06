@@ -41,7 +41,7 @@ function StockPage() {
     },
   });
   const { data: onHand } = useQuery({
-    queryKey: ["sku_on_hand"],
+    queryKey: ["sku_on_hand", "rows"],
     queryFn: async () => {
       const { data, error } = await supabase.from("sku_on_hand").select("*");
       if (error) throw error;
