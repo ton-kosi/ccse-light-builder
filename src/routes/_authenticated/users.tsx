@@ -76,6 +76,19 @@ function UsersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const rename = useMutation({
+    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
+      const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("บันทึกชื่อแล้ว");
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!isCeo) {
     return (
       <div>
