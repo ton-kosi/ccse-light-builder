@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { PageHeader } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useMe, meQueryKey } from "@/hooks/useMe";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const { me, roles, hasNoRole, canManagePayments } = useMe();
   const queryClient = useQueryClient();
+  const custName = useCustomerNames();
 
   // make sure a profile row exists for this user
   useEffect(() => {
@@ -46,7 +48,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, code, name, status, updated_at, customers(name)")
+        .select("id, code, name, status, updated_at, customer_id, customers(name)")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -136,7 +138,7 @@ function Dashboard() {
                   {p.code} — {p.name}
                 </Link>
                 <div className="text-xs text-muted-foreground">
-                  {(p.customers as { name: string } | null)?.name ?? "ไม่ระบุลูกค้า"} ·{" "}
+                  {custName(p.customer_id, p.customers) ?? "ไม่ระบุลูกค้า"} ·{" "}
                   {statusLabel(p.status)} · แก้ไข {formatDate(p.updated_at)}
                 </div>
               </li>

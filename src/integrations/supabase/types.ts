@@ -218,6 +218,32 @@ export type Database = {
         }
         Relationships: []
       }
+      project_finance: {
+        Row: {
+          overrun_rate_per_day: number | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          overrun_rate_per_day?: number | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          overrun_rate_per_day?: number | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_finance_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_status_log: {
         Row: {
           changed_at: string
@@ -267,7 +293,6 @@ export type Database = {
           install_start_date: string | null
           name: string
           notes: string | null
-          overrun_rate_per_day: number | null
           po_date: string | null
           po_number: string | null
           released_by: string | null
@@ -289,7 +314,6 @@ export type Database = {
           install_start_date?: string | null
           name: string
           notes?: string | null
-          overrun_rate_per_day?: number | null
           po_date?: string | null
           po_number?: string | null
           released_by?: string | null
@@ -311,7 +335,6 @@ export type Database = {
           install_start_date?: string | null
           name?: string
           notes?: string | null
-          overrun_rate_per_day?: number | null
           po_date?: string | null
           po_number?: string | null
           released_by?: string | null
@@ -1096,6 +1119,13 @@ export type Database = {
       create_quotation_revision: {
         Args: { _project_id: string }
         Returns: string
+      }
+      customer_names: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
       }
       material_demand: {
         Args: never

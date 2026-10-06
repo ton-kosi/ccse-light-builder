@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ function WorkOrderDetail() {
   const { woId } = Route.useParams();
   const { canEditProduction, roles } = useMe();
   const queryClient = useQueryClient();
+  const custName = useCustomerNames();
   const isTechnician = roles.includes("technician") && !canEditProduction;
 
   const { data: wo, isLoading } = useQuery({
@@ -36,7 +38,7 @@ function WorkOrderDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_orders")
-        .select("*, projects(id, code, name, status, site_address, customers(name, phone))")
+        .select("*, projects(id, code, name, status, site_address, customer_id, customers(name, phone))")
         .eq("id", woId)
         .single();
       if (error) throw error;
@@ -130,6 +132,7 @@ function WorkOrderDetail() {
         name: string;
         status: number;
         site_address: string | null;
+        customer_id: string | null;
         customers: { name: string; phone: string | null } | null;
       }
     | null;
@@ -165,7 +168,7 @@ function WorkOrderDetail() {
           )}
         </InfoRow>
         <InfoRow label="ลูกค้า / สถานที่">
-          {project?.customers?.name ?? "-"}
+          {custName(project?.customer_id, project?.customers) ?? "-"}
           {project?.site_address ? ` · ${project.site_address}` : ""}
         </InfoRow>
         <InfoRow label="สถานะโปรเจกต์">{statusLabel(project?.status ?? 1)}</InfoRow>
