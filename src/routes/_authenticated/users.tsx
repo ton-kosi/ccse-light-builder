@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useMe } from "@/hooks/useMe";
 import { ROLE_LABELS, type AppRole } from "@/lib/erp";
 
@@ -74,6 +76,19 @@ function UsersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const rename = useMutation({
+    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
+      const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("บันทึกชื่อแล้ว");
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!isCeo) {
     return (
       <div>
@@ -102,7 +117,15 @@ function UsersPage() {
           <tbody>
             {(profiles ?? []).map((p) => (
               <tr key={p.id} className="border-t border-border">
-                <Td className="font-medium">{p.full_name || p.id.slice(0, 8)}</Td>
+                <Td>
+                  <NameCell
+                    userId={p.id}
+                    initial={p.full_name || ""}
+                    fallback={p.id.slice(0, 8)}
+                    editable={isCeo}
+                    onSave={(fullName) => rename.mutate({ userId: p.id, fullName })}
+                  />
+                </Td>
                 {ALL_ROLES.map((r) => {
                   const on = (roles ?? []).some((x) => x.user_id === p.id && x.role === r);
                   return (
@@ -128,8 +151,65 @@ function UsersPage() {
         </table>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        ผู้ใช้จะปรากฏในตารางนี้หลังเข้าสู่ระบบครั้งแรก
+        ผู้ใช้จะปรากฏในตารางนี้หลังเข้าสู่ระบบครั้งแรก · คลิกที่ชื่อเพื่อแก้ไข
       </p>
     </div>
+  );
+}
+
+function NameCell({
+  userId,
+  initial,
+  fallback,
+  editable,
+  onSave,
+}: {
+  userId: string;
+  initial: string;
+  fallback: string;
+  editable: boolean;
+  onSave: (fullName: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initial);
+
+  if (!editable) {
+    return <span className="font-medium">{initial || fallback}</span>;
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        className="text-left font-medium underline decoration-dotted underline-offset-4 hover:text-primary"
+        title="แก้ไขชื่อ"
+        onClick={() => {
+          setValue(initial);
+          setEditing(true);
+        }}
+      >
+        {initial || fallback}
+      </button>
+    );
+  }
+
+  return (
+    <Input
+      autoFocus
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => {
+        setEditing(false);
+        if (value.trim() !== initial) onSave(value.trim());
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setValue(initial);
+          setEditing(false);
+        }
+      }}
+      aria-label={`ชื่อผู้ใช้ ${userId.slice(0, 8)}`}
+    />
   );
 }
