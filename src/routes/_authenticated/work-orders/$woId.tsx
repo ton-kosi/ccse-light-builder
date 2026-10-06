@@ -132,6 +132,7 @@ function WorkOrderDetail() {
         name: string;
         status: number;
         site_address: string | null;
+        customer_id: string | null;
         customers: { name: string; phone: string | null } | null;
       }
     | null;
