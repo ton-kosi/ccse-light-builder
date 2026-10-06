@@ -165,7 +165,6 @@ type ProjTextKey = "name" | "attn" | "po_number" | "site_address";
 type ProjNumKey =
   | "install_days_min"
   | "install_days_max"
-  | "overrun_rate_per_day"
   | "install_days_actual";
 
 function OverviewTab({
@@ -198,7 +197,26 @@ function OverviewTab({
     : null;
   const max = project.install_days_max;
   const actual = project.install_days_actual;
-  const rate = project.overrun_rate_per_day;
+  const { canManagePayments } = useMe();
+  const qcFin = useQueryClient();
+  const { data: finance } = useQuery({
+    queryKey: ["project_finance", project.id],
+    enabled: canManagePayments,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("project_finance").select("*").eq("project_id", project.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const saveRate = useMutation({
+    mutationFn: async (v: number | null) => {
+      const { error } = await supabase.from("project_finance").upsert({ project_id: project.id, overrun_rate_per_day: v });
+      if (error) throw error;
+    },
+    onSuccess: () => qcFin.invalidateQueries({ queryKey: ["project_finance", project.id] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const rate = finance?.overrun_rate_per_day ?? null;
   const overrunDays =
     actual !== null && max !== null ? Math.max(0, Number(actual) - Number(max)) : null;
   const overrun = overrunDays !== null ? overrunDays * Number(rate ?? 0) : null;
@@ -278,9 +296,11 @@ function OverviewTab({
         />
         <Stat
           label="ค่าเกินวันติดตั้ง"
-          value={overrun === null ? "-" : formatTHB(overrun) + " บาท"}
+          value={!canManagePayments ? "—" : overrun === null ? "-" : formatTHB(overrun) + " บาท"}
           hint={
-            overrunDays !== null
+            !canManagePayments
+              ? overrunDays !== null ? `เกิน ${formatQty(overrunDays)} วัน · ซ่อนจำนวนเงินตามสิทธิ์` : "ซ่อนจำนวนเงินตามสิทธิ์"
+              : overrunDays !== null
               ? `เกิน ${formatQty(overrunDays)} วัน × ${formatTHB(Number(rate ?? 0))} บาท/วัน`
               : "คำนวณเมื่อกรอกวันติดตั้งจริงและวันสูงสุด"
           }
@@ -350,7 +370,19 @@ function OverviewTab({
         {textField("สถานที่ติดตั้ง", "site_address", "md:col-span-3")}
         {numField("วันติดตั้งต่ำสุด", "install_days_min")}
         {numField("วันติดตั้งสูงสุด", "install_days_max")}
-        {numField("ค่าเกินวัน (บาท/วัน)", "overrun_rate_per_day")}
+        {canManagePayments ? (
+          <Field label="ค่าเกินวัน (บาท/วัน)">
+            <Input
+              key={String(rate ?? "")}
+              inputMode="decimal"
+              defaultValue={rate === null ? "" : String(rate)}
+              onBlur={(e) => {
+                const n = toNumber(e.target.value);
+                if (n !== (rate === null ? null : Number(rate))) saveRate.mutate(n);
+              }}
+            />
+          </Field>
+        ) : null}
         <Field label="วันเริ่มติดตั้ง">
           <Input
             type="date"
