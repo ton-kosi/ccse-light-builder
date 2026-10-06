@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { QuotationSection } from "@/components/boq/QuotationSection";
@@ -46,6 +47,7 @@ function ProjectDetail() {
   const { projectId } = Route.useParams();
   const { canSeeMoney, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
   const queryClient = useQueryClient();
+  const custName = useCustomerNames();
   const { quotation, lines } = useCurrentQuotation(projectId, canSeeMoney);
 
   const { data: project, isLoading } = useQuery({
@@ -81,7 +83,7 @@ function ProjectDetail() {
   if (isLoading) return <p className="text-sm text-muted-foreground">กำลังโหลด...</p>;
   if (!project) return <p className="text-sm text-muted-foreground">ไม่พบโปรเจกต์นี้</p>;
 
-  const customer = project.customers as { name: string } | null;
+  const customer = { name: custName(project.customer_id, project.customers) };
 
   return (
     <div className="space-y-6">

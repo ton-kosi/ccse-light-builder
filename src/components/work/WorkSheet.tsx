@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Fragment } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { Button } from "@/components/ui/button";
 import { useMe } from "@/hooks/useMe";
 import { RollPlanSection } from "@/components/work/RollPlanSection";
@@ -17,7 +18,7 @@ export function useWorkSheet(projectId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, code, name, status, selected_option, site_address, install_days_min, install_days_max, customers(name)")
+        .select("id, code, name, status, selected_option, site_address, install_days_min, install_days_max, customer_id, customers(name)")
         .eq("id", projectId)
         .single();
       if (error) throw error;
@@ -109,7 +110,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
 
       <div className="mt-3 grid gap-x-6 gap-y-1 rounded-md border border-border p-3 sm:grid-cols-3">
         <div><span className="text-muted-foreground">โปรเจกต์: </span><b>{project.code}</b> — {project.name}</div>
-        <div><span className="text-muted-foreground">ลูกค้า: </span>{(project.customers as { name: string } | null)?.name ?? "-"}</div>
+        <div><span className="text-muted-foreground">ลูกค้า: </span>{custName(project.customer_id, project.customers) ?? "-"}</div>
         <div><span className="text-muted-foreground">สถานะ: </span>{project.status}. {statusLabel(project.status)}</div>
         <div><span className="text-muted-foreground">ใบเสนอราคา: </span>{header?.ref_no ?? "-"} Rev {header?.rev ?? "-"}</div>
         <div><span className="text-muted-foreground">Option ที่เลือก: </span>{project.selected_option || "-"}</div>

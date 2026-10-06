@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/projects/")({
 function ProjectsPage() {
   const { canEditSales } = useMe();
   const queryClient = useQueryClient();
+  const custName = useCustomerNames();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [form, setForm] = useState({
@@ -43,7 +45,7 @@ function ProjectsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, code, name, status, po_number, updated_at, customers(name)")
+        .select("id, code, name, status, po_number, updated_at, customer_id, customers(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -86,7 +88,7 @@ function ProjectsPage() {
     return (
       p.code.toLowerCase().includes(q) ||
       p.name.toLowerCase().includes(q) ||
-      ((p.customers as { name: string } | null)?.name ?? "").toLowerCase().includes(q)
+      (custName(p.customer_id, p.customers) ?? "").toLowerCase().includes(q)
     );
   });
 
@@ -201,7 +203,7 @@ function ProjectsPage() {
                     </Link>
                   </Td>
                   <Td className="font-medium">{p.name}</Td>
-                  <Td>{(p.customers as { name: string } | null)?.name ?? "-"}</Td>
+                  <Td>{custName(p.customer_id, p.customers) ?? "-"}</Td>
                   <Td>{statusLabel(p.status)}</Td>
                   <Td>{p.po_number ?? "-"}</Td>
                   <Td>{formatDate(p.updated_at)}</Td>
