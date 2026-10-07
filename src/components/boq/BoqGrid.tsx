@@ -272,18 +272,18 @@ export function BoqGrid({
     let v: string | number | null;
     if (numeric) {
       v = toNumber(raw);
-      if (raw.trim() && v === null) { toast.error("กรุณากรอกตัวเลข"); return; }
+      if (raw.trim() && v === null) { toast.error("กรุณากรอกตัวเลข"); return false; }
       if (k === "unit_price" && v !== null && l.component_id) {
         const lp = compMap.get(l.component_id)?.list_price;
         if (lp != null && Number(v) !== Number(lp)) {
           if (Number(v) < Number(lp)) {
             toast.error(`ห้ามตั้งราคาต่ำกว่าราคาขาย ${formatTHB(Number(lp))}`);
-            return;
+            return false;
           }
           const cur = l.unit_price === null ? null : Number(l.unit_price);
           if (Number(v) !== cur) {
             const msg = `ราคาขายของชิ้นส่วนนี้คือ ${formatTHB(Number(lp))} — ยืนยันเปลี่ยนเป็น ${formatTHB(Number(v))}?`;
-            if (!window.confirm(msg)) return;
+            if (!window.confirm(msg)) return false;
           }
         }
       }
@@ -292,12 +292,12 @@ export function BoqGrid({
         const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : undefined;
         if (max != null && (v as number) > Number(max)) {
           toast.error(`ส่วนลดสูงสุดของรายการนี้คือ ${max}%`);
-          return;
+          return false;
         }
       }
     } else v = raw.trim() || null;
     const cur = l[k] === null || l[k] === undefined ? null : numeric ? Number(l[k]) : l[k];
-    if (v === cur) return;
+    if (v === cur) return false;
     update.mutate({ id: l.id, patch: { [k]: v } as TablesUpdate<"quote_lines"> });
   };
 
@@ -612,7 +612,7 @@ function CellInput({
 }: {
   cell: string;
   value: string;
-  onCommit: (v: string) => void;
+  onCommit: (v: string) => boolean | void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   placeholder?: string;
@@ -628,7 +628,7 @@ function CellInput({
       placeholder={placeholder}
       disabled={disabled}
       onChange={(e) => setV(e.target.value)}
-      onBlur={() => v !== value && onCommit(v)}
+      onBlur={() => { if (v !== value && onCommit(v) === false) setV(value); }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           setV(value);
