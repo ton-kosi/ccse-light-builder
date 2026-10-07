@@ -61,6 +61,7 @@ export function BoqGrid({
   components: ComponentOpt[];
   selectedOption: string | null;
   canEdit: boolean;
+  canSeeCost: boolean;
 }) {
   const qc = useQueryClient();
   const [openRecipe, setOpenRecipe] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function BoqGrid({
   const compIds = Array.from(new Set(lines.map((l) => l.component_id).filter(Boolean))) as string[];
   const { data: costs } = useQuery({
     queryKey: ["boq_costs", quotationId, lineIds.join(","), compIds.join(",")],
-    enabled: lines.length > 0,
+    enabled: canSeeCost && lines.length > 0,
     queryFn: async () => {
       const [lr, rc, sc] = await Promise.all([
         lineIds.length
@@ -311,7 +312,7 @@ export function BoqGrid({
               <H w="w-28 text-right">รวม</H>
               <H w="w-32" internal>หมายเหตุวงจร</H>
               <H w="w-40" internal>ความยาวตัด (ม.)</H>
-              <H w="w-24 text-right" internal>ต้นทุน</H>
+              {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
               <th className="w-44" />
             </tr>
           </thead>
