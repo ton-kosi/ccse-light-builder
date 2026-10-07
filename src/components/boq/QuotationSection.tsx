@@ -48,7 +48,13 @@ export function QuotationSection({
         .select("id, code, name, unit")
         .order("code");
       if (error) throw error;
-      return data;
+      const { data: prices } = await supabase.from("component_prices").select("component_id, list_price, max_discount_percent");
+      const pm = new Map((prices ?? []).map((p) => [p.component_id, p]));
+      return data.map((c) => ({
+        ...c,
+        list_price: pm.get(c.id)?.list_price ?? null,
+        max_discount_percent: pm.get(c.id)?.max_discount_percent ?? null,
+      }));
     },
   });
 

@@ -19,7 +19,7 @@ import { formatQty, formatTHB, toNumber } from "@/lib/format";
 
 type Comp = { code: string; name: string; unit: string } | null;
 export type GridLine = QuoteLine & { sales_components: Comp };
-type ComponentOpt = { id: string; code: string; name: string; unit: string };
+type ComponentOpt = { id: string; code: string; name: string; unit: string; list_price?: number | null; max_discount_percent?: number | null };
 
 const COLS = [
   "option_name",
@@ -86,6 +86,7 @@ export function BoqGrid({
 
   /* ---- internal cost: recipe × sku cost ---- */
   const lineIds = lines.map((l) => l.id);
+  const compMap = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
   const compIds = Array.from(new Set(lines.map((l) => l.component_id).filter(Boolean))) as string[];
   const { data: costs } = useQuery({
     queryKey: ["boq_costs", quotationId, lineIds.join(","), compIds.join(",")],
@@ -272,7 +273,14 @@ export function BoqGrid({
     if (numeric) {
       v = toNumber(raw);
       if (raw.trim() && v === null) { toast.error("กรุณากรอกตัวเลข"); return; }
-      if (k === "discount_percent") v = v ?? 0;
+      if (k === "discount_percent") {
+        v = v ?? 0;
+        const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : undefined;
+        if (!canSeeCost && max != null && (v as number) > Number(max)) {
+          toast.error(`ส่วนลดสูงสุดของรายการนี้คือ ${max}%`);
+          return;
+        }
+      }
     } else v = raw.trim() || null;
     const cur = l[k] === null || l[k] === undefined ? null : numeric ? Number(l[k]) : l[k];
     if (v === cur) return;
@@ -408,7 +416,11 @@ export function BoqGrid({
                           );
                           update.mutate({
                             id: l.id,
-                            patch: { component_id: c?.id ?? null, ...(c ? { unit: c.unit } : {}) },
+                            patch: {
+                              component_id: c?.id ?? null,
+                              ...(c ? { unit: c.unit } : {}),
+                              ...(c && c.list_price != null ? { unit_price: c.list_price, discount_percent: 0 } : {}),
+                            },
                           });
                         }}
                       />
@@ -426,7 +438,23 @@ export function BoqGrid({
                     {txt("qty", 6, "text-right")}
                     {txt("unit", 7)}
                     {txt("unit_price", 8, "text-right")}
-                    {txt("discount_percent", 9, "text-right")}
+                    {(() => {
+                      const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
+                      return (
+                        <td className="px-0.5 py-0.5" title={max != null ? `ลดได้สูงสุด ${max}%` : undefined}>
+                          <CellInput
+                            cell={`${r}:9`}
+                            value={String(l.discount_percent ?? "")}
+                            placeholder={max != null ? `≤${max}` : ""}
+                            disabled={!canEdit}
+                            className="text-right"
+                            onCommit={(v) => commitText(l, "discount_percent", v)}
+                            onKeyDown={(e) => onKey(e, r, 9)}
+                          />
+                          {max != null ? <div className="px-1 text-right text-[10px] text-muted-foreground">สูงสุด {max}%</div> : null}
+                        </td>
+                      );
+                    })()}
                     <td className="px-1.5 text-right tabular-nums">
                       {l.kind === "priced" ? formatTHB(amount) : kindText(l.kind)}
                     </td>
