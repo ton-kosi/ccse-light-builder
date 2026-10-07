@@ -161,8 +161,11 @@ export function BoqGrid({
       setColumnWidths((old) => old.every((width, index) => width === widths[index]) ? old : widths);
     };
     measure();
+    // React's input event can update a child draft after the parent layout effect.
+    // Measure again after that draft has reached the DOM.
+    const frame = requestAnimationFrame(measure);
     document.fonts.ready.then(measure);
-    return () => { active = false; };
+    return () => { active = false; cancelAnimationFrame(frame); };
   }, [lines, costs, canSeeCost, canEdit, measurementRevision]);
 
   /* ---- mutations ---- */
