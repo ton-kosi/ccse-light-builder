@@ -299,6 +299,7 @@ export function BoqGrid({
     const cur = l[k] === null || l[k] === undefined ? null : numeric ? Number(l[k]) : l[k];
     if (v === cur) return false;
     update.mutate({ id: l.id, patch: { [k]: v } as TablesUpdate<"quote_lines"> });
+    return true;
   };
 
   const commitCut = (l: GridLine, raw: string) => {
