@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      component_prices: {
+        Row: {
+          component_id: string
+          list_price: number | null
+          max_discount_percent: number
+          updated_at: string
+        }
+        Insert: {
+          component_id: string
+          list_price?: number | null
+          max_discount_percent?: number
+          updated_at?: string
+        }
+        Update: {
+          component_id?: string
+          list_price?: number | null
+          max_discount_percent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "component_prices_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: true
+            referencedRelation: "sales_components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
