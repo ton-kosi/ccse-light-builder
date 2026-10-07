@@ -11,6 +11,8 @@ import { formatDate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/work-orders/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ใบสั่งงาน | CCSE ERP" },
       { name: "description", content: "ใบสั่งงานผลิตและติดตั้ง พร้อมรายการของที่ต้องเบิก (ไม่มีราคา)" },
       { property: "og:title", content: "ใบสั่งงาน | CCSE ERP" },

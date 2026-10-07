@@ -16,6 +16,8 @@ import { DueBadge } from "@/components/payments/PaymentTermsSection";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ภาพรวมงาน | CCSE ERP" },
       { name: "description", content: "สรุปจำนวนงานตามสถานะ และงานที่เคลื่อนไหวล่าสุด" },
       { property: "og:title", content: "ภาพรวมงาน | CCSE ERP" },

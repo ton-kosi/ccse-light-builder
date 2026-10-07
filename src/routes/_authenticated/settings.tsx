@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ตั้งค่า | CCSE ERP" },
       { name: "description", content: "ตั้งค่าระบบ CCSE ERP" },
       { property: "og:title", content: "ตั้งค่า | CCSE ERP" },

@@ -17,6 +17,8 @@ import { formatDate, formatQty, toNumber } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/work-orders/$woId")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ใบสั่งงาน | CCSE ERP" },
       { name: "description", content: "รายละเอียดใบสั่งงานและรายการของที่ต้องเบิก (ไม่แสดงราคา)" },
       { property: "og:title", content: "ใบสั่งงาน | CCSE ERP" },

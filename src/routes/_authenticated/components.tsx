@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/AppLayout";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddRecipeItem } from "@/components/AddRecipeItem";
@@ -172,7 +173,7 @@ function ComponentsPage() {
               list.map((c) => (
                 <tr key={c.id} className="border-t border-border">
                   <Td className="font-mono text-xs">{c.code}</Td>
-                  <Td className="font-medium">{c.name}</Td>
+                   <Td className="whitespace-pre-wrap break-words font-medium">{c.name}</Td>
                   <Td>{c.unit}</Td>
                   <Td>{c.install_category ?? "-"}</Td>
                   <Td>{c.is_roll_product ? "ใช่" : "-"}</Td>
@@ -233,7 +234,7 @@ function CompForm({
   initial, readOnly, pending, onSubmit,
 }: { initial: Form; readOnly: boolean; pending: boolean; onSubmit: (f: Form) => void }) {
   const [f, setF] = useState(initial);
-  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setF({ ...f, [k]: e.target.value });
   return (
     <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); onSubmit(f); }}>
@@ -241,7 +242,7 @@ function CompForm({
         <Field label="รหัส *"><Input required value={f.code} onChange={set("code")} /></Field>
         <Field label="หน่วย"><Input value={f.unit} onChange={set("unit")} /></Field>
         <Field label="ชื่อ (ตรงตามที่ใช้ในใบเสนอราคา) *" className="sm:col-span-2">
-          <Input required value={f.name} onChange={set("name")} />
+           <Textarea required rows={4} value={f.name} onChange={set("name")} />
         </Field>
         <Field label="หมวดติดตั้ง">
           <select className={selectCls} value={f.install_category} onChange={set("install_category")}>

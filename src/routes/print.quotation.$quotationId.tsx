@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { kindText } from "@/components/boq/BoqGrid";
-import { computeTotals, lineAmount, optKey, optionNames } from "@/lib/boq";
+import { computeTotals, formatCutLengths, lineAmount, optKey, optionNames, quotationRevisionSuffix, sumCut } from "@/lib/boq";
+import { Button } from "@/components/ui/button";
 import { formatDate, formatQty, formatTHB } from "@/lib/format";
 
 export const Route = createFileRoute("/print/quotation/$quotationId")({
@@ -63,7 +64,7 @@ function PrintQuotation() {
       const [{ data: lines }, { data: terms }] = await Promise.all([
         supabase
           .from("quote_lines")
-          .select("id, sort_order, option_name, item_no, kind, customer_text, qty, unit, unit_price, discount_percent, sales_components(name)")
+           .select("id, sort_order, option_name, item_no, kind, customer_text, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
           .eq("quotation_id", quotationId)
           .order("sort_order"),
         supabase.from("payment_terms").select("seq, name, percent, note").eq("quotation_id", quotationId).order("seq"),
@@ -96,18 +97,18 @@ function PrintQuotation() {
     <div className="quote-print mx-auto max-w-[210mm] bg-background p-[12mm] text-[12px] leading-snug text-foreground">
       <style>{`@page { size: A4; margin: 12mm; } @media print { .quote-print { padding: 0 !important; max-width: none !important; } .no-print { display: none !important; } tr { break-inside: avoid; } }`}</style>
       <div className="no-print mb-4 flex justify-end gap-2">
-        <button
+         <Button variant="outline"
           onClick={() => window.print()}
           className="h-9 rounded-md border border-input bg-background px-4 text-sm"
         >
           พิมพ์
-        </button>
-        <button
-          onClick={() => savePdf(`${q.ref_no}-Rev${q.rev}.pdf`)}
+         </Button>
+         <Button
+           onClick={() => savePdf(`${q.ref_no}${quotationRevisionSuffix(q.rev) ? `-Rev${q.rev}` : ""}.pdf`)}
           className="h-9 rounded-md bg-primary px-4 text-sm text-primary-foreground"
         >
           บันทึก PDF
-        </button>
+         </Button>
       </div>
 
       <header className="flex items-start justify-between border-b-2 border-foreground pb-2">
@@ -131,7 +132,7 @@ function PrintQuotation() {
         </div>
         <div className="space-y-0.5">
           <Info label="REF NO.">{q.ref_no}</Info>
-          <Info label="REV">{q.rev}</Info>
+           {quotationRevisionSuffix(q.rev) ? <Info label="REV">{q.rev}</Info> : null}
           <Info label="DATE">{formatDate(q.date)}</Info>
           {q.validity_days ? <Info label="VALIDITY">{q.validity_days} days</Info> : null}
         </div>
@@ -172,7 +173,15 @@ function PrintQuotation() {
                 ) : null}
                 <tr className={"align-top " + (heading ? "font-bold" : "")}>
                   <td className="py-0.5">{l.item_no ?? ""}</td>
-                  <td className={"py-0.5 " + (heading ? "pt-2" : "")}>{desc}</td>
+                   <td className={"whitespace-pre-wrap break-words py-0.5 " + (heading ? "pt-2" : "")}>
+                     {desc}
+                     {l.cut_lengths?.length ? (
+                       <div className="mt-1 text-[11px] font-normal">
+                         <div>ความยาวตัด: {formatCutLengths(l.cut_lengths)} ม.</div>
+                         <div>ความยาวรวม: {formatQty(sumCut(l.cut_lengths))} ม.</div>
+                       </div>
+                     ) : null}
+                   </td>
                   <td className="py-0.5 text-right tabular-nums">{showQty ? formatQty(Number(l.qty)) : ""}</td>
                   <td className="py-0.5 pl-2">{showQty ? (l.unit ?? "") : ""}</td>
                   {priced ? (

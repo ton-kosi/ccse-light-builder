@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BoqGrid, type GridLine } from "@/components/boq/BoqGrid";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
-import { computeTotals, optionNames } from "@/lib/boq";
+import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { formatDate, formatTHB, toNumber } from "@/lib/format";
 
 export function QuotationSection({
@@ -112,7 +112,7 @@ export function QuotationSection({
         <p className="mt-1 text-sm text-muted-foreground">ยังไม่มีใบเสนอราคาสำหรับงานนี้</p>
         {canEdit ? (
           <Button size="sm" className="mt-3" onClick={() => createQuotation.mutate()}>
-            สร้างใบเสนอราคา (Rev A)
+             สร้างใบเสนอราคา
           </Button>
         ) : null}
       </section>
@@ -129,14 +129,14 @@ export function QuotationSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">
-            ใบเสนอราคา {quotation.ref_no} · Rev {quotation.rev} (ฉบับปัจจุบัน)
+             ใบเสนอราคา {quotation.ref_no}{quotationRevisionSuffix(quotation.rev)} (ฉบับปัจจุบัน)
           </h2>
-          <p className="text-xs text-muted-foreground">
-            Rev ทั้งหมด:{" "}
+           {(revisions?.length ?? 0) > 1 ? <p className="text-xs text-muted-foreground">
+             ฉบับทั้งหมด:{" "}
             {(revisions ?? [])
-              .map((r) => `${r.rev} (${formatDate(r.date)})${r.is_current ? " ✓" : ""}`)
+               .map((r) => `${quotationRevisionSuffix(r.rev).trim() || "ฉบับแรก"} (${formatDate(r.date)})${r.is_current ? " ✓" : ""}`)
               .join(" · ")}
-          </p>
+           </p> : null}
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setPreview(true)}>
@@ -222,7 +222,7 @@ export function QuotationSection({
       <Dialog open={preview} onOpenChange={setPreview}>
         <DialogContent className="flex h-[92vh] max-w-[900px] flex-col p-3">
           <DialogHeader>
-            <DialogTitle>ตัวอย่างใบเสนอราคา {quotation.ref_no} Rev {quotation.rev}</DialogTitle>
+             <DialogTitle>ตัวอย่างใบเสนอราคา {quotation.ref_no}{quotationRevisionSuffix(quotation.rev)}</DialogTitle>
           </DialogHeader>
           <iframe
             title="quotation-preview"

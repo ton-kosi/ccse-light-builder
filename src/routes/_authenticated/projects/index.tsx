@@ -16,6 +16,8 @@ import { formatDate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "โปรเจกต์ | CCSE ERP" },
       { name: "description", content: "รายการงานทั้งหมดพร้อมสถานะ 1–11" },
       { property: "og:title", content: "โปรเจกต์ | CCSE ERP" },
