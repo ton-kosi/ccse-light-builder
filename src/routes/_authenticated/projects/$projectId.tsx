@@ -10,7 +10,7 @@ import { QuotationSection } from "@/components/boq/QuotationSection";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { WorkSheet } from "@/components/work/WorkSheet";
 import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
-import { computeTotals, optionNames } from "@/lib/boq";
+import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -274,7 +274,7 @@ function OverviewTab({
     <div className="space-y-6">
       <section className="grid gap-4 sm:grid-cols-3">
         <Stat
-          label={`ยอดใบเสนอราคาปัจจุบัน${quotation ? ` (Rev ${quotation.rev})` : ""}`}
+          label={`ยอดใบเสนอราคาปัจจุบัน${quotation ? quotationRevisionSuffix(quotation.rev) : ""}`}
           value={
             !canSeeMoney ? "—" : totals ? formatTHB(totals.net) + " บาท" : "ยังไม่มีใบเสนอราคา"
           }
