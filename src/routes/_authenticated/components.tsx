@@ -52,7 +52,7 @@ function friendly(m: string) {
 }
 
 function ComponentsPage() {
-  const { canEditMaster } = useMe();
+  const { canEditMaster, isAdmin, canEditQuote } = useMe();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
@@ -207,7 +207,10 @@ function ComponentsPage() {
                 onSubmit={(form) => save.mutate({ id: editing.id, form })}
               />
               {editing.id ? (
-                <RecipeTable componentId={editing.id} unit={editing.form.unit} canEdit={canEditMaster} />
+                <>
+                  {canEditQuote ? <PricePanel componentId={editing.id} isAdmin={isAdmin} /> : null}
+                  <RecipeTable componentId={editing.id} unit={editing.form.unit} canEdit={canEditMaster} />
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">บันทึกชิ้นส่วนก่อน แล้วจึงเพิ่มสูตรได้</p>
               )}
@@ -360,6 +363,77 @@ function QtyCell({ value, onSave }: { value: number; onSave: (n: number) => void
           onSave(n);
         }}>บันทึก</Button>
       ) : null}
+    </div>
+  );
+}
+
+function PricePanel({ componentId, isAdmin }: { componentId: string; isAdmin: boolean }) {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["component_price", componentId, isAdmin],
+    queryFn: async () => {
+      const { data: price } = await supabase
+        .from("component_prices").select("list_price, max_discount_percent").eq("component_id", componentId).maybeSingle();
+      let cost: number | null = null;
+      if (isAdmin) {
+        const { data: rec } = await supabase.from("recipes").select("sku_id, qty_per_unit").eq("component_id", componentId);
+        const ids = (rec ?? []).map((r) => r.sku_id);
+        const { data: costs } = ids.length
+          ? await supabase.from("sku_costs").select("sku_id, unit_cost").in("sku_id", ids)
+          : { data: [] as { sku_id: string; unit_cost: number }[] };
+        const cm = new Map((costs ?? []).map((c) => [c.sku_id, Number(c.unit_cost)]));
+        cost = (rec ?? []).reduce((s, r) => s + Number(r.qty_per_unit) * (cm.get(r.sku_id) ?? 0), 0);
+      }
+      return { price, cost };
+    },
+  });
+  const [lp, setLp] = useState<string | null>(null);
+  const [md, setMd] = useState<string | null>(null);
+  const listPrice = lp ?? (data?.price?.list_price != null ? String(data.price.list_price) : "");
+  const maxDisc = md ?? (data?.price?.max_discount_percent != null ? String(data.price.max_discount_percent) : "");
+  const save = useMutation({
+    mutationFn: async () => {
+      const p = toNumber(listPrice);
+      const d = toNumber(maxDisc) ?? 0;
+      if (d < 0 || d > 100) throw new Error("% ส่วนลดต้องอยู่ระหว่าง 0–100");
+      const { error } = await supabase.from("component_prices")
+        .upsert({ component_id: componentId, list_price: p, max_discount_percent: d });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("บันทึกราคาขายแล้ว");
+      setLp(null); setMd(null);
+      qc.invalidateQueries({ queryKey: ["component_price", componentId] });
+      qc.invalidateQueries({ queryKey: ["sales_components", "picker"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const cost = data?.cost ?? null;
+  const priceNum = toNumber(listPrice);
+  const fmt = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (
+    <div className="mt-4 rounded-md border border-border p-3">
+      <h3 className="mb-2 text-sm font-semibold">ราคาขาย</h3>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {isAdmin ? (
+          <Field label="ต้นทุนตามสูตร (บาท/หน่วย)">
+            <div className="h-9 rounded-md bg-secondary px-3 py-2 text-sm tabular-nums">{cost === null ? "-" : fmt(cost)}</div>
+          </Field>
+        ) : null}
+        <Field label="ราคาขาย @ (บาท)">
+          <Input value={listPrice} readOnly={!isAdmin} onChange={(e) => setLp(e.target.value)} className="text-right" />
+        </Field>
+        <Field label="% ส่วนลดสูงสุด">
+          <Input value={maxDisc} readOnly={!isAdmin} onChange={(e) => setMd(e.target.value)} className="text-right" />
+        </Field>
+      </div>
+      {isAdmin && cost !== null && priceNum ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          กำไรขั้นต้นที่ราคาเต็ม: {fmt(priceNum - cost)} บาท ({fmt(((priceNum - cost) / priceNum) * 100)}%)
+          {toNumber(maxDisc) ? ` · หลังลดสูงสุด: ${fmt(priceNum * (1 - (toNumber(maxDisc) ?? 0) / 100) - cost)} บาท` : ""}
+        </p>
+      ) : null}
+      {isAdmin ? <Button size="sm" className="mt-3" disabled={save.isPending} onClick={() => save.mutate()}>บันทึกราคาขาย</Button> : null}
     </div>
   );
 }
