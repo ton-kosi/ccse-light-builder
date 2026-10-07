@@ -55,6 +55,7 @@ export function BoqGrid({
   components,
   selectedOption,
   canEdit,
+  canSeeCost,
 }: {
   quotationId: string;
   lines: GridLine[];
