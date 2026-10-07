@@ -115,7 +115,7 @@ function ProjectDetail() {
             project={project}
             lines={lines}
             quotation={quotation}
-            canSeeMoney={canSeeMoney}
+            canSeeMoney={canEditQuote}
             canEditSales={canEditSales}
             canEditStatus={canEditProduction}
             isAdmin={isAdmin}
@@ -124,12 +124,13 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="boq" className="mt-4">
-          {canSeeMoney ? (
+          {canEditQuote ? (
             <QuotationSection
               projectId={projectId}
               projectCode={project.code}
               selectedOption={project.selected_option}
-              canEdit={canSeeMoney}
+              canEdit={canEditQuote}
+              canSeeCost={canSeeMoney}
             />
           ) : (
             <HiddenMoney />
