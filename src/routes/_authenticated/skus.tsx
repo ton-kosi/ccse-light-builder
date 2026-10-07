@@ -527,8 +527,9 @@ function RepriceComponents({ skuId, onDone }: { skuId: string; onDone: () => voi
   const save = useMutation({
     mutationFn: async () => {
       const rows = (data ?? []).filter((c) => edits[c.id] !== undefined).map((c) => {
-        const v = toNumber(edits[c.id]);
-        if (edits[c.id].trim() && v === null) throw new Error(`ราคาของ ${c.code} ไม่ใช่ตัวเลข`);
+        const raw = edits[c.id] ?? "";
+        const v = toNumber(raw);
+        if (raw.trim() && v === null) throw new Error(`ราคาของ ${c.code} ไม่ใช่ตัวเลข`);
         return { component_id: c.id, list_price: v, max_discount_percent: Number(c.max_discount_percent) };
       });
       if (rows.length) {
