@@ -453,9 +453,11 @@ export function BoqGrid({
                         </div>
                       ) : null}
                     </td>
-                    <td className="bg-accent/30 px-1.5 text-right tabular-nums text-muted-foreground">
-                      {heading || cost === null ? "" : formatTHB(cost)}
-                    </td>
+                    {canSeeCost ? (
+                      <td className="bg-accent/30 px-1.5 text-right tabular-nums text-muted-foreground">
+                        {heading || cost === null ? "" : formatTHB(cost)}
+                      </td>
+                    ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
                         {!heading ? (
