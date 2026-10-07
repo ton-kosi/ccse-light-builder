@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,44 @@ export function BoqGrid({
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
   const key = ["quote_lines", quotationId];
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [draftWidths, setDraftWidths] = useState<Record<string, string>>({});
+  const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 196, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
+  const trackWidth = (id: string, field: string, value: string) =>
+    setDraftWidths((old) => ({ ...old, [`${id}:${field}`]: value }));
+
+  useLayoutEffect(() => {
+    let active = true;
+    const measure = () => {
+      const table = tableRef.current;
+      const context = document.createElement("canvas").getContext("2d");
+      if (!active || !table || !context) return;
+      const font = getComputedStyle(table);
+      context.font = `600 16px ${font.fontFamily}`;
+      const textWidth = (text: string) => Math.ceil(context.measureText(text).width);
+      const fit = (text: string, header: string, extra = 20) => Math.max(textWidth(text) + extra, textWidth(header) + 16);
+      const longest = (field: "customer_text" | "cut_lengths", fallback: string) => {
+        let width = textWidth(fallback);
+        for (const line of lines) {
+          const saved = field === "customer_text" ? line.customer_text || line.sales_components?.name || "" : formatCutLengths(line.cut_lengths);
+          const shown = draftWidths[`${line.id}:${field}`] ?? saved;
+          for (const part of shown.split("\n")) width = Math.max(width, textWidth(part));
+        }
+        return width + 24;
+      };
+      setColumnWidths([
+        24, fit("MMM", "Option"), 96, fit("999999999", "เลขวงจร"), fit("999", "Item"),
+        Math.max(...LINE_KINDS.map((kind) => textWidth(kind.label))) + 44,
+        fit("M".repeat(18), "ชิ้นส่วนขาย"),
+        longest("customer_text", "รายละเอียด (ลูกค้าเห็น)"), longest("cut_lengths", "ความยาวตัด (ม.)"),
+        fit("99999", "จำนวนรวม"), fit("MMMM", "หน่วย"), fit("9999999", "@ราคา"),
+        fit("99", "%ลด"), fit("99,999.99", "รวม"), fit("99,999.99", "ต้นทุน"), 176,
+      ]);
+    };
+    measure();
+    document.fonts.ready.then(measure);
+    return () => { active = false; };
+  }, [lines, draftWidths]);
 
   const setLocal = (fn: (rows: GridLine[]) => GridLine[]) =>
     qc.setQueryData<GridLine[]>(key, (old) => fn(old ?? []));
@@ -311,23 +349,26 @@ export function BoqGrid({
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full min-w-[2600px] border-collapse text-sm">
+        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
+          <colgroup>
+            {columnWidths.map((width, index) => index === 14 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
+          </colgroup>
           <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
               <th className="w-6" />
-              <H w="min-w-32">Option</H>
-              <H w="min-w-48">โซน</H>
-              <H w="min-w-44">เลขวงจร</H>
-              <H w="min-w-24">Item</H>
-              <H w="min-w-40">ประเภท</H>
-              <H w="min-w-72">ชิ้นส่วนขาย</H>
-               <H w="min-w-[440px]">รายละเอียด (ลูกค้าเห็น)</H>
-              <H w="min-w-72">ความยาวตัด (ม.)</H>
-              <H w="min-w-32 text-right">จำนวนรวม</H>
-              <H w="min-w-24">หน่วย</H>
-              <H w="min-w-36 text-right">@ราคา</H>
-              <H w="min-w-28 text-right">%ลด</H>
-              <H w="min-w-40 text-right">รวม</H>
+              <H>Option</H>
+              <H>โซน</H>
+              <H>เลขวงจร</H>
+              <H>Item</H>
+              <H>ประเภท</H>
+              <H>ชิ้นส่วนขาย</H>
+              <H>รายละเอียด (ลูกค้าเห็น)</H>
+              <H>ความยาวตัด (ม.)</H>
+              <H w="text-right">จำนวนรวม</H>
+              <H>หน่วย</H>
+              <H w="text-right">@ราคา</H>
+              <H w="text-right">%ลด</H>
+              <H w="text-right">รวม</H>
               {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
               <th className="w-44" />
             </tr>
@@ -448,6 +489,7 @@ export function BoqGrid({
                         value={l.customer_text ?? ""}
                         placeholder={l.sales_components?.name ?? ""}
                         disabled={!canEdit}
+                         onDraftChange={(value) => trackWidth(l.id, "customer_text", value)}
                         onCommit={(v) => commitText(l, "customer_text", v)}
                          onKeyDown={(e) => {
                            if (["Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
@@ -460,6 +502,7 @@ export function BoqGrid({
                          cell={`${r}:7`}
                         value={formatCutLengths(l.cut_lengths)}
                         placeholder="1.50+1.40"
+                         onDraftChange={(value) => trackWidth(l.id, "cut_lengths", value)}
                         disabled={!canEdit}
                         onCommit={(v) => commitCut(l, v)}
                         onKeyDown={(e) => onKey(e, r, 7)}
@@ -486,7 +529,7 @@ export function BoqGrid({
                             onCommit={(v) => commitText(l, "discount_percent", v)}
                             onKeyDown={(e) => onKey(e, r, 11)}
                           />
-                          {max != null ? <div className="px-1 text-right text-sm text-muted-foreground">สูงสุด {max}%</div> : null}
+                          {max != null ? <div className="px-1 text-right text-xs text-muted-foreground">สูงสุด<br />{max}%</div> : null}
                         </td>
                       );
                     })()}
@@ -598,11 +641,12 @@ function H({ children, w = "", internal }: { children: React.ReactNode; w?: stri
   );
 }
 
-function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDown }: {
+function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDown, onDraftChange }: {
   cell: string;
   value: string;
   placeholder?: string;
   disabled?: boolean;
+  onDraftChange?: (value: string) => void;
   onCommit: (value: string) => boolean;
   onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }) {
@@ -617,12 +661,11 @@ function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDo
       placeholder={placeholder}
       disabled={disabled}
        rows={Math.max(2, shown.split("\n").length)}
-       cols={Math.max(52, ...shown.split("\n").map((line) => Array.from(line).length + 4))}
        wrap="off"
-       className="w-auto min-w-[440px] max-w-none resize-y whitespace-pre border-transparent bg-transparent px-2 py-2 text-base shadow-none"
-      onChange={(e) => setDraft(e.target.value)}
+       className="w-full min-w-0 max-w-none resize-y whitespace-pre border-transparent bg-transparent px-2 py-2 text-base shadow-none"
+      onChange={(e) => { setDraft(e.target.value); onDraftChange?.(e.target.value); }}
       onKeyDown={onKeyDown}
-      onBlur={() => { if (!onCommit(draft)) setDraft(value); }}
+      onBlur={() => { if (!onCommit(draft)) { setDraft(value); onDraftChange?.(value || placeholder || ""); } }}
     />
   );
 }
@@ -635,6 +678,7 @@ function CellInput({
   disabled,
   placeholder,
   className = "",
+  onDraftChange,
 }: {
   cell: string;
   value: string;
@@ -643,6 +687,7 @@ function CellInput({
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  onDraftChange?: (value: string) => void;
 }) {
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
@@ -653,11 +698,12 @@ function CellInput({
       value={v}
       placeholder={placeholder}
       disabled={disabled}
-      onChange={(e) => setV(e.target.value)}
+      onChange={(e) => { setV(e.target.value); onDraftChange?.(e.target.value); }}
       onBlur={() => { if (v !== value && onCommit(v) === false) setV(value); }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           setV(value);
+          onDraftChange?.(value);
           return;
         }
         onKeyDown(e);

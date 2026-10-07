@@ -1,4 +1,5 @@
 # Tasks
+- [x] Adjust BOQ column widths and verify longest-line resizing while typing.
 - [x] Enlarge BOQ fields, reorder circuit/cut columns, and fix dynamic component dropdown visibility.
 - [x] Print circuit numbers above single-line cut lengths and verify PDF.
 - [x] Format quotation cut lengths as dash-prefixed meter lines, without total.
