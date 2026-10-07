@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Fragment } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { kindText } from "@/components/boq/BoqGrid";
-import { computeTotals, formatCutLengths, lineAmount, optKey, optionNames, quotationRevisionSuffix, sumCut } from "@/lib/boq";
+import { computeTotals, lineAmount, optKey, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatQty, formatTHB } from "@/lib/format";
 
@@ -39,7 +39,9 @@ async function savePdf(filename: string) {
       const h = Math.min(sliceH, canvas.height - y);
       const c = document.createElement("canvas");
       c.width = canvas.width; c.height = h;
-      c.getContext("2d")!.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      const context = c.getContext("2d");
+      if (!context) throw new Error("ไม่สามารถสร้าง PDF ได้");
+      context.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
       if (page) pdf.addPage();
       pdf.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgW, h / pxPerMm);
     }
@@ -47,6 +49,27 @@ async function savePdf(filename: string) {
   } finally {
     el.classList.remove("pdf-capture");
   }
+}
+
+function FittedDescriptionLine({ children, bold = false }: { children: string; bold?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.removeProperty("font-size");
+      const base = parseFloat(getComputedStyle(el).fontSize);
+      if (el.scrollWidth > el.clientWidth && el.clientWidth > 0) {
+        el.style.fontSize = `${base * el.clientWidth / el.scrollWidth}px`;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    document.fonts.ready.then(fit);
+    return () => observer.disconnect();
+  }, [children]);
+  return <div ref={ref} className={"min-h-[1lh] whitespace-pre " + (bold ? "font-bold" : "")}>{children || "\u00a0"}</div>;
 }
 
 function PrintQuotation() {
@@ -64,7 +87,7 @@ function PrintQuotation() {
       const [{ data: lines }, { data: terms }] = await Promise.all([
         supabase
           .from("quote_lines")
-           .select("id, sort_order, option_name, item_no, kind, customer_text, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
+           .select("id, sort_order, option_name, zone, item_no, kind, customer_text, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
           .eq("quotation_id", quotationId)
           .order("sort_order"),
         supabase.from("payment_terms").select("seq, name, percent, note").eq("quotation_id", quotationId).order("seq"),
@@ -138,16 +161,16 @@ function PrintQuotation() {
         </div>
       </section>
 
-      <table className="mt-4 w-full border-collapse">
+      <table className="mt-4 w-full table-fixed border-collapse">
         <thead>
           <tr className="border-y-2 border-foreground text-[11px]">
-            <th className="w-12 py-1 text-left">ITEM</th>
+            <th className="w-8 py-1 text-left">ITEM</th>
             <th className="py-1 text-left">DESCRIPTION</th>
-            <th className="w-14 py-1 text-right">Q'TY</th>
-            <th className="w-12 py-1 pl-2 text-left">UNIT</th>
-            <th className="w-20 py-1 text-right">@PRICE</th>
+            <th className="w-10 py-1 text-right">Q'TY</th>
+            <th className="w-10 py-1 pl-2 text-left">UNIT</th>
+            <th className="w-16 py-1 text-right">@PRICE</th>
             <th className="w-12 py-1 text-right">% DISC.</th>
-            <th className="w-24 py-1 text-right">TOTAL</th>
+            <th className="w-20 py-1 text-right">TOTAL</th>
           </tr>
         </thead>
         <tbody>
@@ -173,12 +196,12 @@ function PrintQuotation() {
                 ) : null}
                 <tr className={"align-top " + (heading ? "font-bold" : "")}>
                   <td className="py-0.5">{l.item_no ?? ""}</td>
-                   <td className={"whitespace-pre-wrap break-words py-0.5 " + (heading ? "pt-2" : "")}>
-                     {desc}
+                   <td className={"py-0.5 pr-2 " + (heading ? "pt-2" : "")}>
+                     {l.zone?.trim() ? <FittedDescriptionLine bold>{l.zone.trim()}</FittedDescriptionLine> : null}
+                     {desc.split("\n").map((text, index) => <FittedDescriptionLine key={index} bold={heading}>{text}</FittedDescriptionLine>)}
                      {l.cut_lengths?.length ? (
                        <div className="mt-1 text-[11px] font-normal">
-                         <div>ความยาวตัด: {formatCutLengths(l.cut_lengths)} ม.</div>
-                         <div>ความยาวรวม: {formatQty(sumCut(l.cut_lengths))} ม.</div>
+                         {l.cut_lengths.map((length, index) => <div key={index}>- {Number(length).toFixed(2)}m</div>)}
                        </div>
                      ) : null}
                    </td>
