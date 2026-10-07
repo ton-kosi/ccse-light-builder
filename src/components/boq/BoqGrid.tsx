@@ -63,43 +63,10 @@ export function BoqGrid({
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
   const key = ["quote_lines", quotationId];
   const tableRef = useRef<HTMLTableElement>(null);
-  const [draftWidths, setDraftWidths] = useState<Record<string, string>>({});
+  const [measurementRevision, setMeasurementRevision] = useState(0);
   const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 196, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
-  const trackWidth = (id: string, field: string, value: string) =>
-    setDraftWidths((old) => ({ ...old, [`${id}:${field}`]: value }));
-
-  useLayoutEffect(() => {
-    let active = true;
-    const measure = () => {
-      const table = tableRef.current;
-      const context = document.createElement("canvas").getContext("2d");
-      if (!active || !table || !context) return;
-      const font = getComputedStyle(table);
-      context.font = `600 16px ${font.fontFamily}`;
-      const textWidth = (text: string) => Math.ceil(context.measureText(text).width);
-      const fit = (text: string, header: string, extra = 20) => Math.max(textWidth(text) + extra, textWidth(header) + 16);
-      const longest = (field: "customer_text" | "cut_lengths", fallback: string) => {
-        let width = textWidth(fallback);
-        for (const line of lines) {
-          const saved = field === "customer_text" ? line.customer_text || line.sales_components?.name || "" : formatCutLengths(line.cut_lengths);
-          const shown = draftWidths[`${line.id}:${field}`] ?? saved;
-          for (const part of shown.split("\n")) width = Math.max(width, textWidth(part));
-        }
-        return width + 24;
-      };
-      setColumnWidths([
-        24, fit("MMM", "Option"), 96, fit("999999999", "เลขวงจร"), fit("999", "Item"),
-        Math.max(...LINE_KINDS.map((kind) => textWidth(kind.label))) + 44,
-        fit("M".repeat(18), "ชิ้นส่วนขาย"),
-        longest("customer_text", "รายละเอียด (ลูกค้าเห็น)"), longest("cut_lengths", "ความยาวตัด (ม.)"),
-        fit("99999", "จำนวนรวม"), fit("MMMM", "หน่วย"), fit("9999999", "@ราคา"),
-        fit("99", "%ลด"), fit("99,999.99", "รวม"), fit("99,999.99", "ต้นทุน"), 176,
-      ]);
-    };
-    measure();
-    document.fonts.ready.then(measure);
-    return () => { active = false; };
-  }, [lines, draftWidths]);
+  const trackWidth = (_id: string, _field: string, _value: string) =>
+    setMeasurementRevision((old) => old + 1);
 
   const setLocal = (fn: (rows: GridLine[]) => GridLine[]) =>
     qc.setQueryData<GridLine[]>(key, (old) => fn(old ?? []));
@@ -149,6 +116,54 @@ export function BoqGrid({
     if (std === undefined && custom === undefined) return null;
     return (std ?? 0) * Number(l.qty ?? 0) + (custom ?? 0);
   };
+
+  useLayoutEffect(() => {
+    let active = true;
+    const measure = () => {
+      const table = tableRef.current;
+      const context = document.createElement("canvas").getContext("2d");
+      if (!active || !table || !context) return;
+      const padding = (el: HTMLElement) => {
+        const style = getComputedStyle(el);
+        return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+      };
+      const textWidth = (el: HTMLElement, text: string) => {
+        const style = getComputedStyle(el);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        return Math.max(0, ...text.split("\n").map((line) => context.measureText(line).width));
+      };
+      const widths = Array.from({ length: 16 }, () => 0);
+      for (const row of Array.from(table.rows)) {
+        for (const [visibleIndex, cell] of Array.from(row.cells).entries()) {
+          if (cell.colSpan !== 1) continue;
+          const index = !canSeeCost && visibleIndex === 14 ? 15 : visibleIndex;
+          const control = cell.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
+          let contentWidth = 0;
+          if (control) {
+            const text = control instanceof HTMLSelectElement ? control.selectedOptions[0]?.text ?? "" : control.value || control.placeholder;
+            contentWidth = textWidth(control, text) + padding(control) + (control instanceof HTMLSelectElement ? 24 : 4);
+            for (const child of Array.from(cell.children)) {
+              if (child instanceof HTMLElement && !child.contains(control)) contentWidth = Math.max(contentWidth, textWidth(child, child.innerText) + padding(child));
+            }
+          } else if (cell.querySelector("button")) {
+            const group = cell.firstElementChild;
+            if (group instanceof HTMLElement) {
+              contentWidth = Array.from(group.querySelectorAll("button")).reduce((sum, button) => sum + textWidth(button, button.innerText) + padding(button), 0);
+              contentWidth += Math.max(0, group.children.length - 1) * (parseFloat(getComputedStyle(group).columnGap) || 0);
+            }
+          } else {
+            // textContent avoids measuring soft line wraps caused by the previous column width.
+            contentWidth = textWidth(cell, cell.textContent ?? "");
+          }
+          widths[index] = Math.max(widths[index] ?? 0, Math.ceil(contentWidth + padding(cell) + 2));
+        }
+      }
+      setColumnWidths((old) => old.every((width, index) => width === widths[index]) ? old : widths);
+    };
+    measure();
+    document.fonts.ready.then(measure);
+    return () => { active = false; };
+  }, [lines, costs, canSeeCost, canEdit, measurementRevision]);
 
   /* ---- mutations ---- */
   const update = useMutation({
@@ -349,13 +364,13 @@ export function BoqGrid({
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
+        <table ref={tableRef} onInputCapture={() => setMeasurementRevision((old) => old + 1)} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
           <colgroup>
             {columnWidths.map((width, index) => index === 14 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
           </colgroup>
           <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
-              <th className="w-6" />
+              <th />
               <H>Option</H>
               <H>โซน</H>
               <H>เลขวงจร</H>
@@ -369,8 +384,8 @@ export function BoqGrid({
               <H w="text-right">@ราคา</H>
               <H w="text-right">%ลด</H>
               <H w="text-right">รวม</H>
-              {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
-              <th className="w-44" />
+              {canSeeCost ? <H w="text-right" internal>ต้นทุน</H> : null}
+              <th />
             </tr>
           </thead>
           <tbody>
