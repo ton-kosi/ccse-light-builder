@@ -50,6 +50,7 @@ function SkusPage() {
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [moving, setMoving] = useState<Sku | null>(null);
   const [history, setHistory] = useState<Sku | null>(null);
+  const [repriceSku, setRepriceSku] = useState<string | null>(null);
 
   const { data: skus, isLoading } = useQuery({
     queryKey: ["skus"],
@@ -90,12 +91,16 @@ function SkusPage() {
         skuId = data.id;
       }
       const cost = toNumber(form.unit_cost);
+      const oldCost = skuId ? costs?.get(skuId) : undefined;
       if (canSeeMoney && cost !== null && skuId) {
         const { error } = await supabase.from("sku_costs").upsert({ sku_id: skuId, unit_cost: cost });
         if (error) throw error;
+        if (oldCost !== cost) return skuId;
       }
+      return null;
     },
-    onSuccess: () => {
+    onSuccess: (changedSku) => {
+      if (changedSku) setRepriceSku(changedSku);
       toast.success("บันทึกสินค้าแล้ว");
       setEditing(null);
       qc.invalidateQueries({ queryKey: ["skus"] });
@@ -275,6 +280,15 @@ function SkusPage() {
             <DialogTitle>ความเคลื่อนไหว — {history?.code} {history?.name}</DialogTitle>
           </DialogHeader>
           {history ? <MovementHistory skuId={history.id} unit={history.unit} /> : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!repriceSku} onOpenChange={(o) => !o && setRepriceSku(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>ต้นทุนเปลี่ยน — ปรับราคาขายชิ้นส่วนที่ใช้สินค้านี้</DialogTitle>
+          </DialogHeader>
+          {repriceSku ? <RepriceComponents skuId={repriceSku} onDone={() => setRepriceSku(null)} /> : null}
         </DialogContent>
       </Dialog>
     </div>
@@ -478,6 +492,97 @@ function MovementHistory({ skuId, unit }: { skuId: string; unit: string }) {
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function RepriceComponents({ skuId, onDone }: { skuId: string; onDone: () => void }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["reprice", skuId],
+    queryFn: async () => {
+      const { data: uses, error } = await supabase.from("recipes").select("component_id").eq("sku_id", skuId);
+      if (error) throw error;
+      const ids = Array.from(new Set((uses ?? []).map((u) => u.component_id)));
+      if (!ids.length) return [];
+      const [{ data: comps }, { data: rec }, { data: prices }] = await Promise.all([
+        supabase.from("sales_components").select("id, code, name, unit").in("id", ids).order("code"),
+        supabase.from("recipes").select("component_id, sku_id, qty_per_unit").in("component_id", ids),
+        supabase.from("component_prices").select("component_id, list_price, max_discount_percent").in("component_id", ids),
+      ]);
+      const skuIds = Array.from(new Set((rec ?? []).map((r) => r.sku_id)));
+      const { data: costs } = await supabase.from("sku_costs").select("sku_id, unit_cost").in("sku_id", skuIds);
+      const cm = new Map((costs ?? []).map((c) => [c.sku_id, Number(c.unit_cost)]));
+      const pm = new Map((prices ?? []).map((p) => [p.component_id, p]));
+      return (comps ?? []).map((c) => ({
+        ...c,
+        cost: (rec ?? []).filter((r) => r.component_id === c.id)
+          .reduce((s, r) => s + Number(r.qty_per_unit) * (cm.get(r.sku_id) ?? 0), 0),
+        list_price: pm.get(c.id)?.list_price ?? null,
+        max_discount_percent: pm.get(c.id)?.max_discount_percent ?? 0,
+      }));
+    },
+  });
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const save = useMutation({
+    mutationFn: async () => {
+      const rows = (data ?? []).filter((c) => edits[c.id] !== undefined).map((c) => {
+        const v = toNumber(edits[c.id]);
+        if (edits[c.id].trim() && v === null) throw new Error(`ราคาของ ${c.code} ไม่ใช่ตัวเลข`);
+        return { component_id: c.id, list_price: v, max_discount_percent: Number(c.max_discount_percent) };
+      });
+      if (rows.length) {
+        const { error } = await supabase.from("component_prices").upsert(rows);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("บันทึกราคาขายแล้ว");
+      qc.invalidateQueries({ queryKey: ["sales_components", "picker"] });
+      qc.invalidateQueries({ queryKey: ["component_price"] });
+      onDone();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  if (isLoading) return <p className="text-sm text-muted-foreground">กำลังโหลด…</p>;
+  if (!data?.length) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">ไม่มีชิ้นส่วนขายที่ใช้สินค้านี้ในสูตร</p>
+        <Button size="sm" onClick={onDone}>ปิด</Button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">ราคาที่ใส่ไว้แล้วในใบเสนอราคาเดิมจะไม่เปลี่ยน ราคาใหม่ใช้กับบรรทัดที่เลือกชิ้นส่วนหลังจากนี้</p>
+      <table className="w-full text-sm">
+        <thead className="bg-secondary text-left text-xs text-muted-foreground">
+          <tr><Th>รหัส</Th><Th>ชื่อ</Th><Th>ต้นทุนใหม่/หน่วย</Th><Th>ราคาขายเดิม</Th><Th>ราคาขายใหม่</Th><Th>กำไร %</Th></tr>
+        </thead>
+        <tbody>
+          {data.map((c) => {
+            const val = edits[c.id] ?? (c.list_price != null ? String(c.list_price) : "");
+            const p = toNumber(val);
+            return (
+              <tr key={c.id} className="border-t border-border">
+                <Td>{c.code}</Td>
+                <Td>{c.name}</Td>
+                <Td className="text-right tabular-nums">{formatTHB(c.cost)}</Td>
+                <Td className="text-right tabular-nums">{c.list_price != null ? formatTHB(Number(c.list_price)) : "-"}</Td>
+                <Td><Input className="h-8 w-28 text-right" value={val} onChange={(e) => setEdits({ ...edits, [c.id]: e.target.value })} /></Td>
+                <Td className={"text-right tabular-nums " + (p && p < c.cost ? "text-destructive" : "")}>
+                  {p ? `${(((p - c.cost) / p) * 100).toFixed(1)}%` : "-"}
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>บันทึกราคาขาย</Button>
+        <Button size="sm" variant="outline" onClick={onDone}>ข้ามไปก่อน</Button>
+      </div>
     </div>
   );
 }

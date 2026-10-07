@@ -273,6 +273,22 @@ export function BoqGrid({
     if (numeric) {
       v = toNumber(raw);
       if (raw.trim() && v === null) { toast.error("กรุณากรอกตัวเลข"); return; }
+      if (k === "unit_price" && v !== null && l.component_id) {
+        const lp = compMap.get(l.component_id)?.list_price;
+        if (lp != null && Number(v) !== Number(lp)) {
+          if (Number(v) < Number(lp) && !canSeeCost) {
+            toast.error(`ห้ามตั้งราคาต่ำกว่าราคาขาย ${formatTHB(Number(lp))}`);
+            return;
+          }
+          const cur = l.unit_price === null ? null : Number(l.unit_price);
+          if (Number(v) !== cur) {
+            const msg = Number(v) < Number(lp)
+              ? `ราคา ${formatTHB(Number(v))} ต่ำกว่าราคาขาย ${formatTHB(Number(lp))} — ยืนยันใช้ราคานี้?`
+              : `ราคาขายของชิ้นส่วนนี้คือ ${formatTHB(Number(lp))} — ยืนยันเปลี่ยนเป็น ${formatTHB(Number(v))}?`;
+            if (!window.confirm(msg)) return;
+          }
+        }
+      }
       if (k === "discount_percent") {
         v = v ?? 0;
         const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : undefined;
