@@ -367,7 +367,7 @@ export function BoqGrid({
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table ref={tableRef} onInputCapture={() => setMeasurementRevision((old) => old + 1)} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
+        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
           <colgroup>
             {columnWidths.map((width, index) => index === 14 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
           </colgroup>
