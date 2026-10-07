@@ -87,7 +87,7 @@ function PrintQuotation() {
       const [{ data: lines }, { data: terms }] = await Promise.all([
         supabase
           .from("quote_lines")
-           .select("id, sort_order, option_name, zone, item_no, kind, customer_text, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
+           .select("id, sort_order, option_name, zone, item_no, kind, customer_text, circuit_note, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
           .eq("quotation_id", quotationId)
           .order("sort_order"),
         supabase.from("payment_terms").select("seq, name, percent, note").eq("quotation_id", quotationId).order("seq"),
@@ -199,9 +199,10 @@ function PrintQuotation() {
                    <td className={"py-0.5 pr-2 " + (heading ? "pt-2" : "")}>
                      {l.zone?.trim() ? <FittedDescriptionLine bold>{l.zone.trim()}</FittedDescriptionLine> : null}
                      {desc.split("\n").map((text, index) => <FittedDescriptionLine key={index} bold={heading}>{text}</FittedDescriptionLine>)}
+                     {l.circuit_note?.trim() ? <FittedDescriptionLine>{`- ${l.circuit_note.trim()}`}</FittedDescriptionLine> : null}
                      {l.cut_lengths?.length ? (
                        <div className="mt-1 text-[11px] font-normal">
-                         {l.cut_lengths.map((length, index) => <div key={index}>- {Number(length).toFixed(2)}m</div>)}
+                         <FittedDescriptionLine>{`- ${l.cut_lengths.map((length) => `${Number(length).toFixed(2)}m`).join(" + ")}`}</FittedDescriptionLine>
                        </div>
                      ) : null}
                    </td>

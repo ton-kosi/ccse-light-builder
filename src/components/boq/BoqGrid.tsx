@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
@@ -23,24 +24,14 @@ export type GridLine = QuoteLine & { sales_components: Comp };
 type ComponentOpt = { id: string; code: string; name: string; unit: string; list_price?: number | null; max_discount_percent?: number | null };
 
 const COLS = [
-  "option_name",
-  "zone",
-  "item_no",
-  "kind",
-  "component",
-  "customer_text",
-  "qty",
-  "unit",
-  "unit_price",
-  "discount_percent",
-  "circuit_note",
-  "cut_lengths",
+  "option_name", "zone", "circuit_note", "item_no", "kind", "component",
+  "customer_text", "cut_lengths", "qty", "unit", "unit_price", "discount_percent",
 ] as const;
 type ColKey = (typeof COLS)[number];
 const LAST_COL = COLS.length - 1;
 
 const cellCls =
-  "h-8 w-full min-w-0 bg-transparent px-1.5 text-sm outline-none focus:bg-background focus:ring-2 focus:ring-ring rounded-sm disabled:opacity-60";
+  "h-11 w-full min-w-0 bg-transparent px-2 text-base outline-none focus:bg-background focus:ring-2 focus:ring-ring rounded-sm disabled:opacity-60";
 
 function focusCell(r: number, c: number) {
   const el = document.querySelector<HTMLElement>(`[data-boq-cell="${r}:${c}"]`);
@@ -320,23 +311,23 @@ export function BoqGrid({
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full min-w-[1400px] border-collapse text-sm">
-          <thead className="bg-secondary text-left text-xs text-muted-foreground">
+        <table className="w-full min-w-[2600px] border-collapse text-sm">
+          <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
               <th className="w-6" />
-              <H w="w-16">Option</H>
-              <H w="w-20">โซน</H>
-              <H w="w-14">Item</H>
-              <H w="w-28">ประเภท</H>
-              <H w="w-40">ชิ้นส่วนขาย</H>
+              <H w="min-w-32">Option</H>
+              <H w="min-w-48">โซน</H>
+              <H w="min-w-44">เลขวงจร</H>
+              <H w="min-w-24">Item</H>
+              <H w="min-w-40">ประเภท</H>
+              <H w="min-w-72">ชิ้นส่วนขาย</H>
                <H w="min-w-[440px]">รายละเอียด (ลูกค้าเห็น)</H>
-              <H w="w-20 text-right">จำนวน</H>
-              <H w="w-14">หน่วย</H>
-              <H w="w-24 text-right">@ราคา</H>
-              <H w="w-14 text-right">%ลด</H>
-              <H w="w-28 text-right">รวม</H>
-              <H w="w-32" internal>หมายเหตุวงจร</H>
-               <H w="w-40">ความยาวตัด (ม.)</H>
+              <H w="min-w-72">ความยาวตัด (ม.)</H>
+              <H w="min-w-32 text-right">จำนวนรวม</H>
+              <H w="min-w-24">หน่วย</H>
+              <H w="min-w-36 text-right">@ราคา</H>
+              <H w="min-w-28 text-right">%ลด</H>
+              <H w="min-w-40 text-right">รวม</H>
               {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
               <th className="w-44" />
             </tr>
@@ -397,14 +388,24 @@ export function BoqGrid({
                     </td>
                     {txt("option_name", 0)}
                     {txt("zone", 1)}
-                    {txt("item_no", 2)}
+                    <td className="px-0.5 py-0.5">
+                      <CellInput
+                        cell={`${r}:2`}
+                        value={l.circuit_note ?? ""}
+                        disabled={!canEdit}
+                        onCommit={(v) => commitText(l, "circuit_note", v)}
+                        onKeyDown={(e) => onKey(e, r, 2)}
+                      />
+                    </td>
+
+                    {txt("item_no", 3)}
                     <td className="px-0.5 py-0.5">
                       <select
-                        data-boq-cell={`${r}:3`}
+                        data-boq-cell={`${r}:4`}
                         className={cellCls}
                         value={l.kind}
                         disabled={!canEdit}
-                        onKeyDown={(e) => onKey(e, r, 3)}
+                        onKeyDown={(e) => onKey(e, r, 4)}
                         onChange={(e) => update.mutate({ id: l.id, patch: { kind: e.target.value } })}
                       >
                         {LINE_KINDS.map((k) => (
@@ -416,11 +417,11 @@ export function BoqGrid({
                     </td>
                     <td className="px-0.5 py-0.5">
                       <ComponentPicker
-                        cell={`${r}:4`}
+                        cell={`${r}:5`}
                         components={components}
                         value={l.sales_components ? `${l.sales_components.code}` : ""}
                         disabled={!canEdit}
-                        onKeyDown={(e) => onKey(e, r, 4)}
+                        onKeyDown={(e) => onKey(e, r, 5)}
                         onPick={(c) => {
                           if ((c?.id ?? null) === l.component_id) return;
                           setLocal((rows) =>
@@ -443,63 +444,54 @@ export function BoqGrid({
                     </td>
                     <td className="px-0.5 py-0.5">
                        <DescriptionCell
-                        cell={`${r}:5`}
+                        cell={`${r}:6`}
                         value={l.customer_text ?? ""}
                         placeholder={l.sales_components?.name ?? ""}
                         disabled={!canEdit}
                         onCommit={(v) => commitText(l, "customer_text", v)}
                          onKeyDown={(e) => {
                            if (["Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
-                           onKey(e, r, 5);
+                           onKey(e, r, 6);
                          }}
-                      />
-                    </td>
-                    {txt("qty", 6, "text-right")}
-                    {txt("unit", 7)}
-                    {txt("unit_price", 8, "text-right")}
-                    {(() => {
-                      const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
-                      return (
-                        <td className="px-0.5 py-0.5" title={max != null ? `ลดได้สูงสุด ${max}%` : undefined}>
-                          <CellInput
-                            cell={`${r}:9`}
-                            value={String(l.discount_percent ?? "")}
-                            placeholder={max != null ? `≤${max}` : ""}
-                            disabled={!canEdit}
-                            className="text-right"
-                            onCommit={(v) => commitText(l, "discount_percent", v)}
-                            onKeyDown={(e) => onKey(e, r, 9)}
-                          />
-                          {max != null ? <div className="px-1 text-right text-[10px] text-muted-foreground">สูงสุด {max}%</div> : null}
-                        </td>
-                      );
-                    })()}
-                    <td className="px-1.5 text-right tabular-nums">
-                      {l.kind === "priced" ? formatTHB(amount) : kindText(l.kind)}
-                    </td>
-                    <td className="bg-accent/30 px-0.5 py-0.5">
-                      <CellInput
-                        cell={`${r}:10`}
-                        value={l.circuit_note ?? ""}
-                        disabled={!canEdit}
-                        onCommit={(v) => commitText(l, "circuit_note", v)}
-                        onKeyDown={(e) => onKey(e, r, 10)}
                       />
                     </td>
                      <td className="px-0.5 py-0.5">
                        <CellInput
-                         cell={`${r}:11`}
+                         cell={`${r}:7`}
                         value={formatCutLengths(l.cut_lengths)}
                         placeholder="1.50+1.40"
                         disabled={!canEdit}
                         onCommit={(v) => commitCut(l, v)}
-                        onKeyDown={(e) => onKey(e, r, 11)}
+                        onKeyDown={(e) => onKey(e, r, 7)}
                       />
                        {cutSum !== null ? (
                         <div className="px-1.5 text-[11px] not-italic text-muted-foreground">
                            รวม {formatQty(cutSum)} ม.
                         </div>
                       ) : null}
+                    </td>
+                    {txt("qty", 8, "text-right")}
+                    {txt("unit", 9)}
+                    {txt("unit_price", 10, "text-right")}
+                    {(() => {
+                      const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
+                      return (
+                        <td className="px-0.5 py-0.5" title={max != null ? `ลดได้สูงสุด ${max}%` : undefined}>
+                          <CellInput
+                            cell={`${r}:11`}
+                            value={String(l.discount_percent ?? "")}
+                            placeholder={max != null ? `≤${max}` : ""}
+                            disabled={!canEdit}
+                            className="text-right"
+                            onCommit={(v) => commitText(l, "discount_percent", v)}
+                            onKeyDown={(e) => onKey(e, r, 11)}
+                          />
+                          {max != null ? <div className="px-1 text-right text-sm text-muted-foreground">สูงสุด {max}%</div> : null}
+                        </td>
+                      );
+                    })()}
+                    <td className="px-1.5 text-right tabular-nums">
+                      {l.kind === "priced" ? formatTHB(amount) : kindText(l.kind)}
                     </td>
                     {canSeeCost ? (
                       <td className="bg-accent/30 px-1.5 text-right tabular-nums text-muted-foreground">
@@ -627,7 +619,7 @@ function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDo
        rows={Math.max(2, shown.split("\n").length)}
        cols={Math.max(52, ...shown.split("\n").map((line) => Array.from(line).length + 4))}
        wrap="off"
-       className="w-auto min-w-[440px] max-w-none resize-y whitespace-pre border-transparent bg-transparent px-1.5 py-1 text-sm shadow-none"
+       className="w-auto min-w-[440px] max-w-none resize-y whitespace-pre border-transparent bg-transparent px-2 py-2 text-base shadow-none"
       onChange={(e) => setDraft(e.target.value)}
       onKeyDown={onKeyDown}
       onBlur={() => { if (!onCommit(draft)) setDraft(value); }}
@@ -689,6 +681,8 @@ function ComponentPicker({
   onPick: (c: ComponentOpt | null) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 400 });
   const [q, setQ] = useState(value);
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
@@ -701,6 +695,20 @@ function ComponentPicker({
       .slice(0, 12);
   }, [q, components]);
 
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const rect = inputRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(520, window.innerWidth - 24);
+      setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: rect.bottom + 4, width });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+
   const pick = (c: ComponentOpt | null) => {
     setOpen(false);
     setQ(c?.code ?? "");
@@ -710,12 +718,18 @@ function ComponentPicker({
   return (
     <div className="relative">
       <input
+        ref={inputRef}
+        role="combobox"
+        aria-label="ชิ้นส่วนขาย"
+        aria-expanded={open}
+        aria-controls={`components-${cell}`}
+        aria-autocomplete="list"
         data-boq-cell={cell}
         className={cellCls}
         value={q}
         disabled={disabled}
         placeholder="ค้นหารหัส/ชื่อ"
-        onFocus={() => setHi(0)}
+        onFocus={() => { setHi(0); setOpen(true); }}
         onChange={(e) => {
           setQ(e.target.value);
           setOpen(true);
@@ -752,22 +766,25 @@ function ComponentPicker({
           onKeyDown(e);
         }}
       />
-      {open && matches.length ? (
-        <ul className="absolute left-0 top-full z-20 mt-1 max-h-64 w-80 overflow-auto rounded-md border border-border bg-popover py-1 text-sm not-italic font-normal text-popover-foreground shadow-md">
+      {open ? createPortal(
+        <ul id={`components-${cell}`} role="listbox" aria-label="ชิ้นส่วนขายที่พบ" style={position} className="fixed z-[100] max-h-80 overflow-auto rounded-md border border-border bg-popover py-1 text-base not-italic font-normal text-popover-foreground shadow-md">
+          {!matches.length ? <li className="px-3 py-3 text-muted-foreground">ไม่พบชิ้นส่วนขาย</li> : null}
           {matches.map((c, i) => (
             <li
               key={c.id}
-              className={"cursor-pointer px-2 py-1 " + (i === hi ? "bg-accent" : "")}
+              role="option"
+              aria-selected={i === hi}
+              className={"cursor-pointer px-3 py-3 " + (i === hi ? "bg-accent" : "")}
               onMouseDown={(e) => {
                 e.preventDefault();
                 pick(c);
               }}
             >
-              <span className="font-mono text-xs">{c.code}</span> — {c.name}{" "}
+              <span className="font-mono text-sm">{c.code}</span> — {c.name}{" "}
               <span className="text-xs text-muted-foreground">({c.unit})</span>
             </li>
           ))}
-        </ul>
+        </ul>, document.body
       ) : null}
     </div>
   );
