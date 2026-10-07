@@ -412,6 +412,7 @@ export function BoqGrid({
                     value={l[k] === null || l[k] === undefined ? "" : String(l[k])}
                     disabled={!canEdit || (k === "unit" && !!l.component_id)}
                     className={extra}
+                    onDraftChange={(value) => trackWidth(l.id, k, value)}
                     onCommit={(v) => commitText(l, k, v)}
                     onKeyDown={(e) => onKey(e, r, c)}
                   />
@@ -451,6 +452,7 @@ export function BoqGrid({
                       <CellInput
                         cell={`${r}:2`}
                         value={l.circuit_note ?? ""}
+                        onDraftChange={(value) => trackWidth(l.id, "circuit_note", value)}
                         disabled={!canEdit}
                         onCommit={(v) => commitText(l, "circuit_note", v)}
                         onKeyDown={(e) => onKey(e, r, 2)}
@@ -481,6 +483,7 @@ export function BoqGrid({
                         value={l.sales_components ? `${l.sales_components.code}` : ""}
                         disabled={!canEdit}
                         onKeyDown={(e) => onKey(e, r, 5)}
+                        onDraftChange={(value) => trackWidth(l.id, "component", value)}
                         onPick={(c) => {
                           if ((c?.id ?? null) === l.component_id) return;
                           setLocal((rows) =>
@@ -544,6 +547,7 @@ export function BoqGrid({
                             placeholder={max != null ? `≤${max}` : ""}
                             disabled={!canEdit}
                             className="text-right"
+                            onDraftChange={(value) => trackWidth(l.id, "discount_percent", value)}
                             onCommit={(v) => commitText(l, "discount_percent", v)}
                             onKeyDown={(e) => onKey(e, r, 11)}
                           />
@@ -717,7 +721,7 @@ function CellInput({
       placeholder={placeholder}
       disabled={disabled}
       onChange={(e) => { setV(e.target.value); onDraftChange?.(e.target.value); }}
-      onBlur={() => { if (v !== value && onCommit(v) === false) setV(value); }}
+      onBlur={() => { if (v !== value && onCommit(v) === false) { setV(value); onDraftChange?.(value); } }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           setV(value);
@@ -737,6 +741,7 @@ function ComponentPicker({
   disabled,
   onPick,
   onKeyDown,
+  onDraftChange,
 }: {
   cell: string;
   components: ComponentOpt[];
@@ -744,6 +749,7 @@ function ComponentPicker({
   disabled?: boolean;
   onPick: (c: ComponentOpt | null) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onDraftChange?: (value: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [position, setPosition] = useState({ left: 0, top: 0, width: 400 });
@@ -776,6 +782,7 @@ function ComponentPicker({
   const pick = (c: ComponentOpt | null) => {
     setOpen(false);
     setQ(c?.code ?? "");
+    onDraftChange?.(c?.code ?? "");
     onPick(c);
   };
 
@@ -796,13 +803,14 @@ function ComponentPicker({
         onFocus={() => { setHi(0); setOpen(true); }}
         onChange={(e) => {
           setQ(e.target.value);
+          onDraftChange?.(e.target.value);
           setOpen(true);
           setHi(0);
         }}
         onBlur={() => {
           setTimeout(() => setOpen(false), 150);
           if (!q.trim() && value) pick(null);
-          else if (q !== value) setQ(value);
+          else if (q !== value) { setQ(value); onDraftChange?.(value); }
         }}
         onKeyDown={(e) => {
           if (open && matches.length) {
@@ -825,6 +833,7 @@ function ComponentPicker({
           if (e.key === "Escape") {
             setOpen(false);
             setQ(value);
+            onDraftChange?.(value);
             return;
           }
           onKeyDown(e);
