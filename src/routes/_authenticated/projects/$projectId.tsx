@@ -45,10 +45,10 @@ type QLine = Tables<"quote_lines">;
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
+  const { canSeeMoney, canEditQuote, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
-  const { quotation, lines } = useCurrentQuotation(projectId, canSeeMoney);
+  const { quotation, lines } = useCurrentQuotation(projectId, canEditQuote);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
@@ -115,7 +115,7 @@ function ProjectDetail() {
             project={project}
             lines={lines}
             quotation={quotation}
-            canSeeMoney={canSeeMoney}
+            canSeeMoney={canEditQuote}
             canEditSales={canEditSales}
             canEditStatus={canEditProduction}
             isAdmin={isAdmin}
@@ -124,12 +124,13 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="boq" className="mt-4">
-          {canSeeMoney ? (
+          {canEditQuote ? (
             <QuotationSection
               projectId={projectId}
               projectCode={project.code}
               selectedOption={project.selected_option}
-              canEdit={canSeeMoney}
+              canEdit={canEditQuote}
+              canSeeCost={canSeeMoney}
             />
           ) : (
             <HiddenMoney />
