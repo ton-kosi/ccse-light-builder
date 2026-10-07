@@ -45,10 +45,10 @@ type QLine = Tables<"quote_lines">;
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
+  const { canSeeMoney, canEditQuote, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
-  const { quotation, lines } = useCurrentQuotation(projectId, canSeeMoney);
+  const { quotation, lines } = useCurrentQuotation(projectId, canEditQuote);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
