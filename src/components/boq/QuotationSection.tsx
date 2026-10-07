@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,7 @@ export function QuotationSection({
   canSeeCost: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [preview, setPreview] = useState(false);
   const { quotation, lines } = useCurrentQuotation(projectId, true);
 
   const { data: revisions } = useQuery({
@@ -137,14 +139,9 @@ export function QuotationSection({
           </p>
         </div>
         <div className="flex gap-2">
-          <Link
-            to="/print/quotation/$quotationId"
-            params={{ quotationId: quotation.id }}
-            target="_blank"
-            className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm"
-          >
+          <Button size="sm" variant="outline" onClick={() => setPreview(true)}>
             พิมพ์ใบเสนอราคา
-          </Link>
+          </Button>
           {canEdit ? (
             <Button size="sm" variant="outline" disabled={newRev.isPending} onClick={() => newRev.mutate()}>
               สร้าง Rev ใหม่
@@ -221,6 +218,19 @@ export function QuotationSection({
           />
         </Field>
       </div>
+
+      <Dialog open={preview} onOpenChange={setPreview}>
+        <DialogContent className="flex h-[92vh] max-w-[900px] flex-col p-3">
+          <DialogHeader>
+            <DialogTitle>ตัวอย่างใบเสนอราคา {quotation.ref_no} Rev {quotation.rev}</DialogTitle>
+          </DialogHeader>
+          <iframe
+            title="quotation-preview"
+            src={`/print/quotation/${quotation.id}`}
+            className="w-full flex-1 rounded border border-border bg-background"
+          />
+        </DialogContent>
+      </Dialog>
 
       <BoqGrid
         quotationId={quotation.id}

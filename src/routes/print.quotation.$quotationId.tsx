@@ -22,6 +22,32 @@ export const Route = createFileRoute("/print/quotation/$quotationId")({
   component: PrintQuotation,
 });
 
+async function savePdf(filename: string) {
+  const el = document.querySelector(".quote-print") as HTMLElement | null;
+  if (!el) return;
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
+  el.classList.add("pdf-capture");
+  try {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", ignoreElements: (n) => n.classList?.contains("no-print") });
+    const pdf = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = 210, pageH = 297, margin = 8;
+    const imgW = pageW - margin * 2;
+    const pxPerMm = canvas.width / imgW;
+    const sliceH = Math.floor((pageH - margin * 2) * pxPerMm);
+    for (let y = 0, page = 0; y < canvas.height; y += sliceH, page++) {
+      const h = Math.min(sliceH, canvas.height - y);
+      const c = document.createElement("canvas");
+      c.width = canvas.width; c.height = h;
+      c.getContext("2d")!.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      if (page) pdf.addPage();
+      pdf.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgW, h / pxPerMm);
+    }
+    pdf.save(filename);
+  } finally {
+    el.classList.remove("pdf-capture");
+  }
+}
+
 function PrintQuotation() {
   const { quotationId } = Route.useParams();
   const { data, isLoading } = useQuery({
@@ -69,12 +95,18 @@ function PrintQuotation() {
   return (
     <div className="quote-print mx-auto max-w-[210mm] bg-background p-[12mm] text-[12px] leading-snug text-foreground">
       <style>{`@page { size: A4; margin: 12mm; } @media print { .quote-print { padding: 0 !important; max-width: none !important; } .no-print { display: none !important; } tr { break-inside: avoid; } }`}</style>
-      <div className="no-print mb-4 flex justify-end">
+      <div className="no-print mb-4 flex justify-end gap-2">
         <button
           onClick={() => window.print()}
+          className="h-9 rounded-md border border-input bg-background px-4 text-sm"
+        >
+          พิมพ์
+        </button>
+        <button
+          onClick={() => savePdf(`${q.ref_no}-Rev${q.rev}.pdf`)}
           className="h-9 rounded-md bg-primary px-4 text-sm text-primary-foreground"
         >
-          พิมพ์ / บันทึก PDF
+          บันทึก PDF
         </button>
       </div>
 
