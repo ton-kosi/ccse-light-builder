@@ -606,6 +606,33 @@ function H({ children, w = "", internal }: { children: React.ReactNode; w?: stri
   );
 }
 
+function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDown }: {
+  cell: string;
+  value: string;
+  placeholder?: string;
+  disabled?: boolean;
+  onCommit: (value: string) => boolean;
+  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const shown = draft || placeholder || "";
+  return (
+    <Textarea
+      data-boq-cell={cell}
+      aria-label="รายละเอียด (ลูกค้าเห็น)"
+      value={draft}
+      placeholder={placeholder}
+      disabled={disabled}
+      rows={Math.min(8, Math.max(2, shown.split("\n").length))}
+      className="min-w-[220px] resize-y border-transparent bg-transparent px-1.5 py-1 text-sm shadow-none"
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={onKeyDown}
+      onBlur={() => { if (!onCommit(draft)) setDraft(value); }}
+    />
+  );
+}
+
 function CellInput({
   cell,
   value,
