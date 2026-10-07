@@ -1,4 +1,5 @@
 # Tasks
+- [x] Fit every BOQ column to its longest visible line and verify live expansion/contraction.
 - [x] Adjust BOQ column widths and verify longest-line resizing while typing.
 - [x] Enlarge BOQ fields, reorder circuit/cut columns, and fix dynamic component dropdown visibility.
 - [x] Print circuit numbers above single-line cut lengths and verify PDF.

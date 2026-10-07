@@ -63,43 +63,10 @@ export function BoqGrid({
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
   const key = ["quote_lines", quotationId];
   const tableRef = useRef<HTMLTableElement>(null);
-  const [draftWidths, setDraftWidths] = useState<Record<string, string>>({});
+  const [measurementRevision, setMeasurementRevision] = useState(0);
   const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 196, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
-  const trackWidth = (id: string, field: string, value: string) =>
-    setDraftWidths((old) => ({ ...old, [`${id}:${field}`]: value }));
-
-  useLayoutEffect(() => {
-    let active = true;
-    const measure = () => {
-      const table = tableRef.current;
-      const context = document.createElement("canvas").getContext("2d");
-      if (!active || !table || !context) return;
-      const font = getComputedStyle(table);
-      context.font = `600 16px ${font.fontFamily}`;
-      const textWidth = (text: string) => Math.ceil(context.measureText(text).width);
-      const fit = (text: string, header: string, extra = 20) => Math.max(textWidth(text) + extra, textWidth(header) + 16);
-      const longest = (field: "customer_text" | "cut_lengths", fallback: string) => {
-        let width = textWidth(fallback);
-        for (const line of lines) {
-          const saved = field === "customer_text" ? line.customer_text || line.sales_components?.name || "" : formatCutLengths(line.cut_lengths);
-          const shown = draftWidths[`${line.id}:${field}`] ?? saved;
-          for (const part of shown.split("\n")) width = Math.max(width, textWidth(part));
-        }
-        return width + 24;
-      };
-      setColumnWidths([
-        24, fit("MMM", "Option"), 96, fit("999999999", "เลขวงจร"), fit("999", "Item"),
-        Math.max(...LINE_KINDS.map((kind) => textWidth(kind.label))) + 44,
-        fit("M".repeat(18), "ชิ้นส่วนขาย"),
-        longest("customer_text", "รายละเอียด (ลูกค้าเห็น)"), longest("cut_lengths", "ความยาวตัด (ม.)"),
-        fit("99999", "จำนวนรวม"), fit("MMMM", "หน่วย"), fit("9999999", "@ราคา"),
-        fit("99", "%ลด"), fit("99,999.99", "รวม"), fit("99,999.99", "ต้นทุน"), 176,
-      ]);
-    };
-    measure();
-    document.fonts.ready.then(measure);
-    return () => { active = false; };
-  }, [lines, draftWidths]);
+  const trackWidth = (_id: string, _field: string, _value: string) =>
+    setMeasurementRevision((old) => old + 1);
 
   const setLocal = (fn: (rows: GridLine[]) => GridLine[]) =>
     qc.setQueryData<GridLine[]>(key, (old) => fn(old ?? []));
@@ -149,6 +116,57 @@ export function BoqGrid({
     if (std === undefined && custom === undefined) return null;
     return (std ?? 0) * Number(l.qty ?? 0) + (custom ?? 0);
   };
+
+  useLayoutEffect(() => {
+    let active = true;
+    const measure = () => {
+      const table = tableRef.current;
+      const context = document.createElement("canvas").getContext("2d");
+      if (!active || !table || !context) return;
+      const padding = (el: HTMLElement) => {
+        const style = getComputedStyle(el);
+        return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+      };
+      const textWidth = (el: HTMLElement, text: string) => {
+        const style = getComputedStyle(el);
+        context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        return Math.max(0, ...text.split("\n").map((line) => context.measureText(line).width));
+      };
+      const widths = Array.from({ length: 16 }, () => 0);
+      for (const row of Array.from(table.rows)) {
+        for (const [visibleIndex, cell] of Array.from(row.cells).entries()) {
+          if (cell.colSpan !== 1) continue;
+          const index = !canSeeCost && visibleIndex === 14 ? 15 : visibleIndex;
+          const control = cell.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
+          let contentWidth = 0;
+          if (control) {
+            const text = control instanceof HTMLSelectElement ? control.selectedOptions[0]?.text ?? "" : control.value || control.placeholder;
+            contentWidth = textWidth(control, text) + padding(control) + (control instanceof HTMLSelectElement ? 24 : 4);
+            for (const child of Array.from(cell.children)) {
+              if (child instanceof HTMLElement && !child.contains(control)) contentWidth = Math.max(contentWidth, textWidth(child, child.innerText) + padding(child));
+            }
+          } else if (cell.querySelector("button")) {
+            const group = cell.firstElementChild;
+            if (group instanceof HTMLElement) {
+              contentWidth = Array.from(group.querySelectorAll("button")).reduce((sum, button) => sum + textWidth(button, button.innerText) + padding(button), 0);
+              contentWidth += Math.max(0, group.children.length - 1) * (parseFloat(getComputedStyle(group).columnGap) || 0);
+            }
+          } else {
+            // textContent avoids measuring soft line wraps caused by the previous column width.
+            contentWidth = textWidth(cell, cell.textContent ?? "");
+          }
+          widths[index] = Math.max(widths[index] ?? 0, Math.ceil(contentWidth + padding(cell) + 2));
+        }
+      }
+      setColumnWidths((old) => old.every((width, index) => width === widths[index]) ? old : widths);
+    };
+    measure();
+    // React's input event can update a child draft after the parent layout effect.
+    // Measure again after that draft has reached the DOM.
+    const frame = requestAnimationFrame(measure);
+    document.fonts.ready.then(measure);
+    return () => { active = false; cancelAnimationFrame(frame); };
+  }, [lines, costs, canSeeCost, canEdit, measurementRevision]);
 
   /* ---- mutations ---- */
   const update = useMutation({
@@ -355,7 +373,7 @@ export function BoqGrid({
           </colgroup>
           <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
-              <th className="w-6" />
+              <th />
               <H>Option</H>
               <H>โซน</H>
               <H>เลขวงจร</H>
@@ -369,8 +387,8 @@ export function BoqGrid({
               <H w="text-right">@ราคา</H>
               <H w="text-right">%ลด</H>
               <H w="text-right">รวม</H>
-              {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
-              <th className="w-44" />
+              {canSeeCost ? <H w="text-right" internal>ต้นทุน</H> : null}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -394,6 +412,7 @@ export function BoqGrid({
                     value={l[k] === null || l[k] === undefined ? "" : String(l[k])}
                     disabled={!canEdit || (k === "unit" && !!l.component_id)}
                     className={extra}
+                    onDraftChange={(value) => trackWidth(l.id, k, value)}
                     onCommit={(v) => commitText(l, k, v)}
                     onKeyDown={(e) => onKey(e, r, c)}
                   />
@@ -433,6 +452,7 @@ export function BoqGrid({
                       <CellInput
                         cell={`${r}:2`}
                         value={l.circuit_note ?? ""}
+                        onDraftChange={(value) => trackWidth(l.id, "circuit_note", value)}
                         disabled={!canEdit}
                         onCommit={(v) => commitText(l, "circuit_note", v)}
                         onKeyDown={(e) => onKey(e, r, 2)}
@@ -463,6 +483,7 @@ export function BoqGrid({
                         value={l.sales_components ? `${l.sales_components.code}` : ""}
                         disabled={!canEdit}
                         onKeyDown={(e) => onKey(e, r, 5)}
+                        onDraftChange={(value) => trackWidth(l.id, "component", value)}
                         onPick={(c) => {
                           if ((c?.id ?? null) === l.component_id) return;
                           setLocal((rows) =>
@@ -526,6 +547,7 @@ export function BoqGrid({
                             placeholder={max != null ? `≤${max}` : ""}
                             disabled={!canEdit}
                             className="text-right"
+                            onDraftChange={(value) => trackWidth(l.id, "discount_percent", value)}
                             onCommit={(v) => commitText(l, "discount_percent", v)}
                             onKeyDown={(e) => onKey(e, r, 11)}
                           />
@@ -699,7 +721,7 @@ function CellInput({
       placeholder={placeholder}
       disabled={disabled}
       onChange={(e) => { setV(e.target.value); onDraftChange?.(e.target.value); }}
-      onBlur={() => { if (v !== value && onCommit(v) === false) setV(value); }}
+      onBlur={() => { if (v !== value && onCommit(v) === false) { setV(value); onDraftChange?.(value); } }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           setV(value);
@@ -719,6 +741,7 @@ function ComponentPicker({
   disabled,
   onPick,
   onKeyDown,
+  onDraftChange,
 }: {
   cell: string;
   components: ComponentOpt[];
@@ -726,6 +749,7 @@ function ComponentPicker({
   disabled?: boolean;
   onPick: (c: ComponentOpt | null) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onDraftChange?: (value: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [position, setPosition] = useState({ left: 0, top: 0, width: 400 });
@@ -758,6 +782,7 @@ function ComponentPicker({
   const pick = (c: ComponentOpt | null) => {
     setOpen(false);
     setQ(c?.code ?? "");
+    onDraftChange?.(c?.code ?? "");
     onPick(c);
   };
 
@@ -778,13 +803,14 @@ function ComponentPicker({
         onFocus={() => { setHi(0); setOpen(true); }}
         onChange={(e) => {
           setQ(e.target.value);
+          onDraftChange?.(e.target.value);
           setOpen(true);
           setHi(0);
         }}
         onBlur={() => {
           setTimeout(() => setOpen(false), 150);
           if (!q.trim() && value) pick(null);
-          else if (q !== value) setQ(value);
+          else if (q !== value) { setQ(value); onDraftChange?.(value); }
         }}
         onKeyDown={(e) => {
           if (open && matches.length) {
@@ -807,6 +833,7 @@ function ComponentPicker({
           if (e.key === "Escape") {
             setOpen(false);
             setQ(value);
+            onDraftChange?.(value);
             return;
           }
           onKeyDown(e);
