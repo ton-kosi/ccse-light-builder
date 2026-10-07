@@ -66,3 +66,8 @@ export function formatCutLengths(arr: number[] | null | undefined): string {
 export function sumCut(arr: number[] | null | undefined): number {
   return Math.round((arr ?? []).reduce((s, n) => s + Number(n), 0) * 1000) / 1000;
 }
+
+/** Initial quotations use A internally; only subsequent revisions have a visible suffix. */
+export function quotationRevisionSuffix(rev: string): string {
+  return !rev || rev === "A" ? "" : ` Rev ${rev}`;
+}

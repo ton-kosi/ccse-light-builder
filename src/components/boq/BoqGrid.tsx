@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { LineRecipeEditor } from "@/components/boq/LineRecipeEditor";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -335,7 +336,7 @@ export function BoqGrid({
               <H w="w-14 text-right">%ลด</H>
               <H w="w-28 text-right">รวม</H>
               <H w="w-32" internal>หมายเหตุวงจร</H>
-              <H w="w-40" internal>ความยาวตัด (ม.)</H>
+               <H w="w-40">ความยาวตัด (ม.)</H>
               {canSeeCost ? <H w="w-24 text-right" internal>ต้นทุน</H> : null}
               <th className="w-44" />
             </tr>
@@ -441,13 +442,16 @@ export function BoqGrid({
                       />
                     </td>
                     <td className="px-0.5 py-0.5">
-                      <CellInput
+                       <DescriptionCell
                         cell={`${r}:5`}
                         value={l.customer_text ?? ""}
                         placeholder={l.sales_components?.name ?? ""}
                         disabled={!canEdit}
                         onCommit={(v) => commitText(l, "customer_text", v)}
-                        onKeyDown={(e) => onKey(e, r, 5)}
+                         onKeyDown={(e) => {
+                           if (["Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+                           onKey(e, r, 5);
+                         }}
                       />
                     </td>
                     {txt("qty", 6, "text-right")}
@@ -482,18 +486,18 @@ export function BoqGrid({
                         onKeyDown={(e) => onKey(e, r, 10)}
                       />
                     </td>
-                    <td className="bg-accent/30 px-0.5 py-0.5">
-                      <CellInput
-                        cell={`${r}:11`}
+                     <td className="px-0.5 py-0.5">
+                       <CellInput
+                         cell={`${r}:11`}
                         value={formatCutLengths(l.cut_lengths)}
                         placeholder="1.50+1.40"
                         disabled={!canEdit}
                         onCommit={(v) => commitCut(l, v)}
                         onKeyDown={(e) => onKey(e, r, 11)}
                       />
-                      {cutSum !== null && Number(l.qty ?? 0) !== cutSum ? (
+                       {cutSum !== null ? (
                         <div className="px-1.5 text-[11px] not-italic text-muted-foreground">
-                          รวม {formatQty(cutSum)}
+                           รวม {formatQty(cutSum)} ม.
                         </div>
                       ) : null}
                     </td>
