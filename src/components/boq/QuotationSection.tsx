@@ -16,11 +16,13 @@ export function QuotationSection({
   projectCode,
   selectedOption,
   canEdit,
+  canSeeCost,
 }: {
   projectId: string;
   projectCode: string;
   selectedOption: string | null;
   canEdit: boolean;
+  canSeeCost: boolean;
 }) {
   const queryClient = useQueryClient();
   const { quotation, lines } = useCurrentQuotation(projectId, true);
@@ -220,6 +222,7 @@ export function QuotationSection({
         components={components ?? []}
         selectedOption={selectedOption}
         canEdit={canEdit}
+        canSeeCost={canSeeCost}
       />
 
       <div className="mt-4 flex flex-wrap justify-end gap-8 text-sm">
