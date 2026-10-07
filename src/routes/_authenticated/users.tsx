@@ -13,6 +13,8 @@ import { ROLE_LABELS, type AppRole } from "@/lib/erp";
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ผู้ใช้และสิทธิ์ | CCSE ERP" },
       { name: "description", content: "กำหนดสิทธิ์ผู้ใช้: ผู้บริหาร ฝ่ายขาย ฝ่ายผลิต ช่างติดตั้ง" },
       { property: "og:title", content: "ผู้ใช้และสิทธิ์ | CCSE ERP" },
