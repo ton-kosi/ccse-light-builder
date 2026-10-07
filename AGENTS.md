@@ -11,3 +11,4 @@
 
 - Keep initial revision A stored internally and centralize its visible suffix in the BOQ helper; this preserves revision copying without schema changes.
 - Quotation preview and PDF share the same print view, including multiline descriptions and cut-length totals, to keep customer documents consistent.
+- Quotation preview and PDF share the same print view and cut-length formatting to keep customer documents consistent.

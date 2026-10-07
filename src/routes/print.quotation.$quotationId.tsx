@@ -51,6 +51,27 @@ async function savePdf(filename: string) {
   }
 }
 
+function FittedDescriptionLine({ children, bold = false }: { children: string; bold?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.removeProperty("font-size");
+      const base = parseFloat(getComputedStyle(el).fontSize);
+      if (el.scrollWidth > el.clientWidth && el.clientWidth > 0) {
+        el.style.fontSize = `${base * el.clientWidth / el.scrollWidth}px`;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    document.fonts.ready.then(fit);
+    return () => observer.disconnect();
+  }, [children]);
+  return <div ref={ref} className={"min-h-[1lh] whitespace-pre " + (bold ? "font-bold" : "")}>{children || "\u00a0"}</div>;
+}
+
 function PrintQuotation() {
   const { quotationId } = Route.useParams();
   const { data, isLoading } = useQuery({

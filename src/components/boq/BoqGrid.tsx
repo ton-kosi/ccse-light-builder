@@ -329,7 +329,7 @@ export function BoqGrid({
               <H w="w-14">Item</H>
               <H w="w-28">ประเภท</H>
               <H w="w-40">ชิ้นส่วนขาย</H>
-              <H w="min-w-[220px]">รายละเอียด (ลูกค้าเห็น)</H>
+               <H w="min-w-[440px]">รายละเอียด (ลูกค้าเห็น)</H>
               <H w="w-20 text-right">จำนวน</H>
               <H w="w-14">หน่วย</H>
               <H w="w-24 text-right">@ราคา</H>
@@ -624,8 +624,10 @@ function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDo
       value={draft}
       placeholder={placeholder}
       disabled={disabled}
-      rows={Math.min(8, Math.max(2, shown.split("\n").length))}
-      className="min-w-[220px] resize-y border-transparent bg-transparent px-1.5 py-1 text-sm shadow-none"
+       rows={Math.max(2, shown.split("\n").length)}
+       cols={Math.max(52, ...shown.split("\n").map((line) => Array.from(line).length + 4))}
+       wrap="off"
+       className="w-auto min-w-[440px] max-w-none resize-y whitespace-pre border-transparent bg-transparent px-1.5 py-1 text-sm shadow-none"
       onChange={(e) => setDraft(e.target.value)}
       onKeyDown={onKeyDown}
       onBlur={() => { if (!onCommit(draft)) setDraft(value); }}
