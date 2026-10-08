@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { kindText } from "@/components/boq/BoqGrid";
 import { computeTotals, lineAmount, optKey, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
+import { DocHeader } from "@/components/print/DocHeader";
+import { buildA4Pdf } from "@/lib/pdf";
 import { formatDate, formatQty, formatTHB } from "@/lib/format";
 
 export const Route = createFileRoute("/print/quotation/$quotationId")({
@@ -26,29 +28,7 @@ export const Route = createFileRoute("/print/quotation/$quotationId")({
 async function savePdf(filename: string) {
   const el = document.querySelector(".quote-print") as HTMLElement | null;
   if (!el) return;
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas-pro"), import("jspdf")]);
-  el.classList.add("pdf-capture");
-  try {
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", ignoreElements: (n) => n.classList?.contains("no-print") });
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
-    const pageW = 210, pageH = 297, margin = 8;
-    const imgW = pageW - margin * 2;
-    const pxPerMm = canvas.width / imgW;
-    const sliceH = Math.floor((pageH - margin * 2) * pxPerMm);
-    for (let y = 0, page = 0; y < canvas.height; y += sliceH, page++) {
-      const h = Math.min(sliceH, canvas.height - y);
-      const c = document.createElement("canvas");
-      c.width = canvas.width; c.height = h;
-      const context = c.getContext("2d");
-      if (!context) throw new Error("ไม่สามารถสร้าง PDF ได้");
-      context.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
-      if (page) pdf.addPage();
-      pdf.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgW, h / pxPerMm);
-    }
-    pdf.save(filename);
-  } finally {
-    el.classList.remove("pdf-capture");
-  }
+  (await buildA4Pdf(el)).save(filename);
 }
 
 function FittedDescriptionLine({ children, bold = false }: { children: string; bold?: boolean }) {
@@ -134,16 +114,7 @@ function PrintQuotation() {
          </Button>
       </div>
 
-      <header className="flex items-start justify-between border-b-2 border-foreground pb-2">
-        <div>
-          <div className="text-lg font-bold">Chingchai &amp; Sons Engineering</div>
-          <div className="text-xs">CCSE · Bangkok</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xl font-bold tracking-wide">QUOTATION</div>
-          <div>ใบเสนอราคา</div>
-        </div>
-      </header>
+      <DocHeader title="QUOTATION" subtitle="ใบเสนอราคา" />
 
       <section className="mt-3 grid grid-cols-2 gap-4">
         <div className="space-y-0.5">

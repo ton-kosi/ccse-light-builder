@@ -131,6 +131,7 @@ function ProjectDetail() {
               selectedOption={project.selected_option}
               canEdit={canEditQuote}
               canSeeCost={canSeeMoney}
+              canManagePayments={canManagePayments}
             />
           ) : (
             <HiddenMoney />
@@ -443,8 +444,8 @@ function StatusLog({ projectId }: { projectId: string }) {
       );
       const names = new Map<string, string>();
       if (ids.length) {
-        const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-        (profs ?? []).forEach((p) => names.set(p.id, p.full_name));
+        const { data: profs } = await supabase.rpc("user_display_names", { _ids: ids });
+        (profs ?? []).forEach((p) => names.set(p.id, p.display_name));
       }
       return data.map((r) => ({ ...r, who: (r.changed_by && names.get(r.changed_by)) || "-" }));
     },

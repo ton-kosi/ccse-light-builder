@@ -25,6 +25,7 @@ import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
 import { Route as AuthenticatedWorkOrdersWoIdRouteImport } from './routes/_authenticated/work-orders/$woId'
+import { Route as PrintBillingDocIdRouteImport } from './routes/print.billing.$docId'
 import { Route as PrintQuotationQuotationIdRouteImport } from './routes/print.quotation.$quotationId'
 import { Route as PrintWorkProjectIdRouteImport } from './routes/print.work.$projectId'
 
@@ -112,6 +113,11 @@ const AuthenticatedWorkOrdersWoIdRoute =
     path: '/work-orders/$woId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const PrintBillingDocIdRoute = PrintBillingDocIdRouteImport.update({
+  id: '/print/billing/$docId',
+  path: '/print/billing/$docId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrintQuotationQuotationIdRoute =
   PrintQuotationQuotationIdRouteImport.update({
     id: '/print/quotation/$quotationId',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
+  '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/projects/$projectId'
     | '/work-orders/$woId'
+    | '/print/billing/$docId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
     | '/projects/'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/projects/$projectId'
     | '/work-orders/$woId'
+    | '/print/billing/$docId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
     | '/projects'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/work-orders/$woId'
+    | '/print/billing/$docId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
     | '/_authenticated/projects/'
@@ -248,6 +260,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PrintBillingDocIdRoute: typeof PrintBillingDocIdRoute
   PrintQuotationQuotationIdRoute: typeof PrintQuotationQuotationIdRoute
   PrintWorkProjectIdRoute: typeof PrintWorkProjectIdRoute
 }
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkOrdersWoIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/print/billing/$docId': {
+      id: '/print/billing/$docId'
+      path: '/print/billing/$docId'
+      fullPath: '/print/billing/$docId'
+      preLoaderRoute: typeof PrintBillingDocIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/print/quotation/$quotationId': {
       id: '/print/quotation/$quotationId'
       path: '/print/quotation/$quotationId'
@@ -422,6 +442,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PrintBillingDocIdRoute: PrintBillingDocIdRoute,
   PrintQuotationQuotationIdRoute: PrintQuotationQuotationIdRoute,
   PrintWorkProjectIdRoute: PrintWorkProjectIdRoute,
 }

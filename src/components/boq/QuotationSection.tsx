@@ -8,6 +8,7 @@ import { Field } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BoqGrid, type GridLine } from "@/components/boq/BoqGrid";
+import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { formatDate, formatTHB, toNumber } from "@/lib/format";
@@ -18,15 +19,29 @@ export function QuotationSection({
   selectedOption,
   canEdit,
   canSeeCost,
+  canManagePayments = false,
 }: {
   projectId: string;
   projectCode: string;
   selectedOption: string | null;
   canEdit: boolean;
   canSeeCost: boolean;
+  canManagePayments?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [billDoc, setBillDoc] = useState<string | null>(null);
+  const { data: termPct } = useQuery({
+    queryKey: ["payment_schedule", projectId],
+    enabled: canManagePayments,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("payment_schedule", { _project_id: projectId });
+      if (error) throw error;
+      return data ?? [];
+    },
+    select: (d) => (d.length ? d.reduce((s, t) => s + Number(t.percent), 0) : null),
+  });
   const { quotation, lines } = useCurrentQuotation(projectId, true);
 
   const { data: revisions } = useQuery({
@@ -142,6 +157,9 @@ export function QuotationSection({
           <Button size="sm" variant="outline" onClick={() => setPreview(true)}>
             พิมพ์ใบเสนอราคา
           </Button>
+          {canManagePayments ? (
+            <Button size="sm" onClick={() => setIssuing(true)}>ออกใบเบิกเงิน</Button>
+          ) : null}
           {canEdit ? (
             <Button size="sm" variant="outline" disabled={newRev.isPending} onClick={() => newRev.mutate()}>
               สร้าง Rev ใหม่
@@ -149,6 +167,16 @@ export function QuotationSection({
           ) : null}
         </div>
       </div>
+
+      {termPct !== null && termPct !== undefined && Math.abs(termPct - 100) > 0.001 ? (
+        <p className="mt-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          ผลรวม % ของงวดเงินเท่ากับ {termPct}% — ควรเท่ากับ 100% (แก้ไขที่แท็บ "งวดเงิน")
+        </p>
+      ) : null}
+      {issuing ? (
+        <IssueBillingDialog projectId={projectId} onClose={() => setIssuing(false)} onIssued={(id) => { setIssuing(false); setBillDoc(id); }} />
+      ) : null}
+      {billDoc ? <BillingPreviewDialog docId={billDoc} onClose={() => setBillDoc(null)} /> : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-6" key={quotation.id}>
         <Field label="เลขที่อ้างอิง">

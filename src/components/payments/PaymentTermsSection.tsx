@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
-import { addDays, methodLabel, PAY_METHODS } from "@/lib/payments";
+import { methodLabel, PAY_METHODS } from "@/lib/payments";
+import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 
 export const PAY_TRIGGERS: { value: string; label: string }[] = [
   { value: "deposit", label: "มัดจำ (ขั้น 4)" },
@@ -42,7 +43,7 @@ export function DueBadge({ s, days }: { s: string; days?: number | null }) {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  bill: "วางบิล", bill_edit: "แก้ไขใบวางบิล", receive: "บันทึกรับเงิน", void: "ลบรายการรับเงิน", receipt_edit: "แก้ไขรับเงิน",
+  bill: "ออกใบเบิกเงิน", bill_edit: "แก้ไขใบวางบิล", bill_cancel: "ยกเลิกใบเบิกเงิน", receive: "บันทึกรับเงิน", void: "ลบรายการรับเงิน", receipt_edit: "แก้ไขรับเงิน",
 };
 
 type Term = {
@@ -61,6 +62,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const { isAdmin } = useMe();
   const [form, setForm] = useState({ name: "", percent: "", fixed: "", trigger: "deposit" });
   const [billFor, setBillFor] = useState<Term | null>(null);
+  const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Term | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -97,8 +99,8 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
       const { data, error } = await supabase.from("payment_audit_log").select("*").in("term_id", termIds).order("changed_at", { ascending: false });
       if (error) throw error;
       const ids = [...new Set(data.map((l) => l.changed_by).filter(Boolean))] as string[];
-      const { data: profs } = ids.length ? await supabase.from("profiles").select("id, full_name").in("id", ids) : { data: [] };
-      const names = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      const { data: profs } = ids.length ? await supabase.rpc("user_display_names", { _ids: ids }) : { data: [] };
+      const names = new Map((profs ?? []).map((p) => [p.id, p.display_name]));
       return data.map((l) => ({ ...l, who: (l.changed_by && names.get(l.changed_by)) || "-" }));
     },
   });
@@ -149,6 +151,27 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
     onSuccess: () => { toast.success("ลบรายการรับเงินแล้ว"); refresh(); },
     onError,
   });
+  const cancelDoc = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await supabase.rpc("cancel_billing_doc", { _id: id, _reason: reason });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("ยกเลิกใบเบิกเงินแล้ว"); refresh(); },
+    onError,
+  });
+  const afterReceipt = async (termId: string) => {
+    refresh();
+    qc.invalidateQueries({ queryKey: ["project", projectId] });
+    qc.invalidateQueries({ queryKey: ["status_log", projectId] });
+    const { data } = await supabase.rpc("payment_schedule", { _project_id: projectId });
+    const rows = data ?? [];
+    const t = rows.find((r) => r.id === termId);
+    if (t?.trigger !== "deposit") return;
+    const deps = rows.filter((r) => r.trigger === "deposit");
+    if (!deps.every((r) => r.due_status === "paid")) return;
+    if ((t.project_status ?? 0) >= 6) toast.success("รับมัดจำครบ — โปรเจกต์อยู่ขั้น 6 ปล่อยใบ Work ได้แล้ว");
+    else toast.warning("รับมัดจำครบแล้ว แต่ระบบยังเปลี่ยนเป็นขั้น 6 ไม่ได้ — ตรวจว่าเลือก Option ที่ลูกค้าเลือกแล้วในแท็บภาพรวม");
+  };
 
   if (!quote)
     return (
@@ -216,8 +239,8 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                     </Td>
                     <Td>
                       <select className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={t.trigger ?? ""}
-                        onChange={(e) => update.mutate({ id: t.id, patch: { trigger: e.target.value || null } })}>
-                        <option value="">— ไม่ระบุ —</option>
+                        onChange={(e) => e.target.value && update.mutate({ id: t.id, patch: { trigger: e.target.value } })}>
+                        {!t.trigger ? <option value="">— กรุณาเลือก —</option> : null}
                         {PAY_TRIGGERS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
                       </select>
                     </Td>
@@ -231,7 +254,21 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                     <Td><DueBadge s={t.due_status} days={t.days_overdue} /></Td>
                     <Td>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => setBillFor(term)}>{t.bill_id ? "แก้ใบวางบิล" : "วางบิล"}</Button>
+                        {t.bill_id ? (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => setViewDoc(t.bill_id)}>ดูใบเบิกเงิน</Button>
+                            {isAdmin ? (
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                const reason = window.prompt(`เหตุผลที่ยกเลิกใบเบิกเงิน ${t.bill_no}`);
+                                if (reason === null) return;
+                                if (!reason.trim()) { toast.error("ต้องระบุเหตุผล"); return; }
+                                cancelDoc.mutate({ id: t.bill_id!, reason });
+                              }}>ยกเลิกใบ</Button>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled={t.due_status === "paid"} onClick={() => setBillFor(term)}>ออกใบเบิกเงิน</Button>
+                        )}
                         <Button size="sm" onClick={() => setPayFor(term)}>บันทึกรับเงิน</Button>
                         <Button size="sm" variant="ghost" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
                           {openId === t.id ? "ซ่อน" : `รายละเอียด (${rs.filter((r) => !r.voided_at).length})`}
@@ -283,7 +320,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                             <ul className="space-y-1 text-xs">
                               {ls.map((l) => {
                                 const d = (l.data ?? {}) as Record<string, unknown>;
-                                const detail = l.action.startsWith("bill") ? `${d["bill_no"] ?? ""} ${formatDate(d["bill_date"] as string)} เครดิต ${d["credit_days"]} วัน`
+                                const detail = l.action.startsWith("bill") ? `${d["doc_no"] ?? d["bill_no"] ?? ""} ${formatDate(d["bill_date"] as string)} เครดิต ${d["credit_days"]} วัน`
                                   : l.action === "void" ? `${formatTHB(Number(d["amount"]))} บาท — ${d["void_reason"] ?? ""}` : `${formatTHB(Number(d["amount"]))} บาท`;
                                 return (
                                   <li key={l.id} className="border-b border-border/60 pb-1">
@@ -320,6 +357,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
       <form className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-6" onSubmit={(e) => {
         e.preventDefault();
         if (!form.name.trim()) { toast.error("กรุณากรอกชื่องวด"); return; }
+        if (!form.trigger) { toast.error("กรุณาเลือกเงื่อนไขเบิก"); return; }
         add.mutate();
       }}>
         <Field label="ชื่องวด *" className="md:col-span-2">
@@ -342,51 +380,17 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
         </div>
       </form>
 
-      {billFor ? <BillDialog term={billFor} onClose={() => setBillFor(null)} onSaved={refresh} /> : null}
-      {payFor ? <ReceiptDialog term={payFor} onClose={() => setPayFor(null)} onSaved={refresh} /> : null}
+      {billFor ? (
+        <IssueBillingDialog projectId={projectId} termId={billFor.id} onClose={() => setBillFor(null)}
+          onIssued={(id) => { setBillFor(null); setViewDoc(id); refresh(); }} />
+      ) : null}
+      {viewDoc ? <BillingPreviewDialog docId={viewDoc} onClose={() => { setViewDoc(null); refresh(); }} /> : null}
+      {payFor ? <ReceiptDialog term={payFor} onClose={() => setPayFor(null)} onSaved={() => afterReceipt(payFor.id)} /> : null}
     </section>
   );
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-function BillDialog({ term, onClose, onSaved }: { term: Term; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState({ bill_no: term.bill_no ?? "", bill_date: term.bill_date ?? today(), credit_days: String(term.credit_days ?? 15) });
-  const days = toNumber(f.credit_days) ?? 0;
-  const save = useMutation({
-    mutationFn: async () => {
-      const row = { bill_no: f.bill_no.trim(), bill_date: f.bill_date, credit_days: days };
-      const { error } = term.bill_id
-        ? await supabase.from("payment_billings").update(row).eq("id", term.bill_id)
-        : await supabase.from("payment_billings").insert({ ...row, term_id: term.id });
-      if (error) throw error;
-    },
-    onSuccess: () => { toast.success("บันทึกการวางบิลแล้ว"); onSaved(); onClose(); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>วางบิล — งวด {term.seq} {term.name}</DialogTitle></DialogHeader>
-        <form id="bill-form" className="grid gap-3" onSubmit={(e) => {
-          e.preventDefault();
-          if (!f.bill_no.trim() || !f.bill_date) { toast.error("กรุณากรอกเลขที่ใบวางบิลและวันที่"); return; }
-          if (days < 0 || !Number.isInteger(days)) { toast.error("เครดิตต้องเป็นจำนวนวันเต็ม"); return; }
-          save.mutate();
-        }}>
-          <Field label="เลขที่ใบแจ้งหนี้/ใบวางบิล *"><Input value={f.bill_no} onChange={(e) => setF({ ...f, bill_no: e.target.value })} /></Field>
-          <Field label="วันที่วางบิล *"><Input type="date" value={f.bill_date} onChange={(e) => setF({ ...f, bill_date: e.target.value })} /></Field>
-          <Field label="เครดิต (วัน)"><Input value={f.credit_days} onChange={(e) => setF({ ...f, credit_days: e.target.value })} /></Field>
-          <p className="text-sm">ครบกำหนดชำระ: <b>{f.bill_date ? formatDate(addDays(f.bill_date, days)) : "-"}</b> · ยอดงวด {formatTHB(Number(term.amount ?? 0))} บาท</p>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>ยกเลิก</Button>
-          <Button type="submit" form="bill-form" disabled={save.isPending}>บันทึก</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function ReceiptDialog({ term, onClose, onSaved }: { term: Term; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({ received_date: today(), amount: String(term.outstanding ?? ""), method: "transfer", bank_ref: "", wht: "", note: "" });
