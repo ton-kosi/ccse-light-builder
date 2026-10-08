@@ -14,6 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_counters: {
+        Row: {
+          last_no: number
+          year: number
+        }
+        Insert: {
+          last_no?: number
+          year: number
+        }
+        Update: {
+          last_no?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      billing_docs: {
+        Row: {
+          amount: number
+          attn: string | null
+          bill_date: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          credit_days: number
+          customer_address: string | null
+          customer_name: string | null
+          description: string
+          doc_no: string
+          due_date: string | null
+          grand_total: number
+          id: string
+          pdf_path: string | null
+          po_number: string | null
+          project_id: string
+          project_name: string | null
+          quotation_id: string
+          quotation_ref: string | null
+          quotation_rev: string | null
+          term_id: string
+          vat_amount: number
+          vat_percent: number
+        }
+        Insert: {
+          amount: number
+          attn?: string | null
+          bill_date: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number
+          customer_address?: string | null
+          customer_name?: string | null
+          description: string
+          doc_no: string
+          due_date?: string | null
+          grand_total: number
+          id?: string
+          pdf_path?: string | null
+          po_number?: string | null
+          project_id: string
+          project_name?: string | null
+          quotation_id: string
+          quotation_ref?: string | null
+          quotation_rev?: string | null
+          term_id: string
+          vat_amount: number
+          vat_percent?: number
+        }
+        Update: {
+          amount?: number
+          attn?: string | null
+          bill_date?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number
+          customer_address?: string | null
+          customer_name?: string | null
+          description?: string
+          doc_no?: string
+          due_date?: string | null
+          grand_total?: number
+          id?: string
+          pdf_path?: string | null
+          po_number?: string | null
+          project_id?: string
+          project_name?: string | null
+          quotation_id?: string
+          quotation_ref?: string | null
+          quotation_rev?: string | null
+          term_id?: string
+          vat_amount?: number
+          vat_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_docs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_docs_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_docs_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "payment_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       component_prices: {
         Row: {
           component_id: string
@@ -970,18 +1094,30 @@ export type Database = {
       }
       settings: {
         Row: {
+          bank_account_name: string | null
+          bank_account_no: string | null
+          bank_branch: string | null
+          bank_name: string | null
           created_at: string
           id: boolean
           min_remnant_m: number
           updated_at: string
         }
         Insert: {
+          bank_account_name?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           created_at?: string
           id?: boolean
           min_remnant_m?: number
           updated_at?: string
         }
         Update: {
+          bank_account_name?: string | null
+          bank_account_no?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           created_at?: string
           id?: boolean
           min_remnant_m?: number
@@ -1280,6 +1416,10 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_billing_doc: {
+        Args: { _id: string; _reason: string }
+        Returns: undefined
+      }
       confirm_material_issue: {
         Args: { _project_id: string }
         Returns: undefined
@@ -1294,6 +1434,10 @@ export type Database = {
           id: string
           name: string
         }[]
+      }
+      issue_billing_doc: {
+        Args: { _bill_date: string; _credit_days: number; _term_id: string }
+        Returns: string
       }
       material_demand: {
         Args: never
@@ -1349,6 +1493,13 @@ export type Database = {
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
+      user_display_names: {
+        Args: { _ids: string[] }
+        Returns: {
+          display_name: string
+          id: string
+        }[]
+      }
       void_receipt: {
         Args: { _id: string; _reason: string }
         Returns: undefined
