@@ -15,6 +15,13 @@
       "when": 1791445524236,
       "tag": "0001_grant_has_any_app_role",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791446677545,
+      "tag": "0002_payment_billing_receipts",
+      "breakpoints": true
     }
   ]
 }

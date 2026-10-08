@@ -173,6 +173,145 @@ export type Database = {
           },
         ]
       }
+      payment_audit_log: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          data: Json | null
+          entity: string
+          entity_id: string
+          id: string
+          term_id: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          data?: Json | null
+          entity: string
+          entity_id: string
+          id?: string
+          term_id?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          data?: Json | null
+          entity?: string
+          entity_id?: string
+          id?: string
+          term_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_billings: {
+        Row: {
+          bill_date: string
+          bill_no: string
+          created_at: string
+          created_by: string | null
+          credit_days: number
+          due_date: string | null
+          id: string
+          term_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bill_date: string
+          bill_no: string
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number
+          due_date?: string | null
+          id?: string
+          term_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bill_date?: string
+          bill_no?: string
+          created_at?: string
+          created_by?: string | null
+          credit_days?: number
+          due_date?: string | null
+          id?: string
+          term_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_billings_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: true
+            referencedRelation: "payment_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_receipts: {
+        Row: {
+          amount: number
+          bank_ref: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          method: string
+          note: string | null
+          received_date: string
+          slip_path: string | null
+          term_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          wht_amount: number
+        }
+        Insert: {
+          amount: number
+          bank_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method: string
+          note?: string | null
+          received_date: string
+          slip_path?: string | null
+          term_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          wht_amount?: number
+        }
+        Update: {
+          amount?: number
+          bank_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method?: string
+          note?: string | null
+          received_date?: string
+          slip_path?: string | null
+          term_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          wht_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "payment_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_terms: {
         Row: {
           created_at: string
@@ -1178,13 +1317,21 @@ export type Database = {
         Args: { _project_id?: string }
         Returns: {
           amount: number
+          bill_date: string
+          bill_id: string
+          bill_no: string
+          credit_days: number
+          days_overdue: number
+          due_date: string
           due_since: string
           due_status: string
           fixed_amount: number
           id: string
+          last_received_date: string
           name: string
           net_total: number
           note: string
+          outstanding: number
           percent: number
           project_code: string
           project_id: string
@@ -1193,13 +1340,19 @@ export type Database = {
           quotation_id: string
           received: boolean
           received_date: string
+          received_total: number
           ref_no: string
           rev: string
           seq: number
           trigger: string
+          wht_total: number
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
+      void_receipt: {
+        Args: { _id: string; _reason: string }
+        Returns: undefined
+      }
       wo_header: {
         Args: { _project_id: string }
         Returns: {
