@@ -14,7 +14,7 @@ import { formatDate, formatTHB } from "@/lib/format";
 import { methodLabel } from "@/lib/payments";
 import type { ReactNode } from "react";
 
-type PayRow = { key: string; projectId?: string; project: string; cells: ReactNode[]; money: number };
+type PayRow = { key: string; projectId?: string | undefined; project: string; cells: ReactNode[]; money: number };
 
 function PayList({ title, empty, head, rows, total }: { title: string; empty: string; head: string[]; rows: PayRow[]; total: number }) {
   return (

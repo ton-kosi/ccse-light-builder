@@ -32,7 +32,7 @@ export const DUE_LABELS: Record<string, { label: string; cls: string }> = {
 };
 
 export function DueBadge({ s, days }: { s: string; days?: number | null }) {
-  const d = DUE_LABELS[s] ?? DUE_LABELS.not_yet;
+  const d = DUE_LABELS[s] ?? { label: "ยังไม่ถึง", cls: "bg-muted text-muted-foreground" };
   return (
     <span className={"whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium " + d.cls}>
       {d.label}
@@ -52,7 +52,7 @@ type Term = {
 
 export async function openSlip(path: string) {
   const { data, error } = await supabase.storage.from("payment-slips").createSignedUrl(path, 300);
-  if (error) return toast.error(error.message);
+  if (error) { toast.error(error.message); return; }
   window.open(data.signedUrl, "_blank", "noopener");
 }
 
@@ -237,7 +237,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                           {openId === t.id ? "ซ่อน" : `รายละเอียด (${rs.filter((r) => !r.voided_at).length})`}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => {
-                          if (rs.length || t.bill_id) return toast.error("งวดนี้มีการวางบิลหรือรับเงินแล้ว ลบไม่ได้");
+                          if (rs.length || t.bill_id) { toast.error("งวดนี้มีการวางบิลหรือรับเงินแล้ว ลบไม่ได้"); return; }
                           remove.mutate(t.id);
                         }}>ลบ</Button>
                       </div>
@@ -267,7 +267,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                                         <Button size="sm" variant="ghost" className="h-6" onClick={() => {
                                           const reason = window.prompt("เหตุผลที่ลบรายการรับเงินนี้");
                                           if (reason === null) return;
-                                          if (!reason.trim()) return toast.error("ต้องระบุเหตุผล");
+                                          if (!reason.trim()) { toast.error("ต้องระบุเหตุผล"); return; }
                                           voidReceipt.mutate({ id: r.id, reason });
                                         }}>ลบ</Button>
                                       ) : null}
@@ -283,8 +283,8 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                             <ul className="space-y-1 text-xs">
                               {ls.map((l) => {
                                 const d = (l.data ?? {}) as Record<string, unknown>;
-                                const detail = l.action.startsWith("bill") ? `${d.bill_no ?? ""} ${formatDate(d.bill_date as string)} เครดิต ${d.credit_days} วัน`
-                                  : l.action === "void" ? `${formatTHB(Number(d.amount))} บาท — ${d.void_reason ?? ""}` : `${formatTHB(Number(d.amount))} บาท`;
+                                const detail = l.action.startsWith("bill") ? `${d["bill_no"] ?? ""} ${formatDate(d["bill_date"] as string)} เครดิต ${d["credit_days"]} วัน`
+                                  : l.action === "void" ? `${formatTHB(Number(d["amount"]))} บาท — ${d["void_reason"] ?? ""}` : `${formatTHB(Number(d["amount"]))} บาท`;
                                 return (
                                   <li key={l.id} className="border-b border-border/60 pb-1">
                                     {formatDate(l.changed_at)} {new Date(l.changed_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} · {l.who} · <b>{ACTION_LABELS[l.action] ?? l.action}</b> {detail}
@@ -370,8 +370,8 @@ function BillDialog({ term, onClose, onSaved }: { term: Term; onClose: () => voi
         <DialogHeader><DialogTitle>วางบิล — งวด {term.seq} {term.name}</DialogTitle></DialogHeader>
         <form id="bill-form" className="grid gap-3" onSubmit={(e) => {
           e.preventDefault();
-          if (!f.bill_no.trim() || !f.bill_date) return toast.error("กรุณากรอกเลขที่ใบวางบิลและวันที่");
-          if (days < 0 || !Number.isInteger(days)) return toast.error("เครดิตต้องเป็นจำนวนวันเต็ม");
+          if (!f.bill_no.trim() || !f.bill_date) { toast.error("กรุณากรอกเลขที่ใบวางบิลและวันที่"); return; }
+          if (days < 0 || !Number.isInteger(days)) { toast.error("เครดิตต้องเป็นจำนวนวันเต็ม"); return; }
           save.mutate();
         }}>
           <Field label="เลขที่ใบแจ้งหนี้/ใบวางบิล *"><Input value={f.bill_no} onChange={(e) => setF({ ...f, bill_no: e.target.value })} /></Field>
@@ -417,8 +417,8 @@ function ReceiptDialog({ term, onClose, onSaved }: { term: Term; onClose: () => 
         <form id="receipt-form" className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => {
           e.preventDefault();
           const amt = toNumber(f.amount);
-          if (!f.received_date || amt === null || amt < 0) return toast.error("กรุณากรอกวันที่และจำนวนเงินให้ถูกต้อง");
-          if (file && file.size > 10 * 1024 * 1024) return toast.error("ไฟล์สลิปต้องไม่เกิน 10 MB");
+          if (!f.received_date || amt === null || amt < 0) { toast.error("กรุณากรอกวันที่และจำนวนเงินให้ถูกต้อง"); return; }
+          if (file && file.size > 10 * 1024 * 1024) { toast.error("ไฟล์สลิปต้องไม่เกิน 10 MB"); return; }
           save.mutate();
         }}>
           <Field label="วันที่รับ *"><Input type="date" value={f.received_date} onChange={(e) => setF({ ...f, received_date: e.target.value })} /></Field>
