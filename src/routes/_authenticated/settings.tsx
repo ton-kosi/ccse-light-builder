@@ -35,9 +35,23 @@ function SettingsPage() {
     },
   });
   const [minRemnant, setMinRemnant] = useState("");
+  const [bank, setBank] = useState({ bank_name: "", bank_branch: "", bank_account_name: "", bank_account_no: "" });
   useEffect(() => {
-    if (data) setMinRemnant(String(data.min_remnant_m));
+    if (!data) return;
+    setMinRemnant(String(data.min_remnant_m));
+    setBank({
+      bank_name: data.bank_name ?? "", bank_branch: data.bank_branch ?? "",
+      bank_account_name: data.bank_account_name ?? "", bank_account_no: data.bank_account_no ?? "",
+    });
   }, [data]);
+
+  async function saveBank() {
+    const patch = Object.fromEntries(Object.entries(bank).map(([k, v]) => [k, v.trim() || null]));
+    const { error } = await supabase.from("settings").update(patch).eq("id", true);
+    if (error) { toast.error(error.message); return; }
+    toast.success("บันทึกบัญชีธนาคารแล้ว");
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  }
 
   async function save() {
     const v = Number(minRemnant);
@@ -77,6 +91,18 @@ function SettingsPage() {
         <p className="mt-2 text-xs text-muted-foreground">
           เศษที่สั้นกว่าค่านี้จะไม่ถูกบันทึกเป็นเศษม้วน
         </p>
+      </div>
+      <div className="mt-6 max-w-md space-y-3 rounded-lg border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold">บัญชีธนาคารสำหรับรับเงิน (แสดงในใบเบิกเงิน)</h2>
+        {([
+          ["bank_name", "ธนาคาร"], ["bank_branch", "สาขา"], ["bank_account_name", "ชื่อบัญชี"], ["bank_account_no", "เลขที่บัญชี"],
+        ] as const).map(([k, label]) => (
+          <div key={k}>
+            <Label htmlFor={k}>{label}</Label>
+            <Input id={k} className="mt-1" value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} />
+          </div>
+        ))}
+        <Button onClick={saveBank}>บันทึกบัญชีธนาคาร</Button>
       </div>
     </div>
   );

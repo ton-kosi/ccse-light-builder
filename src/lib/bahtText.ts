@@ -12,7 +12,7 @@ function readUnderMillion(n: number): string {
     if (pos === 1 && d === 1) out += "สิบ";
     else if (pos === 1 && d === 2) out += "ยี่สิบ";
     else if (pos === 0 && d === 1 && s.length > 1) out += "เอ็ด";
-    else out += DIGITS[d] + UNITS[pos];
+    else out += (DIGITS[d] ?? "") + (UNITS[pos] ?? "");
   }
   return out;
 }
