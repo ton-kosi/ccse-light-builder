@@ -1,0 +1,10 @@
+ALTER POLICY "projects read" ON public.projects USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "work_orders read" ON public.work_orders USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "settings read" ON public.settings USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "issues read" ON public.material_issues USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "line_recipes read" ON public.line_recipes USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "work_order_items read" ON public.work_order_items USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "status log read" ON public.project_status_log USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "roll plans read" ON public.roll_plans USING (private.has_any_app_role(auth.uid()));
+ALTER POLICY "profiles readable by authenticated" ON public.profiles USING (id = auth.uid() OR private.has_any_app_role(auth.uid()));
+ALTER POLICY "admin can update any profile" ON public.profiles WITH CHECK (private.has_role(auth.uid(), 'admin'::app_role));
