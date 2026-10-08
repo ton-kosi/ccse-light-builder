@@ -46,7 +46,10 @@ function SettingsPage() {
   }, [data]);
 
   async function saveBank() {
-    const patch = Object.fromEntries(Object.entries(bank).map(([k, v]) => [k, v.trim() || null]));
+    const patch = {
+      bank_name: bank.bank_name.trim() || null, bank_branch: bank.bank_branch.trim() || null,
+      bank_account_name: bank.bank_account_name.trim() || null, bank_account_no: bank.bank_account_no.trim() || null,
+    };
     const { error } = await supabase.from("settings").update(patch).eq("id", true);
     if (error) { toast.error(error.message); return; }
     toast.success("บันทึกบัญชีธนาคารแล้ว");
