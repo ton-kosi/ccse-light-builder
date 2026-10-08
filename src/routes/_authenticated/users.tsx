@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMe } from "@/hooks/useMe";
 import { ROLE_LABELS, type AppRole } from "@/lib/erp";
+import { inviteUser } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
@@ -106,6 +107,7 @@ function UsersPage() {
         title="ผู้ใช้และสิทธิ์"
         description="ฝ่ายผลิตและช่างจะไม่เห็นใบเสนอราคา ราคาขาย และต้นทุน"
       />
+      <InviteForm />
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left text-xs text-muted-foreground">
