@@ -11,7 +11,41 @@ import { Button } from "@/components/ui/button";
 import { useMe, meQueryKey } from "@/hooks/useMe";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
 import { formatDate, formatTHB } from "@/lib/format";
-import { DueBadge } from "@/components/payments/PaymentTermsSection";
+import { methodLabel } from "@/lib/payments";
+import type { ReactNode } from "react";
+
+type PayRow = { key: string; projectId?: string | undefined; project: string; cells: ReactNode[]; money: number };
+
+function PayList({ title, empty, head, rows, total }: { title: string; empty: string; head: string[]; rows: PayRow[]; total: number }) {
+  return (
+    <section className="mt-6 rounded-lg border border-border bg-card p-4">
+      <h2 className="mb-3 text-sm font-semibold">{title} <span className="font-normal text-muted-foreground">· รวม {formatTHB(total)} บาท</span></h2>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary text-left text-xs text-muted-foreground">
+            <tr>{head.map((h, i) => <th key={h} className={"px-3 py-2" + (i === 4 ? " text-right" : "")}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t border-border">
+                <td className="px-3 py-2">{r.cells[0]}</td>
+                <td className="px-3 py-2">
+                  {r.projectId ? (
+                    <Link to="/projects/$projectId" params={{ projectId: r.projectId }} className="text-primary hover:underline">{r.project}</Link>
+                  ) : r.project}
+                </td>
+                <td className="px-3 py-2">{r.cells[2]}</td>
+                <td className="px-3 py-2">{r.cells[3]}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatTHB(r.money)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 ? <tr><td colSpan={5} className="px-3 py-2 text-muted-foreground">{empty}</td></tr> : null}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -69,17 +103,37 @@ function Dashboard() {
   });
 
 
-  const { data: dueTerms } = useQuery({
-    queryKey: ["payment_schedule", "due"],
+  const { data: schedule } = useQuery({
+    queryKey: ["payment_schedule", "all"],
     enabled: canManagePayments,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("payment_schedule", {});
       if (error) throw error;
-      return (data ?? [])
-        .filter((t) => t.due_status === "due")
-        .sort((a, b) => (a.due_since ?? "").localeCompare(b.due_since ?? ""));
+      return data ?? [];
     },
   });
+  const { data: recentReceipts } = useQuery({
+    queryKey: ["payment_receipts", "recent"],
+    enabled: canManagePayments,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_receipts")
+        .select("id, term_id, received_date, amount, wht_amount, method, created_at")
+        .is("voided_at", null)
+        .order("received_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const toBill = (schedule ?? [])
+    .filter((t) => t.due_status === "to_bill")
+    .sort((a, b) => (a.due_since ?? "").localeCompare(b.due_since ?? ""));
+  const overdue = (schedule ?? [])
+    .filter((t) => t.due_status === "overdue")
+    .sort((a, b) => (b.days_overdue ?? 0) - (a.days_overdue ?? 0));
+  const termById = new Map((schedule ?? []).map((t) => [t.id, t]));
 
   const byStatus = PROJECT_STATUSES.map((s) => ({
     ...s,
@@ -153,39 +207,44 @@ function Dashboard() {
       </div>
 
       {canManagePayments ? (
-        <section className="mt-6 rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-3 text-sm font-semibold">ฝ่ายบัญชี — งวดเงินที่ถึงเวลาเบิก (เก่าสุดก่อน)</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">ถึงกำหนดตั้งแต่</th><th className="px-3 py-2">โปรเจกต์</th>
-                  <th className="px-3 py-2">ใบเสนอราคา</th><th className="px-3 py-2">งวด</th>
-                  <th className="px-3 py-2 text-right">จำนวนเงิน (บาท)</th><th className="px-3 py-2">สถานะ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(dueTerms ?? []).map((t) => (
-                  <tr key={t.id} className="border-t border-border">
-                    <td className="px-3 py-2">{t.due_since ? formatDate(t.due_since) : "—"}</td>
-                    <td className="px-3 py-2">
-                      <Link to="/projects/$projectId" params={{ projectId: t.project_id }} className="text-primary hover:underline">
-                        {t.project_code} — {t.project_name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2">{t.ref_no} Rev {t.rev}</td>
-                    <td className="px-3 py-2">{t.seq}. {t.name}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatTHB(Number(t.amount ?? 0))}</td>
-                    <td className="px-3 py-2"><DueBadge s={t.due_status} /></td>
-                  </tr>
-                ))}
-                {dueTerms?.length === 0 ? (
-                  <tr><td colSpan={6} className="px-3 py-2 text-muted-foreground">ไม่มีงวดที่ถึงเวลาเบิก</td></tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <>
+          <PayList
+            title="ฝ่ายบัญชี — ถึงเวลาวางบิล"
+            empty="ไม่มีงวดที่ถึงเวลาวางบิล"
+            head={["ถึงกำหนดตั้งแต่", "โปรเจกต์", "ใบเสนอราคา", "งวด", "จำนวนเงิน (บาท)"]}
+            total={toBill.reduce((s, t) => s + Number(t.amount ?? 0), 0)}
+            rows={toBill.map((t) => ({
+              key: t.id, projectId: t.project_id, project: `${t.project_code} — ${t.project_name}`,
+              cells: [t.due_since ? formatDate(t.due_since) : "—", null, `${t.ref_no} Rev ${t.rev}`, `${t.seq}. ${t.name}`],
+              money: Number(t.amount ?? 0),
+            }))}
+          />
+          <PayList
+            title="เกินกำหนดชำระ (เกินนานสุดก่อน)"
+            empty="ไม่มีงวดที่เกินกำหนด"
+            head={["เกินกำหนด", "โปรเจกต์", "ใบวางบิล / ครบกำหนด", "งวด", "คงค้าง (บาท)"]}
+            total={overdue.reduce((s, t) => s + Number(t.outstanding ?? 0), 0)}
+            rows={overdue.map((t) => ({
+              key: t.id, projectId: t.project_id, project: `${t.project_code} — ${t.project_name}`,
+              cells: [<span className="font-semibold text-destructive">{t.days_overdue} วัน</span>, null, `${t.bill_no} · ${formatDate(t.due_date)}`, `${t.seq}. ${t.name}`],
+              money: Number(t.outstanding ?? 0),
+            }))}
+          />
+          <PayList
+            title="รับเงินล่าสุด"
+            empty="ยังไม่มีการรับเงิน"
+            head={["วันที่รับ", "โปรเจกต์", "วิธีรับ", "งวด", "จำนวนเงิน + ภาษีหัก (บาท)"]}
+            total={(recentReceipts ?? []).reduce((s, r) => s + Number(r.amount) + Number(r.wht_amount), 0)}
+            rows={(recentReceipts ?? []).map((r) => {
+              const t = termById.get(r.term_id);
+              return {
+                key: r.id, projectId: t?.project_id, project: t ? `${t.project_code} — ${t.project_name}` : "-",
+                cells: [formatDate(r.received_date), null, methodLabel(r.method), t ? `${t.seq}. ${t.name}` : "-"],
+                money: Number(r.amount) + Number(r.wht_amount),
+              };
+            })}
+          />
+        </>
       ) : null}
 
       <p className="mt-6 text-xs text-muted-foreground">
