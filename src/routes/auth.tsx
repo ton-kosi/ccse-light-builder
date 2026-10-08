@@ -57,25 +57,12 @@ function AuthPage() {
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-6">
           <div className="text-lg font-bold text-primary">CCSE</div>
-          <h1 className="mt-1 text-xl font-semibold">
-            {mode === "signin" ? "เข้าสู่ระบบ" : "สมัครใช้งาน"}
-          </h1>
+          <h1 className="mt-1 text-xl font-semibold">เข้าสู่ระบบ</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             ระบบบริหารงาน Chingchai &amp; Sons Engineering
           </p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
-          {mode === "signup" ? (
-            <div className="space-y-1.5">
-              <Label htmlFor="fullName">ชื่อ-นามสกุล</Label>
-              <Input
-                id="fullName"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
-          ) : null}
           <div className="space-y-1.5">
             <Label htmlFor="email">อีเมล</Label>
             <Input
@@ -98,16 +85,12 @@ function AuthPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "กำลังดำเนินการ..." : mode === "signin" ? "เข้าสู่ระบบ" : "สมัครใช้งาน"}
+            {loading ? "กำลังดำเนินการ..." : "เข้าสู่ระบบ"}
           </Button>
         </form>
-        <button
-          type="button"
-          className="mt-4 w-full text-sm text-muted-foreground underline"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-        >
-          {mode === "signin" ? "ยังไม่มีบัญชี? สมัครใช้งาน" : "มีบัญชีแล้ว? เข้าสู่ระบบ"}
-        </button>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          ยังไม่มีบัญชี? ติดต่อผู้ดูแลระบบเพื่อรับคำเชิญ
+        </p>
       </div>
     </div>
   );
