@@ -161,6 +161,66 @@ function UsersPage() {
   );
 }
 
+function InviteForm() {
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+
+  const invite = useMutation({
+    mutationFn: async () => {
+      await inviteUser({
+        data: { email, fullName, redirectTo: window.location.origin },
+      });
+    },
+    onSuccess: () => {
+      toast.success(`ส่งคำเชิญไปที่ ${email} แล้ว`);
+      setEmail("");
+      setFullName("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <form
+      className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-card p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        invite.mutate();
+      }}
+    >
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="invite-name">
+          ชื่อ-นามสกุล
+        </label>
+        <Input
+          id="invite-name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="w-56"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground" htmlFor="invite-email">
+          อีเมล
+        </label>
+        <Input
+          id="invite-email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-64"
+        />
+      </div>
+      <Button type="submit" disabled={invite.isPending}>
+        {invite.isPending ? "กำลังส่งคำเชิญ..." : "เชิญผู้ใช้"}
+      </Button>
+      <p className="w-full text-xs text-muted-foreground">
+        ระบบจะส่งอีเมลเชิญให้ผู้ใช้ตั้งรหัสผ่านเอง แล้วค่อยกำหนดสิทธิ์ในตารางด้านล่าง
+      </p>
+    </form>
+  );
+}
+
 function NameCell({
   userId,
   initial,
