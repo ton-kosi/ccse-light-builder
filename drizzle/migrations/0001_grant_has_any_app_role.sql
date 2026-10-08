@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION private.has_any_app_role(uuid) TO authenticated;
