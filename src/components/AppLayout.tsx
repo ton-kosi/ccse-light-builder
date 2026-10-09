@@ -12,6 +12,7 @@ import {
   Settings,
   Building2,
   ClipboardList,
+  FileText,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -41,6 +42,7 @@ export const NAV: NavItem[] = [
   { to: "/projects", label: "โปรเจกต์", icon: FolderKanban, roles: "all" },
   { to: "/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/components", label: "ชิ้นส่วนขายและสูตร", icon: Layers, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
+  { to: "/clauses", label: "หมายเหตุและประกัน", icon: FileText, roles: ["admin", "sales", "estimator"] },
   { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "stock", "production", "accounting"] },
   { to: "/remnants", label: "เศษม้วน", icon: Scissors, roles: ["admin", "stock", "production"] },
   { to: "/customers", label: "ลูกค้า", icon: Building2, roles: ["admin", "sales", "accounting"] },

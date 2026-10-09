@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ComponentClauses } from "@/components/clauses/ComponentClauses";
 import { AddRecipeItem } from "@/components/AddRecipeItem";
 import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
@@ -53,7 +54,7 @@ function friendly(m: string) {
 }
 
 function ComponentsPage() {
-  const { canEditMaster, isAdmin, canEditQuote } = useMe();
+  const { canEditMaster, isAdmin, canEditQuote, has } = useMe();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
@@ -211,6 +212,9 @@ function ComponentsPage() {
                 <>
                   {canEditQuote ? <PricePanel componentId={editing.id} isAdmin={isAdmin} /> : null}
                   <RecipeTable componentId={editing.id} unit={editing.form.unit} canEdit={canEditMaster} />
+                  {has("admin", "sales", "estimator") ? (
+                    <ComponentClauses componentId={editing.id} canEdit={has("admin", "estimator")} />
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">บันทึกชิ้นส่วนก่อน แล้วจึงเพิ่มสูตรได้</p>

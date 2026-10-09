@@ -8,6 +8,7 @@ import { Field } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BoqGrid, type GridLine } from "@/components/boq/BoqGrid";
+import { QuoteFooter } from "@/components/boq/QuoteFooter";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
@@ -170,7 +171,7 @@ export function QuotationSection({
 
       {termPct !== null && termPct !== undefined && Math.abs(termPct - 100) > 0.001 ? (
         <p className="mt-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          ผลรวม % ของงวดเงินเท่ากับ {termPct}% — ควรเท่ากับ 100% (แก้ไขที่แท็บ "งวดเงิน")
+          ผลรวม % ของงวดเงินเท่ากับ {termPct}% — ควรเท่ากับ 100% (แก้ไขที่ TERM OF PAYMENT ท้ายหน้านี้)
         </p>
       ) : null}
       {issuing ? (
@@ -197,51 +198,6 @@ export function QuotationSection({
             onBlur={(e) => {
               if (e.target.value && e.target.value !== quotation.date)
                 updateQuotation.mutate({ date: e.target.value });
-            }}
-          />
-        </Field>
-        <Field label="ยืนราคา (วัน)">
-          <Input
-            defaultValue={quotation.validity_days === null ? "" : String(quotation.validity_days)}
-            disabled={!canEdit}
-            onBlur={(e) => {
-              const n = toNumber(e.target.value);
-              const v = n === null ? null : Math.round(n);
-              if (v !== quotation.validity_days) updateQuotation.mutate({ validity_days: v });
-            }}
-          />
-        </Field>
-        <Field label="การส่งมอบ" className="md:col-span-3">
-          <Input
-            defaultValue={quotation.delivery_text ?? ""}
-            disabled={!canEdit}
-            onBlur={(e) => {
-              if (e.target.value !== (quotation.delivery_text ?? ""))
-                updateQuotation.mutate({ delivery_text: e.target.value || null });
-            }}
-          />
-        </Field>
-        <Field label="ส่วนลดท้ายใบ (บาท)">
-          <Input
-            defaultValue={String(quotation.discount ?? 0)}
-            disabled={!canEdit}
-            onBlur={(e) => updateQuotation.mutate({ discount: toNumber(e.target.value) ?? 0 })}
-          />
-        </Field>
-        <Field label="VAT %">
-          <Input
-            defaultValue={String(quotation.vat_percent ?? 7)}
-            disabled={!canEdit}
-            onBlur={(e) => updateQuotation.mutate({ vat_percent: toNumber(e.target.value) ?? 0 })}
-          />
-        </Field>
-        <Field label="หมายเหตุ (พิมพ์ท้ายใบ)" className="md:col-span-4">
-          <Input
-            defaultValue={quotation.notes ?? ""}
-            disabled={!canEdit}
-            onBlur={(e) => {
-              if (e.target.value !== (quotation.notes ?? ""))
-                updateQuotation.mutate({ notes: e.target.value || null });
             }}
           />
         </Field>
@@ -288,11 +244,48 @@ export function QuotationSection({
             ยอดรวม{opts.length ? (selectedOption ? ` (หลัก + Option ${selectedOption})` : " (เฉพาะรายการหลัก — ยังไม่เลือก Option)") : ""}
           </div>
           <Row label="รวมเป็นเงิน" value={formatTHB(t.subtotal)} />
-          <Row label="ส่วนลด" value={formatTHB(discount)} />
-          <Row label={`VAT ${vatPct}%`} value={formatTHB(t.vat)} />
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">ส่วนลดพิเศษท้ายใบ</span>
+            <Input
+              key={"disc" + discount}
+              className="h-7 w-32 text-right tabular-nums"
+              defaultValue={discount ? String(discount) : ""}
+              placeholder="0.00"
+              disabled={!canEdit}
+              onBlur={(e) => {
+                const v = toNumber(e.target.value) ?? 0;
+                if (v !== discount) updateQuotation.mutate({ discount: v });
+              }}
+            />
+          </div>
+          <Row label="ยอดหลังหักส่วนลด" value={formatTHB(t.afterDiscount)} />
+          <div className="flex items-center justify-between gap-4">
+            <span className="flex items-center gap-1 text-muted-foreground">
+              VAT
+              <Input
+                key={"vat" + vatPct}
+                className="h-7 w-14 text-right"
+                defaultValue={String(vatPct)}
+                disabled={!canEdit}
+                onBlur={(e) => {
+                  const v = toNumber(e.target.value) ?? 0;
+                  if (v !== vatPct) updateQuotation.mutate({ vat_percent: v });
+                }}
+              />
+              %
+            </span>
+            <span className="tabular-nums">{formatTHB(t.vat)}</span>
+          </div>
           <Row label="ยอดสุทธิ (บาท)" value={formatTHB(t.net)} bold />
         </div>
       </div>
+
+      <QuoteFooter
+        quotation={quotation}
+        net={t.net}
+        canEdit={canEdit}
+        syncKey={`${selectedOption ?? ""}|${lines.map((l) => `${l.component_id ?? ""}:${l.option_name ?? ""}:${l.kind}`).join(",")}`}
+      />
     </section>
   );
 }

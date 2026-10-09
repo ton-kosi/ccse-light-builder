@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedClausesRouteImport } from './routes/_authenticated/clauses'
 import { Route as AuthenticatedComponentsRouteImport } from './routes/_authenticated/components'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -42,6 +43,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedClausesRoute = AuthenticatedClausesRouteImport.update({
+  id: '/clauses',
+  path: '/clauses',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedComponentsRoute = AuthenticatedComponentsRouteImport.update({
   id: '/components',
@@ -133,6 +139,7 @@ const PrintWorkProjectIdRoute = PrintWorkProjectIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/clauses': typeof AuthenticatedClausesRoute
   '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/clauses': typeof AuthenticatedClausesRoute
   '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/clauses': typeof AuthenticatedClausesRoute
   '/_authenticated/components': typeof AuthenticatedComponentsRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/clauses'
     | '/components'
     | '/customers'
     | '/dashboard'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/clauses'
     | '/components'
     | '/customers'
     | '/dashboard'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/clauses'
     | '/_authenticated/components'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
@@ -287,6 +299,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/clauses': {
+      id: '/_authenticated/clauses'
+      path: '/clauses'
+      fullPath: '/clauses'
+      preLoaderRoute: typeof AuthenticatedClausesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/components': {
       id: '/_authenticated/components'
@@ -404,6 +423,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedClausesRoute: typeof AuthenticatedClausesRoute
   AuthenticatedComponentsRoute: typeof AuthenticatedComponentsRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -420,6 +440,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedClausesRoute: AuthenticatedClausesRoute,
   AuthenticatedComponentsRoute: AuthenticatedComponentsRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,

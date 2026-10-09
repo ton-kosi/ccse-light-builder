@@ -6,6 +6,7 @@ import { kindText } from "@/components/boq/BoqGrid";
 import { computeTotals, lineAmount, optKey, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { DocHeader } from "@/components/print/DocHeader";
+import { QuoteFooterPrint } from "@/components/print/QuoteFooterPrint";
 import { buildA4Pdf } from "@/lib/pdf";
 import { formatDate, formatQty, formatTHB } from "@/lib/format";
 
@@ -64,22 +65,32 @@ function PrintQuotation() {
         .maybeSingle();
       if (error) throw error;
       if (!q) return null;
-      const [{ data: lines }, { data: terms }] = await Promise.all([
+      const [{ data: lines }, { data: terms }, { data: clauses }] = await Promise.all([
         supabase
           .from("quote_lines")
            .select("id, sort_order, option_name, zone, item_no, kind, customer_text, circuit_note, cut_lengths, qty, unit, unit_price, discount_percent, sales_components(name)")
           .eq("quotation_id", quotationId)
           .order("sort_order"),
-        supabase.from("payment_terms").select("seq, name, percent, note").eq("quotation_id", quotationId).order("seq"),
+        supabase
+          .from("payment_terms")
+          .select("seq, percent, fixed_amount, trigger, print_label")
+          .eq("quotation_id", quotationId)
+          .order("seq"),
+        supabase
+          .from("quotation_clauses")
+          .select("section, text, sort_order")
+          .eq("quotation_id", quotationId)
+          .eq("included", true)
+          .order("sort_order"),
       ]);
-      return { q, lines: lines ?? [], terms: terms ?? [] };
+      return { q, lines: lines ?? [], terms: terms ?? [], clauses: clauses ?? [] };
     },
   });
 
   if (isLoading) return <p className="p-8 text-sm">กำลังโหลด...</p>;
   if (!data) return <p className="p-8 text-sm">ไม่พบใบเสนอราคา หรือคุณไม่มีสิทธิ์ดู (กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบ)</p>;
 
-  const { q, lines, terms } = data;
+  const { q, lines, terms, clauses } = data;
   const project = q.projects as {
     code: string;
     name: string;
@@ -128,7 +139,6 @@ function PrintQuotation() {
           <Info label="REF NO.">{q.ref_no}</Info>
            {quotationRevisionSuffix(q.rev) ? <Info label="REV">{q.rev}</Info> : null}
           <Info label="DATE">{formatDate(q.date)}</Info>
-          {q.validity_days ? <Info label="VALIDITY">{q.validity_days} days</Info> : null}
         </div>
       </section>
 
@@ -199,7 +209,7 @@ function PrintQuotation() {
         </tbody>
       </table>
 
-      <section className="mt-3 flex justify-end border-t-2 border-foreground pt-2">
+      <section data-pdf-keep className="mt-3 flex justify-end border-t-2 border-foreground pt-2 break-inside-avoid">
         <div className="w-72 space-y-0.5">
           {!sel && opts.length ? (
             <>
@@ -217,38 +227,16 @@ function PrintQuotation() {
         </div>
       </section>
 
-      <section className="mt-6 space-y-3 break-inside-avoid">
-        {terms.length ? (
-          <div>
-            <div className="font-bold">PAYMENT TERMS</div>
-            <ol className="mt-1 space-y-0.5">
-              {terms.map((p) => (
-                <li key={p.seq}>
-                  {p.seq}. {p.name} — {formatQty(Number(p.percent))}% ({formatTHB((t.net * Number(p.percent)) / 100)} THB)
-                  {p.note ? ` · ${p.note}` : ""}
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-        {q.delivery_text ? (
-          <div>
-            <span className="font-bold">DELIVERY: </span>
-            {q.delivery_text}
-          </div>
-        ) : null}
-        {q.notes ? (
-          <div>
-            <div className="font-bold">NOTES</div>
-            <div className="whitespace-pre-line">{q.notes}</div>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="mt-12 grid grid-cols-2 gap-12 text-center text-[11px] break-inside-avoid">
-        <div className="border-t border-foreground pt-1">ACCEPTED BY (CUSTOMER)</div>
-        <div className="border-t border-foreground pt-1">AUTHORIZED SIGNATURE · CCSE</div>
-      </section>
+      <QuoteFooterPrint
+        clauses={clauses}
+        legacyNotes={q.notes}
+        closingText={q.closing_text}
+        signerName={q.signer_name}
+        signerPosition={q.signer_position}
+        terms={terms.map((p) => ({ ...p, percent: Number(p.percent), fixed_amount: p.fixed_amount === null ? null : Number(p.fixed_amount) }))}
+        validityDays={q.validity_days}
+        deliveryText={q.delivery_text}
+      />
     </div>
   );
 }

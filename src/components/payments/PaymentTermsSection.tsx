@@ -60,7 +60,6 @@ export async function openSlip(path: string) {
 export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const { isAdmin } = useMe();
-  const [form, setForm] = useState({ name: "", percent: "", fixed: "", trigger: "deposit" });
   const [billFor, setBillFor] = useState<Term | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Term | null>(null);
@@ -112,37 +111,6 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
   };
   const onError = (e: Error) => toast.error(e.message);
 
-  const add = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("payment_terms").insert({
-        quotation_id: quote!.quotation_id,
-        seq: Math.max(0, ...(terms ?? []).map((t) => t.seq)) + 1,
-        name: form.name.trim(),
-        percent: toNumber(form.percent) ?? 0,
-        fixed_amount: toNumber(form.fixed),
-        trigger: form.trigger,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => { setForm({ name: "", percent: "", fixed: "", trigger: "deposit" }); refresh(); },
-    onError,
-  });
-  const update = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<"payment_terms"> }) => {
-      const { error } = await supabase.from("payment_terms").update(patch).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: refresh,
-    onError,
-  });
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payment_terms").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: refresh,
-    onError,
-  });
   const voidReceipt = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { error } = await supabase.rpc("void_receipt", { _id: id, _reason: reason });
@@ -218,31 +186,11 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                 <Fragment key={t.id}>
                   <tr className="border-t border-border align-top">
                     <Td>{t.seq}</Td>
-                    <Td>
-                      <Input className="h-8" defaultValue={t.name} onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v && v !== t.name) update.mutate({ id: t.id, patch: { name: v } });
-                      }} />
-                    </Td>
-                    <Td>
-                      <Input className="h-8 w-20" defaultValue={String(t.percent)} onBlur={(e) => {
-                        const n = toNumber(e.target.value) ?? 0;
-                        if (n !== Number(t.percent)) update.mutate({ id: t.id, patch: { percent: n } });
-                      }} />
-                    </Td>
-                    <Td>
-                      <Input className="h-8 w-28" placeholder="ใช้ %" defaultValue={t.fixed_amount === null ? "" : String(t.fixed_amount)} onBlur={(e) => {
-                        const n = toNumber(e.target.value);
-                        if (n !== (t.fixed_amount === null ? null : Number(t.fixed_amount)))
-                          update.mutate({ id: t.id, patch: { fixed_amount: n } });
-                      }} />
-                    </Td>
-                    <Td>
-                      <select className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={t.trigger ?? ""}
-                        onChange={(e) => e.target.value && update.mutate({ id: t.id, patch: { trigger: e.target.value } })}>
-                        {!t.trigger ? <option value="">— กรุณาเลือก —</option> : null}
-                        {PAY_TRIGGERS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-                      </select>
+                    <Td>{t.name}</Td>
+                    <Td className="tabular-nums">{formatQty(Number(t.percent))}%</Td>
+                    <Td className="tabular-nums">{t.fixed_amount === null ? "—" : formatTHB(Number(t.fixed_amount))}</Td>
+                    <Td className="text-xs">
+                      {PAY_TRIGGERS.find((x) => x.value === t.trigger)?.label ?? <span className="text-destructive">ยังไม่ได้เลือก</span>}
                     </Td>
                     <Td className="tabular-nums">{formatTHB(Number(t.amount ?? 0))}</Td>
                     <Td className="whitespace-nowrap text-xs">
@@ -273,10 +221,6 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                         <Button size="sm" variant="ghost" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
                           {openId === t.id ? "ซ่อน" : `รายละเอียด (${rs.filter((r) => !r.voided_at).length})`}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => {
-                          if (rs.length || t.bill_id) { toast.error("งวดนี้มีการวางบิลหรือรับเงินแล้ว ลบไม่ได้"); return; }
-                          remove.mutate(t.id);
-                        }}>ลบ</Button>
                       </div>
                     </Td>
                   </tr>
@@ -354,31 +298,10 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
       <p className="mt-2 text-xs text-muted-foreground">
         จำนวนเงิน = จำนวนเงินคงที่ (ถ้ากรอก) มิฉะนั้น = % × ยอดสุทธิ · "รับครบ" เมื่อรับเงินรวม + ภาษีหัก ณ ที่จ่าย ≥ จำนวนเงินงวด
       </p>
-      <form className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-6" onSubmit={(e) => {
-        e.preventDefault();
-        if (!form.name.trim()) { toast.error("กรุณากรอกชื่องวด"); return; }
-        if (!form.trigger) { toast.error("กรุณาเลือกเงื่อนไขเบิก"); return; }
-        add.mutate();
-      }}>
-        <Field label="ชื่องวด *" className="md:col-span-2">
-          <Input value={form.name} placeholder="เช่น มัดจำ" onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </Field>
-        <Field label="%">
-          <Input value={form.percent} onChange={(e) => setForm({ ...form, percent: e.target.value })} />
-        </Field>
-        <Field label="จำนวนเงินคงที่ (ถ้ามี)">
-          <Input value={form.fixed} onChange={(e) => setForm({ ...form, fixed: e.target.value })} />
-        </Field>
-        <Field label="เงื่อนไขเบิก">
-          <select className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={form.trigger}
-            onChange={(e) => setForm({ ...form, trigger: e.target.value })}>
-            {PAY_TRIGGERS.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-          </select>
-        </Field>
-        <div className="flex items-end">
-          <Button size="sm" type="submit" disabled={add.isPending}>เพิ่มงวด</Button>
-        </div>
-      </form>
+      <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+        เพิ่มหรือแก้งวดเงิน (ชื่อ, %, เงื่อนไข, ข้อความที่พิมพ์) ได้ที่ <span className="font-medium text-foreground">แท็บ BOQ → TERM OF PAYMENT ท้ายหน้า</span> ·
+        แท็บนี้ใช้สำหรับออกใบเบิกเงินและบันทึกรับเงิน
+      </p>
 
       {billFor ? (
         <IssueBillingDialog projectId={projectId} termId={billFor.id} onClose={() => setBillFor(null)}
