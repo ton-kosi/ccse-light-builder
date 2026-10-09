@@ -138,6 +138,36 @@ export type Database = {
           },
         ]
       }
+      component_clauses: {
+        Row: {
+          clause_id: string
+          component_id: string
+        }
+        Insert: {
+          clause_id: string
+          component_id: string
+        }
+        Update: {
+          clause_id?: string
+          component_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "component_clauses_clause_id_fkey"
+            columns: ["clause_id"]
+            isOneToOne: false
+            referencedRelation: "quote_clauses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "component_clauses_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "sales_components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       component_prices: {
         Row: {
           component_id: string
@@ -444,6 +474,7 @@ export type Database = {
           name: string
           note: string | null
           percent: number
+          print_label: string | null
           quotation_id: string
           received: boolean
           received_date: string | null
@@ -458,6 +489,7 @@ export type Database = {
           name: string
           note?: string | null
           percent?: number
+          print_label?: string | null
           quotation_id: string
           received?: boolean
           received_date?: string | null
@@ -472,6 +504,7 @@ export type Database = {
           name?: string
           note?: string | null
           percent?: number
+          print_label?: string | null
           quotation_id?: string
           received?: boolean
           received_date?: string | null
@@ -721,8 +754,63 @@ export type Database = {
           },
         ]
       }
+      quotation_clauses: {
+        Row: {
+          clause_id: string | null
+          created_at: string
+          edited: boolean
+          id: string
+          included: boolean
+          is_new: boolean
+          quotation_id: string
+          section: string
+          sort_order: number
+          text: string
+        }
+        Insert: {
+          clause_id?: string | null
+          created_at?: string
+          edited?: boolean
+          id?: string
+          included?: boolean
+          is_new?: boolean
+          quotation_id: string
+          section: string
+          sort_order?: number
+          text: string
+        }
+        Update: {
+          clause_id?: string | null
+          created_at?: string
+          edited?: boolean
+          id?: string
+          included?: boolean
+          is_new?: boolean
+          quotation_id?: string
+          section?: string
+          sort_order?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_clauses_clause_id_fkey"
+            columns: ["clause_id"]
+            isOneToOne: false
+            referencedRelation: "quote_clauses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_clauses_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotations: {
         Row: {
+          closing_text: string | null
           created_at: string
           date: string
           delivery_text: string | null
@@ -733,11 +821,15 @@ export type Database = {
           project_id: string
           ref_no: string
           rev: string
+          signer_name: string | null
+          signer_position: string | null
+          signer_user_id: string | null
           updated_at: string
           validity_days: number | null
           vat_percent: number
         }
         Insert: {
+          closing_text?: string | null
           created_at?: string
           date?: string
           delivery_text?: string | null
@@ -748,11 +840,15 @@ export type Database = {
           project_id: string
           ref_no: string
           rev?: string
+          signer_name?: string | null
+          signer_position?: string | null
+          signer_user_id?: string | null
           updated_at?: string
           validity_days?: number | null
           vat_percent?: number
         }
         Update: {
+          closing_text?: string | null
           created_at?: string
           date?: string
           delivery_text?: string | null
@@ -763,6 +859,9 @@ export type Database = {
           project_id?: string
           ref_no?: string
           rev?: string
+          signer_name?: string | null
+          signer_position?: string | null
+          signer_user_id?: string | null
           updated_at?: string
           validity_days?: number | null
           vat_percent?: number
@@ -776,6 +875,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quote_clauses: {
+        Row: {
+          active: boolean
+          always_include: boolean
+          created_at: string
+          id: string
+          section: string
+          sort_order: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          always_include?: boolean
+          created_at?: string
+          id?: string
+          section: string
+          sort_order?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          always_include?: boolean
+          created_at?: string
+          id?: string
+          section?: string
+          sort_order?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       quote_lines: {
         Row: {
@@ -1493,6 +1625,7 @@ export type Database = {
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
+      sync_quotation_clauses: { Args: { _qid: string }; Returns: undefined }
       user_display_names: {
         Args: { _ids: string[] }
         Returns: {
