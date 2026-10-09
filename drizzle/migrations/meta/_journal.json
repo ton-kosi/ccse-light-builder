@@ -29,6 +29,13 @@
       "when": 1791447737497,
       "tag": "0003_billing_docs_auto_release",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791516847708,
+      "tag": "0004_quote_footer_clauses",
+      "breakpoints": true
     }
   ]
 }
