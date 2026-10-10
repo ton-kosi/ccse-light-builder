@@ -237,10 +237,9 @@ function PurchaseRequestsPage() {
                         <Button size="sm" variant="outline" onClick={() => update.mutate({ id: p.id, patch: { status: "ordered" } })}>สั่งซื้อแล้ว</Button>
                       ) : null}
                       {rowEdit && p.status === "ordered" ? (
-                        <Button size="sm" onClick={() => {
-                          if (confirm(`รับของ ${formatQty(Number(p.qty))} ${sku?.unit ?? ""} เข้าสต็อก?`))
-                            update.mutate({ id: p.id, patch: { status: "received" } });
-                        }}>รับของ</Button>
+                        <Button size="sm" title="ไปหน้าซื้อของเพื่อใส่ราคาและรับเข้าสต๊อก" onClick={() => navigate({ to: "/purchases", search: { pr: p.id } })}>
+                          รับของ + ใส่ราคา
+                        </Button>
                       ) : null}
                       {rowEdit && p.status === "pending" ? (
                         <Button size="sm" variant="outline" onClick={() => remove.mutate(p.id)}>ลบ</Button>

@@ -15,3 +15,4 @@
 - Measure every BOQ column from visible controls, selected labels, text, and buttons using their rendered fonts and a fixed colgroup; remeasure on live input and data changes to fit longest lines without restricting input lengths.
 - SKU stock categories are stored as a `[หมวด: <name>]` tag at the start of `skus.notes` (see `src/lib/skuCategory.ts`); screens strip the tag, and the FO / linear builders only offer SKUs of the matching category.
 - LED profile rules (Jedi % per LED/profile, sizes by mounting/trim, 3/8 vs 4/8 rail, PCB > 10 mm not in W13/45° Reverse) live in `src/lib/profiles.ts`; the linear builder stores the choices on its config (optional fields, older blocks still open).
+- Purchase history lives in `public.purchases` (SQL in `docs/sql/purchases.sql`, applied through Lovable): each insert receives stock (or receives its purchase request) and sets `sku_costs` to the latest purchase cost (price + extra cost ÷ qty).

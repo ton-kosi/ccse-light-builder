@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -306,7 +306,17 @@ function SkusPage() {
                     </Td>
                     {canSeeMoney ? (
                       <>
-                        <Td>{formatTHB(costs?.get(k.id) ?? 0)}</Td>
+                        <Td className="whitespace-nowrap">
+                          {formatTHB(costs?.get(k.id) ?? 0)}
+                          <Link
+                            to="/purchases"
+                            search={{ sku: k.id }}
+                            className="ml-1 text-xs text-primary hover:underline"
+                            title="ประวัติการซื้อ"
+                          >
+                            ประวัติ
+                          </Link>
+                        </Td>
                         <Td className={prices?.has(k.id) ? "" : "text-muted-foreground"}>
                           {prices?.has(k.id) ? formatTHB(prices.get(k.id)!.unitPrice) : "ยังไม่ตั้ง"}
                         </Td>
@@ -528,7 +538,7 @@ function SkuForm({
       ) : null}
       {canSeeMoney ? (
         <>
-          <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
+          <Field label="ต้นทุนต่อหน่วย (บาท) — อัปเดตเองจากการซื้อล่าสุด"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
           <Field label="ราคาขายต่อหน่วย (บาท)">
             <Input value={f.sell_price} placeholder="ยังไม่ตั้ง" onChange={set("sell_price")} />
           </Field>

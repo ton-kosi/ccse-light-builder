@@ -16,6 +16,7 @@ import { Route as AuthenticatedClausesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPurchaseRequestsRouteImport } from './routes/_authenticated/purchase-requests'
+import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
 import { Route as AuthenticatedRemnantsRouteImport } from './routes/_authenticated/remnants'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
@@ -64,6 +65,11 @@ const AuthenticatedPurchaseRequestsRoute =
     path: '/purchase-requests',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPurchasesRoute = AuthenticatedPurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRemnantsRoute = AuthenticatedRemnantsRouteImport.update({
   id: '/remnants',
   path: '/remnants',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/purchases': typeof AuthenticatedPurchasesRoute
   '/remnants': typeof AuthenticatedRemnantsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/purchases': typeof AuthenticatedPurchasesRoute
   '/remnants': typeof AuthenticatedRemnantsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
+  '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
   '/_authenticated/remnants': typeof AuthenticatedRemnantsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/purchase-requests'
+    | '/purchases'
     | '/remnants'
     | '/settings'
     | '/skus'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/purchase-requests'
+    | '/purchases'
     | '/remnants'
     | '/settings'
     | '/skus'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
     | '/_authenticated/purchase-requests'
+    | '/_authenticated/purchases'
     | '/_authenticated/remnants'
     | '/_authenticated/settings'
     | '/_authenticated/skus'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/purchase-requests'
       fullPath: '/purchase-requests'
       preLoaderRoute: typeof AuthenticatedPurchaseRequestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/purchases': {
+      id: '/_authenticated/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof AuthenticatedPurchasesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/remnants': {
@@ -408,6 +427,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPurchaseRequestsRoute: typeof AuthenticatedPurchaseRequestsRoute
+  AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
   AuthenticatedRemnantsRoute: typeof AuthenticatedRemnantsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
@@ -424,6 +444,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPurchaseRequestsRoute: AuthenticatedPurchaseRequestsRoute,
+  AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
   AuthenticatedRemnantsRoute: AuthenticatedRemnantsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
