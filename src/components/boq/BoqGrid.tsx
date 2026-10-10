@@ -7,6 +7,7 @@ import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LineRecipeEditor } from "@/components/boq/LineRecipeEditor";
+import { FoSetDialog, type FoTarget } from "@/components/boq/FoSetDialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -58,6 +59,7 @@ export function BoqGrid({
 }) {
   const qc = useQueryClient();
   const [openRecipe, setOpenRecipe] = useState<string | null>(null);
+  const [foTarget, setFoTarget] = useState<FoTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -85,6 +87,19 @@ export function BoqGrid({
   const lineIds = lines.map((l) => l.id);
   const compMap = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
   const compIds = Array.from(new Set(lines.map((l) => l.component_id).filter(Boolean))) as string[];
+  const { data: foLines } = useQuery({
+    queryKey: ["fo_lines", quotationId, lineIds.join(",")],
+    enabled: lineIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("line_recipes")
+        .select("quote_line_id")
+        .in("quote_line_id", lineIds)
+        .like("note", "FO %");
+      if (error) throw error;
+      return new Set(data.map((d) => d.quote_line_id));
+    },
+  });
   const { data: costs } = useQuery({
     queryKey: ["boq_costs", quotationId, lineIds.join(","), compIds.join(",")],
     enabled: canSeeCost && lines.length > 0,
@@ -183,7 +198,7 @@ export function BoqGrid({
   });
 
   /** Apply new order: renumber sort_order, persist changed rows, insert new rows. */
-  const persistOrder = async (ordered: GridLine[], inserts: GridLine[]) => {
+  const persistOrder = async (ordered: GridLine[], inserts: GridLine[]): Promise<boolean> => {
     const withOrder = ordered.map((r, i) => ({ ...r, sort_order: (i + 1) * 10 }));
     setLocal(() => withOrder);
     const newIds = new Set(inserts.map((r) => r.id));
@@ -204,11 +219,21 @@ export function BoqGrid({
       );
       const err = results.find((x) => x.error)?.error;
       if (err) throw err;
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
+      return false;
     } finally {
       qc.invalidateQueries({ queryKey: key });
     }
+  };
+
+  /** Used by the FO set dialog: append a line at the end and return its id once saved. */
+  const createLineAtEnd = async (fields: Partial<GridLine>): Promise<string> => {
+    const row = { ...blankRow(lines[lines.length - 1]), ...fields } as GridLine;
+    const ok = await persistOrder([...lines, row], [row]);
+    if (!ok) throw new Error("เพิ่มบรรทัดไม่สำเร็จ");
+    return row.id;
   };
 
   const blankRow = (base?: GridLine): GridLine => ({
@@ -565,7 +590,16 @@ export function BoqGrid({
                     ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
-                        {!heading ? (
+                        {!heading && foLines?.has(l.id) ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-primary"
+                            onClick={() => setFoTarget({ mode: "edit", line: l })}
+                          >
+                            {canEdit ? "แก้ชุด FO" : "ดูชุด FO"}
+                          </Button>
+                        ) : !heading ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -607,15 +641,34 @@ export function BoqGrid({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         {canEdit ? (
-          <Button size="sm" variant="outline" onClick={() => addRowAfter(lines.length - 1)}>
-            + เพิ่มบรรทัด
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => addRowAfter(lines.length - 1)}>
+              + เพิ่มบรรทัด
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
+            >
+              + เพิ่มชุด Fiber Optic
+            </Button>
+          </>
         ) : null}
         <span className="text-xs text-muted-foreground">
           Tab/ลูกศร = ย้ายช่อง · Enter = ลงบรรทัดถัดไป · Enter ที่ช่องสุดท้าย = เพิ่มบรรทัดใต้ · ลาก ⋮⋮ เพื่อจัดลำดับ ·
           คอลัมน์พื้นสีเหลือง = <b>ภายใน</b> (ไม่พิมพ์ให้ลูกค้า)
         </span>
       </div>
+      {foTarget ? (
+        <FoSetDialog
+          target={foTarget}
+          quotationId={quotationId}
+          components={components}
+          canSeeCost={canSeeCost}
+          createLine={createLineAtEnd}
+          onClose={() => setFoTarget(null)}
+        />
+      ) : null}
       <Sheet open={!!openRecipe} onOpenChange={(o) => !o && setOpenRecipe(null)}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
           {(() => {
