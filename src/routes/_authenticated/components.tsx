@@ -267,7 +267,7 @@ function toForm(c: Comp): Form {
 
 function CompForm({
   initial, readOnly, pending, onSubmit, onDelete,
-}: { initial: Form; readOnly: boolean; pending: boolean; onSubmit: (f: Form) => void; onDelete?: () => void }) {
+}: { initial: Form; readOnly: boolean; pending: boolean; onSubmit: (f: Form) => void; onDelete?: (() => void) | undefined }) {
   const [f, setF] = useState(initial);
    const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setF({ ...f, [k]: e.target.value });
