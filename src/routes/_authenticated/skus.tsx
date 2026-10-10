@@ -533,7 +533,10 @@ function SkuForm({
             <Input value={f.sell_price} placeholder="ยังไม่ตั้ง" onChange={set("sell_price")} />
           </Field>
           <Field label="ลดได้สูงสุด (%)">
-            <Input value={f.max_discount} placeholder="0" onChange={set("max_discount")} />
+            <div className="flex items-center gap-3">
+              <Input className="w-24 shrink-0" value={f.max_discount} placeholder="0" onChange={set("max_discount")} />
+              <DiscountedNote sell={f.sell_price} discount={f.max_discount} cost={f.unit_cost} />
+            </div>
           </Field>
         </>
       ) : null}
@@ -542,6 +545,26 @@ function SkuForm({
         <Button type="submit" size="sm" disabled={pending}>บันทึก</Button>
       </div>
     </form>
+  );
+}
+
+/** "ลดแล้วเหลือ …" next to the max-discount input, with the margin left over cost. */
+function DiscountedNote({ sell, discount, cost }: { sell: string; discount: string; cost: string }) {
+  const price = toNumber(sell);
+  if (price === null) return <span className="text-xs text-muted-foreground">ใส่ราคาขายก่อน</span>;
+  const pct = Math.min(100, Math.max(0, toNumber(discount) ?? 0));
+  const net = Math.round(price * (1 - pct / 100) * 100) / 100;
+  const c = toNumber(cost);
+  const gp = c !== null && net > 0 ? ((net - c) / net) * 100 : null;
+  return (
+    <span className="text-sm">
+      ลดแล้วเหลือ <b>{formatTHB(net)}</b> / หน่วย
+      {gp !== null ? (
+        <span className={"ml-1 text-xs " + (net < c! ? "font-semibold text-destructive" : "text-muted-foreground")}>
+          {net < c! ? "(ต่ำกว่าต้นทุน!)" : `(กำไร ${gp.toFixed(1)}%)`}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
