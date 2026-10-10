@@ -302,20 +302,55 @@ export function parseLengths(text: string): number[] {
 
 type SkuLite = { id: string; code: string; name: string; notes?: string | null };
 const txt = (s: SkuLite) => `${s.code} ${s.name}`;
+/**
+ * PSU wattage from code + name: "100W", "100 w", "100วัตต์", "PSU100W24V";
+ * Mean Well style codes without a W ("LPV-100-24", "HLG-150H-24") also work.
+ */
 export function wattOfPsu(s: SkuLite): number | null {
-  const mm = txt(s).match(/(\d+(?:\.\d+)?)\s*W\b/i);
-  return mm ? Number(mm[1]) : null;
+  const t = txt(s);
+  const mm = t.match(/(\d+(?:\.\d+)?)\s*(?:W|วัตต์)(?![a-zA-Z/])/i);
+  if (mm) return Number(mm[1]);
+  const mw = t.match(/\b[A-Z]{2,5}-(\d{2,4})[A-Z]*-(?:12|24|36|48)[A-Z]*\b/i);
+  return mw ? Number(mw[1]) : null;
 }
 export function wattPerMOf(s: SkuLite | undefined): number | null {
   const mm = s ? txt(s).match(/(\d+(?:\.\d+)?)\s*W\s*\/?\s*m/i) : null;
   return mm ? Number(mm[1]) : null;
 }
-const dimRe: Record<DimType, RegExp> = {
-  DALI: /dali/i,
-  DMX: /dmx/i,
-  "0-10V": /0\s*-\s*10\s*v/i,
-  "NON-DIM": /^(?!.*(dali|dmx|0\s*-\s*10\s*v|dim)).*$/i,
-};
+/**
+ * Dimming type a PSU is for. "non dim" / "no dim" / "ไม่ดิม" = NON-DIM; a protocol name wins;
+ * no dimming word at all = NON-DIM; "dim" without a protocol = unknown (null).
+ */
+export function psuDimOf(s: SkuLite): DimType | null {
+  const t = txt(s);
+  if (/\bnon[\s_-]*dim|\bno[\s_-]*dim|ไม่\s*(ดิม|หรี่)/i.test(t)) return "NON-DIM";
+  if (/dali/i.test(t)) return "DALI";
+  if (/dmx/i.test(t)) return "DMX";
+  if (/(?<!\d)[01]\s*-\s*10\s*v/i.test(t)) return "0-10V";
+  if (/dim|หรี่/i.test(t)) return null;
+  return "NON-DIM";
+}
+
+export type PsuSkip = { id: string; code: string; name: string; reason: string };
+
+/** PSUs usable for a dimming type, plus the ones in the category that were skipped and why. */
+export function psuReport(psus: SkuLite[], d: DimType): { options: PsuOption[]; skipped: PsuSkip[] } {
+  const options: PsuOption[] = [];
+  const skipped: PsuSkip[] = [];
+  for (const s of psus) {
+    const dim = psuDimOf(s);
+    const watt = wattOfPsu(s);
+    const base = { id: s.id, code: s.code, name: s.name };
+    if (dim !== d)
+      skipped.push({
+        ...base,
+        reason: dim ? `เป็น ${dim}` : "ไม่รู้ว่า dim แบบไหน (ใส่ DALI / DMX / 0-10V / NON-DIM ในชื่อ)",
+      });
+    else if (!watt) skipped.push({ ...base, reason: "หาวัตต์ในชื่อไม่เจอ (ใส่ เช่น 100W)" });
+    else options.push({ skuId: s.id, watt });
+  }
+  return { options, skipped };
+}
 
 /** SKU options per part, by stock category (หมวดในหน้าสต๊อก); names only split sub-types. */
 export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
@@ -334,10 +369,7 @@ export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
     profileExtras: [...profiles, ...inCategory(skus, "LED accessory")],
     paints: paints.length ? paints : service,
     psus,
-    psuFor: (d: DimType): PsuOption[] =>
-      psus
-        .filter((s) => dimRe[d].test(txt(s)))
-        .map((s) => ({ skuId: s.id, watt: wattOfPsu(s) ?? 0 }))
-        .filter((o) => o.watt > 0),
+    psuFor: (d: DimType): PsuOption[] => psuReport(psus, d).options,
+    psuReport: (d: DimType) => psuReport(psus, d),
   };
 }

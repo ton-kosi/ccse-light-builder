@@ -27,6 +27,7 @@ import {
   pickPsu,
   wattPerMOf,
   type DimType,
+  type PsuSkip,
   type IpRating,
   type LinearConfig,
 } from "@/lib/linear";
@@ -145,7 +146,7 @@ export function LinearDialog({
       if (!c.circuits.some((k) => circuitLength(k) > 0))
         throw new Error("กรุณาใส่ความยาวอย่างน้อย 1 วงจร");
       if (c.show.psu && !c.psuOptions.length)
-        throw new Error(`ไม่มีหม้อแปลงแบบ ${c.dim} ในทะเบียน SKU`);
+        throw new Error(`ไม่มีหม้อแปลงแบบ ${c.dim} ในหมวด Power supply — ดูรายละเอียดใต้หัวข้อ "หม้อแปลง"`);
       if (built.missing.length)
         throw new Error(
           `ยังไม่มีราคาขายของ ${built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")} — ให้ admin ตั้งราคาที่หน้าทะเบียน SKU`,
@@ -398,11 +399,12 @@ export function LinearDialog({
                     </>
                   ) : null}
                   <Row label="หม้อแปลง">
-                    <span className="text-xs text-muted-foreground">
-                      {c.psuOptions.length
-                        ? `คำนวณต่อวงจร โหลด ≤ 80% จาก: ${c.psuOptions.map((o) => `${o.watt}W`).join(", ")} (${c.dim})`
-                        : `ไม่มีหม้อแปลง ${c.dim} ในหมวด Power supply — ชื่อ SKU ต้องมีวัตต์ เช่น 75W และ ${c.dim === "NON-DIM" ? "ไม่มีคำว่า dim" : c.dim}`}
-                    </span>
+                    <PsuInfo
+                      dim={c.dim}
+                      options={c.psuOptions}
+                      report={groups.psuReport(c.dim)}
+                      total={groups.psus.length}
+                    />
                   </Row>
                 </div>
               </Block>
@@ -671,5 +673,43 @@ function Tick({
       <Checkbox checked={on} disabled={disabled} onCheckedChange={(v) => onChange?.(v === true)} />
       {label}
     </label>
+  );
+}
+
+function PsuInfo({
+  dim,
+  options,
+  report,
+  total,
+}: {
+  dim: DimType;
+  options: { watt: number }[];
+  report: { skipped: PsuSkip[] };
+  total: number;
+}) {
+  const problems = report.skipped.filter((x) => !x.reason.startsWith("เป็น "));
+  return (
+    <div className="text-xs text-muted-foreground">
+      {options.length ? (
+        <>
+          คำนวณต่อวงจร โหลด ≤ 80% จาก: {options.map((o) => `${o.watt}W`).join(", ")} ({dim})
+        </>
+      ) : (
+        <span className="text-destructive">
+          {total
+            ? `ไม่มีหม้อแปลง ${dim} ที่ใช้ได้ในหมวด Power supply`
+            : "ยังไม่มีสินค้าในหมวด Power supply — ตั้งหมวดที่หน้า SKU"}
+        </span>
+      )}
+      {(options.length ? problems : report.skipped).length ? (
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          {(options.length ? problems : report.skipped).map((x) => (
+            <li key={x.id}>
+              <span className="font-mono">{x.code}</span> — {x.reason}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

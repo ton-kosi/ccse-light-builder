@@ -74,7 +74,8 @@ export function guessCategory(s: SkuLike): SkuCategoryName {
   if (/end\s*finish|harness|optical\s*port/i.test(t)) return "FO accessory";
   if (fo && /cable|สาย/i.test(t)) return "FO cable";
   if (fo && /\bwp\b|wp\s*box|waterproof/i.test(t)) return "FO accessory";
-  if (/power\s*supply|\bpsu\b|driver|switching|หม้อแปลง/i.test(t)) return "Power supply";
+  if (/power\s*supply|\bpsu\b|driver|switching|adapter|transformer|หม้อแปลง|ไดรเวอร์|\b(lpv|hlg|lpf|elg|xlg)-/i.test(t))
+    return "Power supply";
   if (/paint|พ่นสี|ค่าแรง|labou?r|service/i.test(t)) return "Service";
   if (/profile/i.test(t)) return "LED profile";
   if (/jacket|cover\d/i.test(t)) return "LED jacket";

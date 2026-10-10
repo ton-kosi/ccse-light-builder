@@ -7,6 +7,9 @@ import {
   linearSkuGroups,
   parseLengths,
   wattPerMOf,
+  psuDimOf,
+  wattOfPsu,
+  psuReport,
 } from "./linear.ts";
 
 const PRICES = new Map([
@@ -162,4 +165,31 @@ test("helpers", () => {
   expect(g.psuFor("NON-DIM")).toEqual([{ skuId: "b", watt: 200 }]);
   expect(g.singleJackets.map((s) => s.id)).toEqual(["c"]);
   expect(g.doubleJackets.map((s) => s.id)).toEqual(["d"]);
+});
+
+test("PSU names CCSE actually uses are recognised", () => {
+  const p = (code, name) => ({ id: code, code, name });
+  expect(psuDimOf(p("PSU-100", "Power supply 24V 100W non dim"))).toBe("NON-DIM");
+  expect(psuDimOf(p("PSU-100", "Power supply 24V 100W Non-Dim"))).toBe("NON-DIM");
+  expect(psuDimOf(p("PSU-100", "หม้อแปลง 24V 100W ไม่ดิม"))).toBe("NON-DIM");
+  expect(psuDimOf(p("PSU-100", "Power supply 24V 100W"))).toBe("NON-DIM");
+  expect(psuDimOf(p("PSU-DALI", "Power supply 24V 100W DALI dim"))).toBe("DALI");
+  expect(psuDimOf(p("PSUDIM0-10V", "Power supply 24V 60W"))).toBe("0-10V");
+  expect(psuDimOf(p("PSU-D", "Dimmable driver 24V 60W"))).toBeNull();
+  expect(psuDimOf(p("MONO", "Mono dimming PSU 60W DMX"))).toBe("DMX");
+  expect(wattOfPsu(p("PSU100W24V", "Power supply"))).toBe(100);
+  expect(wattOfPsu(p("X", "หม้อแปลง 24V 150 วัตต์"))).toBe(150);
+  expect(wattOfPsu(p("LPV-100-24", "Mean Well"))).toBe(100);
+  expect(wattOfPsu(p("HLG-150H-24A", "Mean Well"))).toBe(150);
+  expect(wattOfPsu(p("X", "PSU 24V"))).toBeNull();
+  const r = psuReport(
+    [
+      p("A", "Power supply 24V 100W non dim"),
+      p("B", "Power supply 24V DALI 75W"),
+      p("C", "Power supply 24V non dim"),
+    ],
+    "NON-DIM",
+  );
+  expect(r.options).toEqual([{ skuId: "A", watt: 100 }]);
+  expect(r.skipped.map((x) => x.id)).toEqual(["B", "C"]);
 });
