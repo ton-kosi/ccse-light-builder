@@ -37,16 +37,14 @@ import {
   DIFFUSERS,
   fitProblem,
   jediPercent,
-  matchProfileSku,
   pcbOf,
-  PROFILE_MODELS,
   profileModel,
+  profileModelOfSku,
   profileSize,
   profileText,
   railNeeded,
   railOf,
   usesEzClip,
-  type Chip,
   type MountType,
 } from "@/lib/profiles";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
@@ -116,7 +114,10 @@ export function LinearDialog({
     if (c || !skus) return;
     const led = groups.leds[0];
     const pcb = pcbOf(led);
-    const model = PROFILE_MODELS.find((m) => !fitProblem(m, pcb)) ?? null;
+    const prf = groups.profiles.find((s) => {
+      const m = profileModelOfSku(s);
+      return !m || !fitProblem(m, pcb);
+    });
     setC(withChoices({
       v: 1,
       blockId: crypto.randomUUID().slice(0, 8),
@@ -129,9 +130,9 @@ export function LinearDialog({
       heatsinkSkuId: groups.heatsinks[0]?.id ?? null,
       singleJacketSkuId: groups.singleJackets[0]?.id ?? null,
       doubleJacketSkuId: groups.doubleJackets[0]?.id ?? null,
-      profileSkuId: groups.profiles[0]?.id ?? null,
-      profileName: groups.profiles[0] ? `${groups.profiles[0].name.toUpperCase()} w/ MOUNTING` : "",
-      profileModel: model?.key ?? null,
+      profileSkuId: prf?.id ?? null,
+      profileName: prf ? `${prf.name.toUpperCase()} w/ MOUNTING` : "",
+      profileModel: profileModelOfSku(prf)?.key ?? null,
       mount: "CLIP",
       trim: false,
       diffuser: "JEDI",
@@ -161,18 +162,31 @@ export function LinearDialog({
 
   const set = (p: Partial<LinearConfig>) => setC((o) => (o ? { ...o, ...p } : o));
 
+  /** Chip, PCB width and EZ clip come from the LED's SKU (SKU page), never typed here. */
+  function ledFacts(ledSkuId: string) {
+    const led = byId.get(ledSkuId);
+    return { chip: chipOf(led), pcbMm: pcbOf(led), ezClip: usesEzClip(led) };
+  }
+
   /**
-   * After a profile / LED choice changes: regenerate the profile text, pick the matching profile
-   * SKU and an aluminium rail of the size the profile (or EZ clip) needs.
+   * After an LED / profile / IP choice changes: profile model from the profile SKU, profile text
+   * from the model + mounting + trim + diffuser, and an aluminium rail of the size needed.
    */
   function withChoices(n: LinearConfig): LinearConfig {
-    let model = profileModel(n.profileModel);
-    const out = { ...n };
-    // a wide PCB doesn't fit V2 W13: move to the W22 of the same depth
-    if (model?.family === "V2.13" && fitProblem(model, n.pcbMm ?? null)) {
-      model = profileModel(model.key.replace("W13", "W22"));
-      out.profileModel = model?.key ?? null;
+    const out: LinearConfig = { ...n, ...ledFacts(n.ledSkuId) };
+    let prf = n.profileSkuId ? byId.get(n.profileSkuId) : undefined;
+    let model = profileModelOfSku(prf);
+    // a wide PCB doesn't fit V2 W13 / 45° Reverse: move to a W22 profile of the same depth if stocked
+    if (model && fitProblem(model, out.pcbMm ?? null)) {
+      const depth = model.family === "V2.13" ? model.key.replace("W13", "W22") : "W22.13";
+      const alt = groups.profiles.find((s) => profileModelOfSku(s)?.key === depth);
+      if (alt) {
+        prf = alt;
+        model = profileModelOfSku(alt);
+        out.profileSkuId = alt.id;
+      }
     }
+    out.profileModel = model?.key ?? null;
     if (model) {
       const mount: MountType = model.mounts.includes(n.mount ?? "CLIP")
         ? (n.mount ?? "CLIP")
@@ -181,9 +195,10 @@ export function LinearDialog({
       out.mount = mount;
       out.trim = choice.trim;
       out.profileName = profileText(choice);
-      out.profileSkuId = matchProfileSku(groups.profiles, choice)?.id ?? n.profileSkuId;
+    } else if (prf && prf.id !== n.profileSkuId) {
+      out.profileName = `${prf.name.toUpperCase()} w/ MOUNTING`;
     }
-    const rail = railNeeded(hasProfile(n.ip) ? model : null, !!n.ezClip);
+    const rail = railNeeded(hasProfile(n.ip) ? model : null, !!out.ezClip);
     const current = n.heatsinkSkuId ? byId.get(n.heatsinkSkuId) : undefined;
     if (rail && (!current || railOf(current) !== rail)) {
       const fit = groups.heatsinks.find((s) => railOf(s) === rail);
@@ -191,6 +206,15 @@ export function LinearDialog({
     }
     return out;
   }
+  // Editing a saved block: refresh LED facts from the SKU (they may have been filled in since).
+  useEffect(() => {
+    if (!c || !skus || !editing) return;
+    const f = ledFacts(c.ledSkuId);
+    const m = profileModelOfSku(c.profileSkuId ? byId.get(c.profileSkuId) : undefined)?.key ?? null;
+    if (f.chip !== c.chip || f.pcbMm !== c.pcbMm || f.ezClip !== c.ezClip || (m && m !== c.profileModel))
+      setC({ ...c, ...f, ...(m ? { profileModel: m } : {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skus]);
   const setP = (p: Partial<LinearConfig>) => setC((o) => (o ? withChoices({ ...o, ...p }) : o));
   const built = useMemo(
     () => (c && prices ? buildLinear(c, prices, () => crypto.randomUUID()) : null),
@@ -256,9 +280,14 @@ export function LinearDialog({
   const rail = c ? railNeeded(model, !!c.ezClip) : null;
   const railFit = rail ? groups.heatsinks.filter((s) => railOf(s) === rail) : [];
   const railChoices = railFit.length ? railFit : groups.heatsinks;
-  const modelSkus = model
-    ? groups.profiles.filter((s) => model.skuMatch.test(`${s.code} ${s.name}`))
-    : groups.profiles;
+  // profiles the LED fits in (PCB width); unrecognised ones stay selectable
+  const tooWide = c
+    ? groups.profiles.filter((s) => {
+        const m = profileModelOfSku(s);
+        return !!m && !!fitProblem(m, c.pcbMm ?? null);
+      })
+    : [];
+  const profileChoices = groups.profiles.filter((s) => !tooWide.includes(s));
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -313,34 +342,7 @@ export function LinearDialog({
                     <Input value={c.ledName} onChange={(e) => set({ ledName: e.target.value })} />
                   </Field>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  <span className="flex items-center gap-1.5">
-                    ชิป
-                    {(["STANDARD", "NICHIA"] as Chip[]).map((x) => (
-                      <Choice key={x} on={(c.chip ?? "STANDARD") === x} onClick={() => setP({ chip: x, jediPct: null })}>
-                        {x === "STANDARD" ? "Standard" : "Nichia"}
-                      </Choice>
-                    ))}
-                  </span>
-                  <label className="flex items-center gap-1.5">
-                    แผ่นปริ้นกว้าง
-                    <Input
-                      className="h-8 w-16"
-                      inputMode="decimal"
-                      placeholder="?"
-                      value={c.pcbMm != null ? String(c.pcbMm) : ""}
-                      onChange={(e) => setP({ pcbMm: toNumber(e.target.value) })}
-                    />
-                    มม.
-                  </label>
-                  <label className="flex items-center gap-1.5">
-                    <Checkbox
-                      checked={!!c.ezClip}
-                      onCheckedChange={(v) => setP({ ezClip: v === true })}
-                    />
-                    ใช้ EZ clip (ราง 4/8)
-                  </label>
-                </div>
+                <LedFacts c={c} />
               </Block>
 
               <Block title="2. IP และระบบดิม">
@@ -396,33 +398,26 @@ export function LinearDialog({
                   )}
                   {profileOn ? (
                     <>
-                      <Row label="รุ่น profile">
-                        <div className="flex flex-wrap gap-1.5">
-                          {PROFILE_MODELS.map((m) => {
-                            const bad = fitProblem(m, c.pcbMm ?? null);
-                            return (
-                              <Choice
-                                key={m.key}
-                                on={c.profileModel === m.key}
-                                disabled={!!bad}
-                                title={bad ?? undefined}
-                                onClick={() => setP({ profileModel: m.key, jediPct: null })}
-                              >
-                                {m.key === "45R" ? "45° Reverse" : `V2 ${m.key}`}
-                              </Choice>
-                            );
-                          })}
-                          <Choice on={!model} onClick={() => setP({ profileModel: null })}>
-                            อื่นๆ
-                          </Choice>
-                        </div>
+                      <Row label="Profile ที่เบิก">
+                        <SkuSelect
+                          value={c.profileSkuId}
+                          preferred={profileChoices}
+                          category="LED profile"
+                          all={skus ?? []}
+                          onChange={(id) => setP({ profileSkuId: id || null, jediPct: null })}
+                        />
+                        {model ? null : c.profileSkuId ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            SKU นี้ยังไม่ได้ตั้งรุ่น profile ที่หน้า SKU — จึงไม่มีขนาดรวมและ Jedi %
+                          </p>
+                        ) : null}
                         {model && fitProblem(model, c.pcbMm ?? null) ? (
                           <p className="mt-1 text-xs font-medium text-destructive">
-                            {fitProblem(model, c.pcbMm ?? null)} — เลือกรุ่นอื่น
+                            {fitProblem(model, c.pcbMm ?? null)} — เลือก profile อื่น
                           </p>
-                        ) : c.pcbMm != null && c.pcbMm > 10 ? (
+                        ) : tooWide.length ? (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            แผ่นปริ้นกว้างกว่า 10 มม. — ใส่ V2 W13 และ 45° Reverse ไม่ได้
+                            ซ่อน {tooWide.length} รุ่นที่แผ่นปริ้น {c.pcbMm} มม. ใส่ไม่ได้ (V2 W13 / 45° Reverse)
                           </p>
                         ) : null}
                       </Row>
@@ -466,23 +461,6 @@ export function LinearDialog({
                           </Row>
                         </>
                       ) : null}
-                      <Row label="Profile ที่เบิก">
-                        <SkuSelect
-                          value={c.profileSkuId}
-                          preferred={modelSkus}
-                          category={model ? `LED profile รุ่น ${model.key}` : "LED profile"}
-                          all={skus ?? []}
-                          onChange={(id) => {
-                            const s = byId.get(id);
-                            set({
-                              profileSkuId: id || null,
-                              ...(model
-                                ? {}
-                                : { profileName: s ? `${s.name.toUpperCase()} w/ MOUNTING` : c.profileName }),
-                            });
-                          }}
-                        />
-                      </Row>
                       <Row label={model ? "ชื่อ profile ในใบ (สร้างให้ แก้ได้)" : "ชื่อ profile ในใบ"}>
                         <Input
                           value={c.profileName}
@@ -943,6 +921,23 @@ function ProfileSummary({
       ) : (
         <div className="text-xs text-muted-foreground">ไม่ใช่ Jedi diffuser — ไม่แสดง Jedi %</div>
       )}
+    </div>
+  );
+}
+
+/** Chip / PCB / EZ clip of the chosen LED, as set on the SKU page (read-only here). */
+function LedFacts({ c }: { c: LinearConfig }) {
+  if (!c.ledSkuId) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <span>
+        ชิป <b className="text-foreground">{c.chip === "NICHIA" ? "Nichia" : "Standard"}</b>
+      </span>
+      <span>
+        แผ่นปริ้น <b className="text-foreground">{c.pcbMm != null ? `${c.pcbMm} มม.` : "ไม่ระบุ"}</b>
+      </span>
+      {c.ezClip ? <b className="text-foreground">ใช้ EZ clip (ราง 4/8)</b> : null}
+      <span>· แก้ได้ที่หน้า SKU</span>
     </div>
   );
 }

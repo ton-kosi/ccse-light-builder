@@ -45,25 +45,51 @@ export const CATEGORY_HINT: Partial<Record<SkuCategoryName, string>> = {
 
 type SkuLike = { code: string; name: string; notes?: string | null };
 
-const TAG_RE = /^\s*\[หมวด:\s*([^\]]+?)\s*\]\s*/;
+/*
+ * Tags at the start of notes: "[หมวด: LED ribbon] [ชิป: NICHIA] [ปริ้น: 10] note text".
+ * They carry facts the builders need (category, LED chip/PCB, profile model, rail size, PSU
+ * watt/dimming) without a schema change; screens show only the note text.
+ */
+const TAGS_RE = /^\s*((?:\[[^\]:]+:[^\]]*\]\s*)+)/;
+const ONE_TAG_RE = /\[([^\]:]+):\s*([^\]]*?)\s*\]/g;
+
+/** All tags saved on the SKU. */
+export function readTags(notes: string | null | undefined): Record<string, string> {
+  const m = notes ? TAGS_RE.exec(notes) : null;
+  const out: Record<string, string> = {};
+  if (!m) return out;
+  for (const t of m[1]!.matchAll(ONE_TAG_RE)) out[t[1]!.trim()] = t[2]!;
+  return out;
+}
+
+/** The note without the tags (what users see and edit). */
+export function noteText(notes: string | null | undefined): string {
+  return (notes ?? "").replace(TAGS_RE, "").trim();
+}
+
+/** Builds the `notes` value to store: tags (category first) + note text. Empty values are dropped. */
+export function writeTags(
+  note: string | null | undefined,
+  tags: Record<string, string | number | boolean | null | undefined>,
+): string | null {
+  const entries = Object.entries(tags)
+    .map(([k, v]) => [k, v === true ? "ใช่" : v === false || v == null ? "" : String(v).trim()] as const)
+    .filter(([, v]) => v !== "")
+    .sort(([a], [b]) => (a === "หมวด" ? -1 : b === "หมวด" ? 1 : 0));
+  const head = entries.map(([k, v]) => `[${k}: ${v.replace(/[\[\]]/g, "")}]`).join(" ");
+  const rest = noteText(note);
+  const out = [head, rest].filter(Boolean).join(" ");
+  return out || null;
+}
 
 /** Category saved on the SKU, or null when none was saved. */
 export function savedCategory(notes: string | null | undefined): string | null {
-  const m = notes ? TAG_RE.exec(notes) : null;
-  return m ? m[1]! : null;
+  return readTags(notes)["หมวด"] ?? null;
 }
 
-/** The note without the category tag (what users see and edit). */
-export function noteText(notes: string | null | undefined): string {
-  return (notes ?? "").replace(TAG_RE, "").trim();
-}
-
-/** Builds the `notes` value to store: category tag + note. */
-export function withCategory(note: string, category: string | null): string | null {
-  const rest = noteText(note);
-  const cat = category?.trim();
-  const out = cat ? `[หมวด: ${cat}]${rest ? " " + rest : ""}` : rest;
-  return out || null;
+/** Sets the category, keeping the other tags and the note. */
+export function withCategory(notes: string | null | undefined, category: string | null): string | null {
+  return writeTags(notes, { ...readTags(notes), หมวด: category });
 }
 
 /** Best guess from code + name, used until a category is saved. */

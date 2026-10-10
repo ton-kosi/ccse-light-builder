@@ -17,7 +17,7 @@
  *           IP65 = profile, heat sink + double jacket
  */
 import type { PartPrice } from "@/lib/fo";
-import { inCategory } from "./skuCategory";
+import { inCategory, readTags } from "./skuCategory";
 import { jediPercent, profileModel, type Chip, type Diffuser, type MountType } from "./profiles";
 
 export type IpRating = "IP44" | "IP54" | "IP65";
@@ -337,6 +337,8 @@ const txt = (s: SkuLite) => `${s.code} ${s.name}`;
  * Mean Well style codes without a W ("LPV-100-24", "HLG-150H-24") also work.
  */
 export function wattOfPsu(s: SkuLite): number | null {
+  const saved = Number(readTags(s.notes)["วัตต์"]);
+  if (saved > 0) return saved;
   const t = txt(s);
   const mm = t.match(/(\d+(?:\.\d+)?)\s*(?:W|วัตต์)(?![a-zA-Z/])/i);
   if (mm) return Number(mm[1]);
@@ -344,6 +346,8 @@ export function wattOfPsu(s: SkuLite): number | null {
   return mw ? Number(mw[1]) : null;
 }
 export function wattPerMOf(s: SkuLite | undefined): number | null {
+  const saved = s ? Number(readTags(s.notes)["W/m"]) : 0;
+  if (saved > 0) return saved;
   const mm = s ? txt(s).match(/(\d+(?:\.\d+)?)\s*W\s*\/?\s*m/i) : null;
   return mm ? Number(mm[1]) : null;
 }
@@ -352,8 +356,10 @@ export function wattPerMOf(s: SkuLite | undefined): number | null {
  * no dimming word at all = NON-DIM; "dim" without a protocol = unknown (null).
  */
 export function psuDimOf(s: SkuLite): DimType | null {
+  const saved = readTags(s.notes)["ดิม"];
+  if (saved && (DIM_TYPES as string[]).includes(saved)) return saved as DimType;
   const t = txt(s);
-  if (/\bnon[\s_-]*dim|\bno[\s_-]*dim|ไม่\s*(ดิม|หรี่)/i.test(t)) return "NON-DIM";
+  if (/non[\s_-]*dim|\bno[\s_-]*dim|ไม่\s*(ดิม|หรี่)/i.test(t)) return "NON-DIM";
   if (/dali/i.test(t)) return "DALI";
   if (/dmx/i.test(t)) return "DMX";
   if (/(?<!\d)[01]\s*-\s*10\s*v/i.test(t)) return "0-10V";
@@ -374,9 +380,9 @@ export function psuReport(psus: SkuLite[], d: DimType): { options: PsuOption[]; 
     if (dim !== d)
       skipped.push({
         ...base,
-        reason: dim ? `เป็น ${dim}` : "ไม่รู้ว่า dim แบบไหน (ใส่ DALI / DMX / 0-10V / NON-DIM ในชื่อ)",
+        reason: dim ? `เป็น ${dim}` : "ยังไม่ได้ตั้งระบบดิม (ตั้งที่หน้า SKU)",
       });
-    else if (!watt) skipped.push({ ...base, reason: "หาวัตต์ในชื่อไม่เจอ (ใส่ เช่น 100W)" });
+    else if (!watt) skipped.push({ ...base, reason: "ยังไม่ได้ตั้งวัตต์ (ตั้งที่หน้า SKU)" });
     else options.push({ skuId: s.id, watt });
   }
   return { options, skipped };

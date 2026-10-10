@@ -22,8 +22,11 @@ import {
   noteText,
   savedCategory,
   withCategory,
+  writeTags,
   type SkuCategoryName,
 } from "@/lib/skuCategory";
+import { DEMO_PREFIX, loadDemoData, removeDemoData } from "@/lib/demoData";
+import { attrFieldsFor, attrsForCategory, attrsOf, attrSummary, guessAttrs } from "@/lib/skuAttrs";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
 
 export const Route = createFileRoute("/_authenticated/skus")({
@@ -52,6 +55,8 @@ const EMPTY = {
   code: "", name: "", unit: "ชิ้น", source: "domestic", lead_time_days: "0", min_stock: "0",
   is_roll: false, roll_length_m: "", roll_family: "", cut_step_cm: "", max_piece_m: "", notes: "",
   category: "",
+  /** category-specific fields (LED chip, PCB width, profile model, PSU watt…) */
+  attrs: {} as Record<string, string>,
   unit_cost: "",
   sell_price: "",
   max_discount: "",
@@ -180,21 +185,50 @@ function SkusPage() {
       (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
     );
   const cols = 10 + (canSeeMoney ? 3 : 0) + (canEditMaster ? 1 : 0);
-  const guessed = (skus ?? []).filter((k) => !savedCategory(k.notes));
+  // SKUs whose category or category fields can still be filled from their name
+  const guessed = (skus ?? []).filter((k) => {
+    if (!savedCategory(k.notes)) return true;
+    const saved = attrsOf(k.notes);
+    return Object.keys(guessAttrs(k, categoryOf(k))).some((key) => !(key in saved));
+  });
+
+  const hasDemo = (skus ?? []).some((k) => k.code.startsWith(DEMO_PREFIX));
+  const demo = useMutation({
+    mutationFn: async (mode: "load" | "remove") => {
+      const id = toast.loading("กำลังทำงาน…");
+      try {
+        if (mode === "load") await loadDemoData((m) => toast.loading(m, { id }));
+        else await removeDemoData((m) => toast.loading(m, { id }));
+      } finally {
+        toast.dismiss(id);
+      }
+      return mode;
+    },
+    onSuccess: (mode) => {
+      toast.success(mode === "load" ? "เติมข้อมูลทดสอบ (DEMO-) แล้ว" : "ลบข้อมูลทดสอบแล้ว");
+      ["skus", "sku_on_hand", "sku_costs", "purchases", "stock_movements"].forEach((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      );
+      qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const saveGuesses = useMutation({
     mutationFn: async () => {
       for (const k of guessed) {
         const { error } = await supabase
           .from("skus")
-          .update({ notes: withCategory(k.notes ?? "", guessCategory(k)) })
+          .update({
+            notes: writeTags(k.notes, { ...guessAttrs(k, categoryOf(k)), หมวด: categoryOf(k) }),
+          })
           .eq("id", k.id);
         if (error) throw error;
       }
       return guessed.length;
     },
     onSuccess: (n) => {
-      toast.success(`บันทึกหมวดให้ ${n} รายการแล้ว`);
+      toast.success(`บันทึกหมวดและข้อมูลให้ ${n} รายการแล้ว`);
       qc.invalidateQueries({ queryKey: ["skus"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -213,6 +247,32 @@ function SkusPage() {
                 columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes"
                 onRows={importRows}
               />
+              {canSeeMoney ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={demo.isPending}
+                    title="เพิ่ม SKU ทดสอบ (รหัส DEMO-) พร้อมหมวด ข้อมูลไฟ/profile/หม้อแปลง ราคาขาย และประวัติซื้อ"
+                    onClick={() => demo.mutate("load")}
+                  >
+                    เติมข้อมูลทดสอบ
+                  </Button>
+                  {hasDemo ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      disabled={demo.isPending}
+                      onClick={() => {
+                        if (confirm("ลบ SKU ทดสอบ (DEMO-) ทั้งหมด พร้อมราคาและประวัติซื้อ?")) demo.mutate("remove");
+                      }}
+                    >
+                      ลบข้อมูลทดสอบ
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
               <Button size="sm" onClick={() => setEditing({ id: null, form: { ...EMPTY } })}>
                 เพิ่มสินค้า
               </Button>
@@ -288,6 +348,11 @@ function SkusPage() {
                           {guessCategory(k)}?
                         </span>
                       )}
+                      {attrSummary(categoryOf(k), attrsOf(k.notes)) ? (
+                        <div className="text-xs text-muted-foreground">
+                          {attrSummary(categoryOf(k), attrsOf(k.notes))}
+                        </div>
+                      ) : null}
                     </Td>
                     <Td>{k.unit}</Td>
                     <Td>{k.source === "import" ? "นำเข้า" : "ในประเทศ"}</Td>
@@ -414,6 +479,7 @@ function rowToForm(k: Sku, cost?: number, price?: { unitPrice: number; maxDiscou
     is_roll: k.is_roll, roll_length_m: s(k.roll_length_m), roll_family: k.roll_family ?? "",
     cut_step_cm: s(k.cut_step_cm), max_piece_m: s(k.max_piece_m), notes: noteText(k.notes),
     category: savedCategory(k.notes) ?? guessCategory(k),
+    attrs: guessAttrs(k, savedCategory(k.notes) ?? guessCategory(k)),
     unit_cost: cost === undefined ? "" : String(cost),
     sell_price: price ? String(Math.round(price.unitPrice * 100) / 100) : "",
     max_discount: price ? String(price.maxDiscount) : "",
@@ -434,7 +500,7 @@ function formToRow(f: Form): TablesInsert<"skus"> {
     roll_family: f.is_roll ? f.roll_family.trim() || null : null,
     cut_step_cm: f.is_roll ? toNumber(f.cut_step_cm) : null,
     max_piece_m: f.is_roll ? toNumber(f.max_piece_m) : null,
-    notes: withCategory(f.notes, f.category || null),
+    notes: writeTags(f.notes, { ...attrsForCategory(f.category, f.attrs), หมวด: f.category || null }),
   };
 }
 
@@ -503,6 +569,7 @@ function SkuForm({
           </select>
         )}
       </Field>
+      <AttrFields category={f.category} attrs={f.attrs} onChange={(attrs) => setF({ ...f, attrs })} />
       <Field label="หน่วย"><Input value={f.unit} onChange={set("unit")} /></Field>
       <Field label="แหล่งที่มา">
         <select className={selectCls} value={f.source} onChange={set("source")}>
@@ -575,6 +642,51 @@ function DiscountedNote({ sell, discount, cost }: { sell: string; discount: stri
         </span>
       ) : null}
     </span>
+  );
+}
+
+/** Fields that depend on the category (LED chip / PCB, profile model, rail size, PSU watt / dim). */
+function AttrFields({
+  category,
+  attrs,
+  onChange,
+}: {
+  category: string;
+  attrs: Record<string, string>;
+  onChange: (a: Record<string, string>) => void;
+}) {
+  const fields = attrFieldsFor(category);
+  if (!fields.length) return null;
+  const put = (k: string, v: string) => onChange({ ...attrs, [k]: v });
+  return (
+    <div className="grid gap-3 rounded-md border border-dashed border-border bg-muted/30 p-3 sm:col-span-2 sm:grid-cols-2">
+      <div className="text-xs font-medium text-muted-foreground sm:col-span-2">
+        ข้อมูลสำหรับคำนวณในใบเสนอราคา ({category})
+      </div>
+      {fields.map((fd) => (
+        <Field key={fd.key} label={fd.label}>
+          {fd.kind === "number" ? (
+            <div className="flex items-center gap-2">
+              <Input inputMode="decimal" value={attrs[fd.key] ?? ""} onChange={(e) => put(fd.key, e.target.value)} />
+              {fd.unit ? <span className="text-xs text-muted-foreground">{fd.unit}</span> : null}
+            </div>
+          ) : fd.kind === "select" ? (
+            <select className={selectCls} value={attrs[fd.key] ?? ""} onChange={(e) => put(fd.key, e.target.value)}>
+              <option value="">— ไม่ระบุ —</option>
+              {fd.options.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : (
+            <label className="flex h-9 items-center gap-2 text-sm">
+              <Checkbox checked={attrs[fd.key] === "ใช่"} onCheckedChange={(v) => put(fd.key, v === true ? "ใช่" : "ไม่")} />
+              ใช่
+            </label>
+          )}
+          {fd.hint ? <span className="mt-0.5 block text-[11px] text-muted-foreground">{fd.hint}</span> : null}
+        </Field>
+      ))}
+    </div>
   );
 }
 

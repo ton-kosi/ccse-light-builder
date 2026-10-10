@@ -62,3 +62,35 @@ test("FO accessory dropdowns narrow by name, fall back to the whole category", (
   expect(g.options.ports.map((s) => s.id)).toEqual(["h", "x"]);
   expect(g.ports).toEqual([]);
 });
+
+import { readTags, writeTags } from "./skuCategory.ts";
+import { guessAttrs, attrSummary } from "./skuAttrs.ts";
+import { chipOf, pcbOf, usesEzClip, railOf, profileModelOfSku } from "./profiles.ts";
+import { psuDimOf, wattOfPsu, wattPerMOf } from "./linear.ts";
+
+test("several tags; changing the category keeps the others", () => {
+  const n = writeTags("ซื้อจากจีน", { ชิป: "NICHIA", ปริ้น: 10, หมวด: "LED ribbon", "EZ clip": false });
+  expect(n).toBe("[หมวด: LED ribbon] [ชิป: NICHIA] [ปริ้น: 10] ซื้อจากจีน");
+  expect(readTags(n)).toEqual({ หมวด: "LED ribbon", ชิป: "NICHIA", ปริ้น: "10" });
+  expect(noteText(n)).toBe("ซื้อจากจีน");
+  expect(readTags(withCategory(n, "Neon flex"))).toEqual({ หมวด: "Neon flex", ชิป: "NICHIA", ปริ้น: "10" });
+});
+
+test("builders read SKU fields first, the name only as fallback", () => {
+  const s = (name, notes = null) => ({ id: "x", code: "X", name, notes });
+  const led = s("LED strip", "[หมวด: LED ribbon] [W/m: 13.8] [ชิป: NICHIA] [ปริ้น: 12] [EZ clip: ไม่]");
+  expect([wattPerMOf(led), chipOf(led), pcbOf(led), usesEzClip(led)]).toEqual([13.8, "NICHIA", 12, false]);
+  expect(usesEzClip(s("strip EZ clip", "[EZ clip: ไม่]"))).toBe(false);
+  expect(railOf(s("flat bar", "[ราง: 4/8]"))).toBe("4/8");
+  expect(profileModelOfSku(s("my profile", "[รุ่น: W22.20]")).key).toBe("W22.20");
+  expect(profileModelOfSku(s("Jedi V2 W13.25 profile")).key).toBe("W13.25");
+  expect(profileModelOfSku(s("some profile"))).toBeNull();
+  const p = s("driver", "[วัตต์: 100] [ดิม: DALI]");
+  expect([wattOfPsu(p), psuDimOf(p)]).toEqual([100, "DALI"]);
+  // guesses fill what the name says, saved fields win
+  expect(guessAttrs(s("drivernondim25W"), "Power supply")).toEqual({ วัตต์: "25", ดิม: "NON-DIM" });
+  expect(guessAttrs(s("LED Strip 4.8W/m", "[ชิป: NICHIA]"), "LED ribbon")).toEqual({ "W/m": "4.8", ชิป: "NICHIA" });
+  expect(attrSummary("LED ribbon", { "W/m": "18", ชิป: "NICHIA", ปริ้น: "10", "EZ clip": "ไม่" })).toBe(
+    "18 W/m · NICHIA · ปริ้น 10 มม.",
+  );
+});

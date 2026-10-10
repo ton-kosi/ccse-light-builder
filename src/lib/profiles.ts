@@ -9,6 +9,8 @@
  * - Strips with a PCB wider than 10 mm (e.g. RGBW) do not fit V2.13 (W13) or 45° Reverse.
  */
 
+import { readTags } from "./skuCategory";
+
 export type MountType = "SNAP" | "SLIDE" | "CLIP" | "SLIDE LOCK" | "SILICONE" | "SCREW";
 export type Diffuser = "JEDI" | "CLEAR" | "SATIN" | "CHARCOAL";
 export type Chip = "STANDARD" | "NICHIA";
@@ -113,17 +115,29 @@ export function jediPercent(model: ProfileModel, wattPerM: number, chip: Chip): 
 
 /* ---------------------------------------------------------------- LED facts from the SKU */
 
-type SkuLite = { id: string; code: string; name: string };
+// LED facts come from the SKU's own fields (set on the SKU page); the name is only a fallback.
+type SkuLite = { id: string; code: string; name: string; notes?: string | null };
 const txt = (s: SkuLite) => `${s.code} ${s.name}`;
+const tag = (s: SkuLite | undefined, k: string) => (s ? readTags(s.notes)[k] : undefined);
+const num = (v: string | undefined) => (v != null && v !== "" && !Number.isNaN(Number(v)) ? Number(v) : null);
 
-export const chipOf = (s: SkuLite | undefined): Chip =>
-  s && /nichia/i.test(txt(s)) ? "NICHIA" : "STANDARD";
+export const chipOf = (s: SkuLite | undefined): Chip => {
+  const t = tag(s, "ชิป");
+  if (t) return /nichia/i.test(t) ? "NICHIA" : "STANDARD";
+  return s && /nichia/i.test(txt(s)) ? "NICHIA" : "STANDARD";
+};
 
-export const usesEzClip = (s: SkuLite | undefined) => !!s && /ez\s*-?\s*clip/i.test(txt(s));
+export const usesEzClip = (s: SkuLite | undefined) => {
+  const t = tag(s, "EZ clip");
+  if (t != null) return t === "ใช่";
+  return !!s && /ez\s*-?\s*clip/i.test(txt(s));
+};
 
-/** PCB width from the name ("12mm"); RGBW-type strips are wider than 10 mm; else unknown. */
+/** PCB width (mm): SKU field, else "12mm" in the name; RGBW-type strips are wider than 10 mm. */
 export function pcbOf(s: SkuLite | undefined): number | null {
   if (!s) return null;
+  const saved = num(tag(s, "ปริ้น"));
+  if (saved != null) return saved;
   const t = txt(s);
   const mm = t.match(/(\d+(?:\.\d+)?)\s*mm\b/i);
   if (mm) return Number(mm[1]);
@@ -145,6 +159,8 @@ export function railNeeded(model: ProfileModel | null, ezClip: boolean): RailSiz
 }
 
 export function railOf(s: SkuLite): RailSize | null {
+  const saved = tag(s, "ราง");
+  if (saved === "3/8" || saved === "4/8") return saved;
   const t = txt(s);
   if (/3\s*\/\s*8/.test(t)) return "3/8";
   if (/4\s*\/\s*8|1\s*\/\s*2\s*(")?/.test(t)) return "4/8";
@@ -191,4 +207,12 @@ export function matchProfileSku<T extends SkuLite>(skus: T[], p: ProfileChoice):
     return n;
   };
   return [...same].sort((a, b) => score(b) - score(a))[0] ?? null;
+}
+
+/** Profile model of a stock SKU: the SKU's "รุ่น" field, else recognised from its name. */
+export function profileModelOfSku(s: SkuLite | undefined): ProfileModel | null {
+  if (!s) return null;
+  const saved = profileModel(tag(s, "รุ่น"));
+  if (saved) return saved;
+  return PROFILE_MODELS.find((m) => m.skuMatch.test(txt(s))) ?? null;
 }
