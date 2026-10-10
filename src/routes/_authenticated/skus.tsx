@@ -420,9 +420,10 @@ function formToRow(f: Form): TablesInsert<"skus"> {
     min_stock: toNumber(f.min_stock) ?? 0,
     is_roll: f.is_roll,
     roll_length_m: f.is_roll ? toNumber(f.roll_length_m) : null,
-    roll_family: f.roll_family.trim() || null,
-    cut_step_cm: toNumber(f.cut_step_cm),
-    max_piece_m: toNumber(f.max_piece_m),
+    // roll settings only apply to roll products
+    roll_family: f.is_roll ? f.roll_family.trim() || null : null,
+    cut_step_cm: f.is_roll ? toNumber(f.cut_step_cm) : null,
+    max_piece_m: f.is_roll ? toNumber(f.max_piece_m) : null,
     notes: withCategory(f.notes, f.category || null),
   };
 }
@@ -509,19 +510,22 @@ function SkuForm({
         />
         <label htmlFor="is_roll" className="text-sm">เป็นสินค้าม้วน</label>
       </div>
+      {/* roll-only settings: shown only for roll products */}
       {f.is_roll ? (
-        <Field label="ความยาวม้วน (ม.)">
-          <select className={selectCls} value={f.roll_length_m} onChange={set("roll_length_m")}>
-            <option value="5">5 ม.</option>
-            <option value="10">10 ม.</option>
-          </select>
-        </Field>
+        <>
+          <Field label="ความยาวม้วน (ม.)">
+            <select className={selectCls} value={f.roll_length_m} onChange={set("roll_length_m")}>
+              <option value="5">5 ม.</option>
+              <option value="10">10 ม.</option>
+            </select>
+          </Field>
+          <Field label="ตระกูลม้วน (เช่น JEDIFLEX-R18-2700K)">
+            <Input value={f.roll_family} onChange={set("roll_family")} />
+          </Field>
+          <Field label="ระยะตัด (ซม.)"><Input value={f.cut_step_cm} onChange={set("cut_step_cm")} /></Field>
+          <Field label="ความยาวชิ้นสูงสุด (ม.)"><Input value={f.max_piece_m} onChange={set("max_piece_m")} /></Field>
+        </>
       ) : null}
-      <Field label="ตระกูลม้วน (เช่น JEDIFLEX-R18-2700K)">
-        <Input value={f.roll_family} onChange={set("roll_family")} />
-      </Field>
-      <Field label="ระยะตัด (ซม.)"><Input value={f.cut_step_cm} onChange={set("cut_step_cm")} /></Field>
-      <Field label="ความยาวชิ้นสูงสุด (ม.)"><Input value={f.max_piece_m} onChange={set("max_piece_m")} /></Field>
       {canSeeMoney ? (
         <>
           <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
