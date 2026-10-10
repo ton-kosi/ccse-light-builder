@@ -15,6 +15,7 @@ import {
   type ClauseSection,
 } from "@/lib/clauses";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { syncQuotationClauses } from "@/lib/clauseSync";
 
 export const DEFAULT_CLOSING =
   "WE HOPE THAT OUR QUOTATION CAN BE OF CONSIDERABLE VALUE TO YOUR COMPANY.";
@@ -31,11 +32,13 @@ const card = "rounded-lg border border-border bg-background p-4";
  */
 export function QuoteFooter({
   quotation,
+  selectedOption,
   syncKey,
   net,
   canEdit,
 }: {
   quotation: Quotation;
+  selectedOption: string | null;
   /** Changes whenever lines or the selected option change, so linked clauses are re-synced. */
   syncKey: string;
   net: number;
@@ -45,6 +48,7 @@ export function QuoteFooter({
     <div className="mt-6 space-y-4">
       <ClauseEditor
         quotationId={quotation.id}
+        selectedOption={selectedOption}
         syncKey={syncKey}
         canEdit={canEdit}
         legacyNotes={quotation.notes}
@@ -58,11 +62,13 @@ export function QuoteFooter({
 
 function ClauseEditor({
   quotationId,
+  selectedOption,
   syncKey,
   canEdit,
   legacyNotes,
 }: {
   quotationId: string;
+  selectedOption: string | null;
   syncKey: string;
   canEdit: boolean;
   legacyNotes: string | null;
@@ -87,7 +93,7 @@ function ClauseEditor({
     },
   });
 
-  // Pull in clauses of the components used (and drop unused, unedited ones) whenever lines change.
+  // Pull in clauses of the SKUs/components used (and drop unused, unedited ones) whenever lines change.
   const lastSync = useRef("");
   useEffect(() => {
     if (!canEdit) return;
@@ -95,9 +101,12 @@ function ClauseEditor({
     if (sig === lastSync.current) return;
     const timer = setTimeout(async () => {
       lastSync.current = sig;
-      const { error } = await supabase.rpc("sync_quotation_clauses", { _qid: quotationId });
-      if (error) toast.error("ดึงหมายเหตุอัตโนมัติไม่สำเร็จ: " + error.message);
-      else qc.invalidateQueries({ queryKey: key });
+      try {
+        await syncQuotationClauses(quotationId, selectedOption);
+        qc.invalidateQueries({ queryKey: key });
+      } catch (e) {
+        toast.error("ดึงหมายเหตุอัตโนมัติไม่สำเร็จ: " + (e as Error).message);
+      }
     }, 700);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,16 +144,14 @@ function ClauseEditor({
   const insert = useMutation({
     mutationFn: async ({ section, text }: { section: ClauseSection; text: string }) => {
       const base = Math.max(0, ...(rows ?? []).map((r) => r.sort_order));
-      const { error } = await supabase
-        .from("quotation_clauses")
-        .insert({
-          quotation_id: quotationId,
-          section,
-          text,
-          sort_order: base + 1,
-          edited: true,
-          included: true,
-        });
+      const { error } = await supabase.from("quotation_clauses").insert({
+        quotation_id: quotationId,
+        section,
+        text,
+        sort_order: base + 1,
+        edited: true,
+        included: true,
+      });
       if (error) throw error;
     },
     onSuccess: refresh,
@@ -166,17 +173,15 @@ function ClauseEditor({
         .map((l) => l.replace(/^\s*-\s*/, "").trim())
         .filter(Boolean);
       if (lines.length) {
-        const { error } = await supabase
-          .from("quotation_clauses")
-          .insert(
-            lines.map((text, i) => ({
-              quotation_id: quotationId,
-              section: "note_th",
-              text,
-              sort_order: base + i + 1,
-              edited: true,
-            })),
-          );
+        const { error } = await supabase.from("quotation_clauses").insert(
+          lines.map((text, i) => ({
+            quotation_id: quotationId,
+            section: "note_th",
+            text,
+            sort_order: base + i + 1,
+            edited: true,
+          })),
+        );
         if (error) throw error;
       }
       const { error } = await supabase
@@ -624,7 +629,9 @@ function TermsEditor({
   });
 
   const list = terms ?? [];
-  const totalPct = list.filter((t) => t.fixed_amount === null).reduce((s, t) => s + Number(t.percent), 0);
+  const totalPct = list
+    .filter((t) => t.fixed_amount === null)
+    .reduce((s, t) => s + Number(t.percent), 0);
   const hasFixed = list.some((t) => t.fixed_amount !== null);
   const pctWrong = list.length > 0 && !hasFixed && Math.abs(totalPct - 100) > 0.001;
 

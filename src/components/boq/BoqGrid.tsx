@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LineRecipeEditor } from "@/components/boq/LineRecipeEditor";
 import { FoSetDialog, type FoTarget } from "@/components/boq/FoSetDialog";
+import { LinearDialog, type LinearTarget } from "@/components/boq/LinearDialog";
+import { parseLinear, type LinearConfig } from "@/lib/linear";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -60,6 +62,7 @@ export function BoqGrid({
   const qc = useQueryClient();
   const [openRecipe, setOpenRecipe] = useState<string | null>(null);
   const [foTarget, setFoTarget] = useState<FoTarget | null>(null);
+  const [linTarget, setLinTarget] = useState<LinearTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -87,19 +90,36 @@ export function BoqGrid({
   const lineIds = lines.map((l) => l.id);
   const compMap = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
   const compIds = Array.from(new Set(lines.map((l) => l.component_id).filter(Boolean))) as string[];
-  const { data: foLines } = useQuery({
-    queryKey: ["fo_lines", quotationId, lineIds.join(",")],
+  // Rows built by the FO / linear builders (their price cells are managed in those windows).
+  const { data: setLines } = useQuery({
+    queryKey: ["set_lines", quotationId, lineIds.join(",")],
     enabled: lineIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("line_recipes")
-        .select("quote_line_id")
-        .in("quote_line_id", lineIds)
-        .like("note", "FO %");
-      if (error) throw error;
-      return new Set(data.map((d) => d.quote_line_id));
+      const [fo, lin] = await Promise.all([
+        supabase.from("line_recipes").select("quote_line_id").in("quote_line_id", lineIds).like("note", "FO %"),
+        supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "LIN %"),
+      ]);
+      if (fo.error) throw fo.error;
+      if (lin.error) throw lin.error;
+      const blocks = new Map<string, LinearConfig>();
+      const rowBlock = new Map<string, string>();
+      for (const r of lin.data) {
+        const cfg = parseLinear(r.note);
+        if (cfg) {
+          blocks.set(cfg.blockId, cfg);
+          for (const id of cfg.rowIds) rowBlock.set(id, cfg.blockId);
+        }
+        const bid = r.note?.split(" ")[1];
+        if (bid) rowBlock.set(r.quote_line_id, bid);
+      }
+      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock };
     },
   });
+  const foLines = setLines?.fo;
+  const linBlockOf = (id: string) => {
+    const bid = setLines?.rowBlock.get(id);
+    return bid ? (setLines?.blocks.get(bid) ?? null) : null;
+  };
   const { data: costs } = useQuery({
     queryKey: ["boq_costs", quotationId, lineIds.join(","), compIds.join(",")],
     enabled: canSeeCost && lines.length > 0,
@@ -226,6 +246,23 @@ export function BoqGrid({
     } finally {
       qc.invalidateQueries({ queryKey: key });
     }
+  };
+
+  /** Used by the linear dialog: remove the block's old rows and put the new ones in the same place. */
+  const replaceRows = async (oldIds: string[], rows: Partial<GridLine>[]) => {
+    const old = new Set(oldIds);
+    const first = lines.findIndex((l) => old.has(l.id));
+    const keep = lines.filter((l) => !old.has(l.id));
+    const at = first < 0 ? keep.length : lines.slice(0, first).filter((l) => !old.has(l.id)).length;
+    if (oldIds.length) {
+      const { error } = await supabase.from("quote_lines").delete().in("id", oldIds);
+      if (error) throw error;
+    }
+    const fresh = rows.map((r) => ({ ...blankRow(), ...r }) as GridLine);
+    const next = [...keep];
+    next.splice(at, 0, ...fresh);
+    const ok = await persistOrder(next, fresh);
+    if (!ok) throw new Error("บันทึกบรรทัดไม่สำเร็จ");
   };
 
   /** Used by the FO set dialog: append a line at the end and return its id once saved. */
@@ -430,7 +467,8 @@ export function BoqGrid({
               const cost = lineCost(l);
               const amount = lineAmount(l);
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
-              const isFo = !!foLines?.has(l.id);
+              const lin = linBlockOf(l.id);
+              const isFo = !!foLines?.has(l.id) || !!lin;
               const txt = (k: Parameters<typeof commitText>[1], c: number, extra = "") => (
                 <td className="px-0.5 py-0.5">
                   <CellInput
@@ -599,7 +637,26 @@ export function BoqGrid({
                     ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
-                        {!heading && foLines?.has(l.id) ? (
+                        {lin ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-primary"
+                            onClick={() => {
+                              const blockRows = lines.filter((x) => lin.rowIds.includes(x.id));
+                              const priced = blockRows.find((x) => x.kind === "priced");
+                              setLinTarget({
+                                mode: "edit",
+                                config: lin,
+                                option: blockRows[0]?.option_name ?? null,
+                                zone: blockRows[0]?.zone ?? null,
+                                discount: Number(priced?.discount_percent ?? 0),
+                              });
+                            }}
+                          >
+                            {canEdit ? "แก้ชุดไฟเส้น" : "ดูชุดไฟเส้น"}
+                          </Button>
+                        ) : !heading && foLines?.has(l.id) ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -657,6 +714,13 @@ export function BoqGrid({
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setLinTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
+            >
+              + เพิ่มชุดไฟเส้น
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => setFoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
             >
               + เพิ่มชุด Fiber Optic
@@ -668,6 +732,15 @@ export function BoqGrid({
           คอลัมน์พื้นสีเหลือง = <b>ภายใน</b> (ไม่พิมพ์ให้ลูกค้า)
         </span>
       </div>
+      {linTarget ? (
+        <LinearDialog
+          target={linTarget}
+          quotationId={quotationId}
+          canSeeCost={canSeeCost}
+          replaceRows={replaceRows}
+          onClose={() => setLinTarget(null)}
+        />
+      ) : null}
       {foTarget ? (
         <FoSetDialog
           target={foTarget}

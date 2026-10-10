@@ -20,14 +20,14 @@ import {
   illuminatorDisplayName,
   matchByWatt,
   parseFo,
-  partPriceMap,
   priceFo,
   totalPoints,
   type FoConfig,
 } from "@/lib/fo";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
 
-type Sku = { id: string; code: string; name: string; unit: string };
+export type Sku = { id: string; code: string; name: string; unit: string };
 type Comp = { id: string; code: string; name: string };
 export type FoTarget = { mode: "new"; option: string | null } | { mode: "edit"; line: GridLine };
 
@@ -97,19 +97,8 @@ export function FoSetDialog({
     editing?.discount_percent != null ? String(Number(editing.discount_percent)) : "0",
   );
 
-  // Selling price of each part = price of the sales component that sells exactly that SKU (set by admin).
-  const { data: partPrices } = useQuery({
-    queryKey: ["fo_part_prices"],
-    queryFn: async () => {
-      const [r, p] = await Promise.all([
-        supabase.from("recipes").select("component_id, sku_id, qty_per_unit"),
-        supabase.from("component_prices").select("component_id, list_price, max_discount_percent"),
-      ]);
-      if (r.error) throw r.error;
-      if (p.error) throw p.error;
-      return partPriceMap(r.data, p.data);
-    },
-  });
+  // Selling price of each part = admin-set selling price of its SKU (SKU page).
+  const { data: partPrices } = useSkuPrices();
   const [componentId, setComponentId] = useState<string>(editing?.component_id ?? "");
 
   // Initialise once data is in: from the saved set, or from smart defaults.
@@ -170,65 +159,15 @@ export function FoSetDialog({
     mutationFn: async (p: { skuId: string; unitPrice?: number; maxDiscount?: number }) => {
       const sku = byId.get(p.skuId);
       if (!sku) throw new Error("ไม่พบ SKU");
-      const { data: uses, error: e1 } = await supabase
-        .from("recipes")
-        .select("component_id, qty_per_unit")
-        .eq("sku_id", p.skuId);
-      if (e1) throw e1;
-      let compId: string | null = null;
-      let perUnit = 1;
-      if (uses.length) {
-        const { data: all, error: e2 } = await supabase
-          .from("recipes")
-          .select("component_id")
-          .in(
-            "component_id",
-            uses.map((u) => u.component_id),
-          );
-        if (e2) throw e2;
-        const single = uses.find(
-          (u) => all.filter((a) => a.component_id === u.component_id).length === 1,
-        );
-        if (single) {
-          compId = single.component_id;
-          perUnit = Number(single.qty_per_unit) || 1;
-        }
-      }
-      if (!compId) {
-        const { data: same } = await supabase
-          .from("sales_components")
-          .select("code")
-          .like("code", `P-${sku.code}%`);
-        const code = same?.length ? `P-${sku.code}-${same.length + 1}` : `P-${sku.code}`;
-        const { data: comp, error: e3 } = await supabase
-          .from("sales_components")
-          .insert({
-            code,
-            name: sku.name,
-            unit: sku.unit,
-            notes: "ราคาขายต่อชิ้น สำหรับคำนวณชุด FO",
-          })
-          .select("id")
-          .single();
-        if (e3) throw e3;
-        compId = comp.id;
-        const { error: e4 } = await supabase
-          .from("recipes")
-          .insert({ component_id: compId, sku_id: p.skuId, qty_per_unit: 1 });
-        if (e4) throw e4;
-      }
       const cur = partPrices?.get(p.skuId);
-      const unitPrice = p.unitPrice ?? cur?.unitPrice ?? 0;
-      const maxDiscount = p.maxDiscount ?? cur?.maxDiscount ?? 0;
-      const { error: e5 } = await supabase.from("component_prices").upsert({
-        component_id: compId,
-        list_price: Math.round(unitPrice * perUnit * 100) / 100,
-        max_discount_percent: maxDiscount,
-      });
-      if (e5) throw e5;
+      await saveSkuPrice(
+        sku,
+        p.unitPrice ?? cur?.unitPrice ?? 0,
+        p.maxDiscount ?? cur?.maxDiscount ?? 0,
+      );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["fo_part_prices"] });
+      qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
       qc.invalidateQueries({ queryKey: ["sales_components"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -300,7 +239,7 @@ export function FoSetDialog({
       qc.invalidateQueries({ queryKey: ["quote_lines", quotationId] });
       qc.invalidateQueries({ queryKey: ["line_recipes"] });
       qc.invalidateQueries({ queryKey: ["boq_costs"] });
-      qc.invalidateQueries({ queryKey: ["fo_lines"] });
+      qc.invalidateQueries({ queryKey: ["set_lines"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -719,7 +658,7 @@ export function FoSetDialog({
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+export function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
       <h3 className="mb-1.5 text-sm font-semibold">{title}</h3>
@@ -728,7 +667,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block text-xs text-muted-foreground">
       {label}
@@ -737,7 +676,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function SkuSelect({
+export function SkuSelect({
   value,
   onChange,
   preferred,

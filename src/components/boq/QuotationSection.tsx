@@ -284,7 +284,8 @@ export function QuotationSection({
         quotation={quotation}
         net={t.net}
         canEdit={canEdit}
-        syncKey={`${selectedOption ?? ""}|${lines.map((l) => `${l.component_id ?? ""}:${l.option_name ?? ""}:${l.kind}`).join(",")}`}
+        selectedOption={selectedOption}
+        syncKey={`${selectedOption ?? ""}|${lines.map((l) => `${l.id}:${l.updated_at}:${l.component_id ?? ""}:${l.option_name ?? ""}:${l.kind}`).join(",")}`}
       />
     </section>
   );

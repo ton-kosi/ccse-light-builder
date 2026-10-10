@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
+import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
 
 export const Route = createFileRoute("/_authenticated/skus")({
   head: () => ({
@@ -40,6 +41,8 @@ const EMPTY = {
   code: "", name: "", unit: "ชิ้น", source: "domestic", lead_time_days: "0", min_stock: "0",
   is_roll: false, roll_length_m: "", roll_family: "", cut_step_cm: "", max_piece_m: "", notes: "",
   unit_cost: "",
+  sell_price: "",
+  max_discount: "",
 };
 type Form = typeof EMPTY;
 
@@ -77,6 +80,7 @@ function SkusPage() {
       return new Map(data.map((c) => [c.sku_id, Number(c.unit_cost)]));
     },
   });
+  const { data: prices } = useSkuPrices(canSeeMoney);
 
   const save = useMutation({
     mutationFn: async ({ id, form }: { id: string | null; form: Form }) => {
@@ -89,6 +93,18 @@ function SkusPage() {
         const { data, error } = await supabase.from("skus").insert(row).select("id").single();
         if (error) throw error;
         skuId = data.id;
+      }
+      const sell = toNumber(form.sell_price);
+      if (canSeeMoney && sell !== null && skuId) {
+        const old = prices?.get(skuId);
+        const md = toNumber(form.max_discount) ?? 0;
+        if (!old || old.unitPrice !== sell || old.maxDiscount !== md) {
+          await saveSkuPrice(
+            { id: skuId, code: row.code, name: row.name, unit: row.unit ?? "ชิ้น" },
+            sell,
+            md,
+          );
+        }
       }
       const cost = toNumber(form.unit_cost);
       const oldCost = skuId ? costs?.get(skuId) : undefined;
@@ -106,6 +122,7 @@ function SkusPage() {
       qc.invalidateQueries({ queryKey: ["skus"] });
       qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
       qc.invalidateQueries({ queryKey: ["sku_costs"] });
+      qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
     },
     onError: (e: Error) => toast.error(friendly(e.message)),
   });
@@ -139,7 +156,7 @@ function SkusPage() {
   const list = (skus ?? []).filter(
     (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
   );
-  const cols = 9 + (canSeeMoney ? 1 : 0) + (canEditMaster ? 1 : 0);
+  const cols = 9 + (canSeeMoney ? 3 : 0) + (canEditMaster ? 1 : 0);
 
   return (
     <div>
@@ -182,7 +199,13 @@ function SkusPage() {
               <Th>ตระกูลม้วน</Th>
               <Th>ขั้นต่ำ</Th>
               <Th>คงเหลือ</Th>
-              {canSeeMoney ? <Th>ต้นทุน/หน่วย</Th> : null}
+              {canSeeMoney ? (
+                <>
+                  <Th>ต้นทุน/หน่วย</Th>
+                  <Th>ราคาขาย/หน่วย</Th>
+                  <Th>ลดได้สูงสุด</Th>
+                </>
+              ) : null}
               {canEditMaster ? <Th>{""}</Th> : null}
             </tr>
           </thead>
@@ -212,7 +235,15 @@ function SkusPage() {
                         {formatQty(qty)}
                       </button>
                     </Td>
-                    {canSeeMoney ? <Td>{formatTHB(costs?.get(k.id) ?? 0)}</Td> : null}
+                    {canSeeMoney ? (
+                      <>
+                        <Td>{formatTHB(costs?.get(k.id) ?? 0)}</Td>
+                        <Td className={prices?.has(k.id) ? "" : "text-muted-foreground"}>
+                          {prices?.has(k.id) ? formatTHB(prices.get(k.id)!.unitPrice) : "ยังไม่ตั้ง"}
+                        </Td>
+                        <Td>{prices?.has(k.id) ? `${formatQty(prices.get(k.id)!.maxDiscount)}%` : "-"}</Td>
+                      </>
+                    ) : null}
                     {canEditMaster ? (
                       <Td className="whitespace-nowrap">
                         <div className="flex gap-2">
@@ -222,7 +253,9 @@ function SkusPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setEditing({ id: k.id, form: rowToForm(k, costs?.get(k.id)) })}
+                            onClick={() =>
+                              setEditing({ id: k.id, form: rowToForm(k, costs?.get(k.id), prices?.get(k.id)) })
+                            }
                           >
                             แก้ไข
                           </Button>
@@ -301,7 +334,7 @@ function friendly(msg: string) {
   return msg;
 }
 
-function rowToForm(k: Sku, cost?: number): Form {
+function rowToForm(k: Sku, cost?: number, price?: { unitPrice: number; maxDiscount: number }): Form {
   const s = (v: number | null) => (v === null ? "" : String(v));
   return {
     code: k.code, name: k.name, unit: k.unit, source: k.source,
@@ -309,6 +342,8 @@ function rowToForm(k: Sku, cost?: number): Form {
     is_roll: k.is_roll, roll_length_m: s(k.roll_length_m), roll_family: k.roll_family ?? "",
     cut_step_cm: s(k.cut_step_cm), max_piece_m: s(k.max_piece_m), notes: k.notes ?? "",
     unit_cost: cost === undefined ? "" : String(cost),
+    sell_price: price ? String(Math.round(price.unitPrice * 100) / 100) : "",
+    max_discount: price ? String(price.maxDiscount) : "",
   };
 }
 
@@ -382,7 +417,16 @@ function SkuForm({
       <Field label="ระยะตัด (ซม.)"><Input value={f.cut_step_cm} onChange={set("cut_step_cm")} /></Field>
       <Field label="ความยาวชิ้นสูงสุด (ม.)"><Input value={f.max_piece_m} onChange={set("max_piece_m")} /></Field>
       {canSeeMoney ? (
-        <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
+        <>
+          <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
+          <div className="hidden sm:block" />
+          <Field label="ราคาขายต่อหน่วย (บาท) — ใช้คำนวณชุด FO / ไฟเส้น">
+            <Input value={f.sell_price} placeholder="ยังไม่ตั้ง" onChange={set("sell_price")} />
+          </Field>
+          <Field label="ลดได้สูงสุด (%)">
+            <Input value={f.max_discount} placeholder="0" onChange={set("max_discount")} />
+          </Field>
+        </>
       ) : null}
       <Field label="หมายเหตุ" className="sm:col-span-2"><Input value={f.notes} onChange={set("notes")} /></Field>
       <div className="sm:col-span-2">

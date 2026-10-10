@@ -53,3 +53,45 @@ export function termPrintLabel(t: {
 }): string {
   return t.print_label?.trim() || defaultPrintLabel(t);
 }
+
+/**
+ * Which clause ids a quotation needs: "always" clauses, clauses linked to the sales components
+ * on its lines, and clauses linked to the SKUs those lines actually use (via line recipes or the
+ * component's standard recipe). A SKU is linked through its one-SKU component (see skuPrices.ts).
+ * Pure so it can be tested.
+ */
+export function neededClauseIds(input: {
+  lines: { id: string; component_id: string | null; option_name: string | null; kind: string }[];
+  selectedOption: string | null;
+  lineRecipes: { quote_line_id: string; sku_id: string }[];
+  recipes: { component_id: string; sku_id: string }[];
+  componentClauses: { component_id: string; clause_id: string }[];
+  clauses: { id: string; active: boolean; always_include: boolean }[];
+}): Set<string> {
+  const opt = input.selectedOption?.trim() ?? "";
+  const included = input.lines.filter(
+    (l) =>
+      l.kind !== "heading" &&
+      (!(l.option_name ?? "").trim() || (l.option_name ?? "").trim() === opt),
+  );
+  const ids = new Set(included.map((l) => l.id));
+  const comps = new Set(included.map((l) => l.component_id).filter(Boolean) as string[]);
+
+  const skus = new Set(
+    input.lineRecipes.filter((r) => ids.has(r.quote_line_id)).map((r) => r.sku_id),
+  );
+  for (const r of input.recipes) if (comps.has(r.component_id)) skus.add(r.sku_id);
+
+  const rowsPerComp = new Map<string, number>();
+  for (const r of input.recipes)
+    rowsPerComp.set(r.component_id, (rowsPerComp.get(r.component_id) ?? 0) + 1);
+  for (const r of input.recipes)
+    if (rowsPerComp.get(r.component_id) === 1 && skus.has(r.sku_id)) comps.add(r.component_id);
+
+  const active = new Map(input.clauses.map((c) => [c.id, c]));
+  const need = new Set<string>();
+  for (const c of input.clauses) if (c.active && c.always_include) need.add(c.id);
+  for (const cc of input.componentClauses)
+    if (comps.has(cc.component_id) && active.get(cc.clause_id)?.active) need.add(cc.clause_id);
+  return need;
+}

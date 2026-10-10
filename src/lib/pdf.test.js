@@ -68,3 +68,45 @@ test("clauses print in REMARK, WARRANTY, หมายเหตุ, WARNING order
   expect(g.map((x) => x.value)).toEqual(["remark", "warranty", "warning"]);
   expect(g[1].rows.map((r) => r.sort_order)).toEqual([1, 2]);
 });
+
+test("clauses come from components and from the SKUs a line uses", async () => {
+  const { neededClauseIds } = await import("./clauses.ts");
+  const need = neededClauseIds({
+    lines: [
+      { id: "fo", component_id: null, option_name: "OPTION 1", kind: "priced" },
+      { id: "fo2", component_id: null, option_name: "OPTION 2", kind: "priced" },
+      { id: "led", component_id: "LEDCOMP", option_name: null, kind: "priced" },
+      { id: "h", component_id: "HEAD", option_name: null, kind: "heading" },
+    ],
+    selectedOption: "OPTION 1",
+    lineRecipes: [
+      { quote_line_id: "fo", sku_id: "FO50W" },
+      { quote_line_id: "fo2", sku_id: "FO100W" },
+    ],
+    recipes: [
+      { component_id: "P-FO50W", sku_id: "FO50W" },
+      { component_id: "P-FO100W", sku_id: "FO100W" },
+      { component_id: "LEDCOMP", sku_id: "NICHIA" },
+      { component_id: "LEDCOMP", sku_id: "ALU" },
+      { component_id: "P-NICHIA", sku_id: "NICHIA" },
+    ],
+    componentClauses: [
+      { component_id: "P-FO50W", clause_id: "fo-warranty" },
+      { component_id: "P-FO100W", clause_id: "fo100-only" },
+      { component_id: "P-NICHIA", clause_id: "nichia-2y" },
+      { component_id: "LEDCOMP", clause_id: "led-note" },
+      { component_id: "HEAD", clause_id: "heading-only" },
+      { component_id: "P-FO50W", clause_id: "inactive" },
+    ],
+    clauses: [
+      { id: "fo-warranty", active: true, always_include: false },
+      { id: "fo100-only", active: true, always_include: false },
+      { id: "nichia-2y", active: true, always_include: false },
+      { id: "led-note", active: true, always_include: false },
+      { id: "heading-only", active: true, always_include: false },
+      { id: "inactive", active: false, always_include: false },
+      { id: "always", active: true, always_include: true },
+    ],
+  });
+  expect([...need].sort()).toEqual(["always", "fo-warranty", "led-note", "nichia-2y"]);
+});

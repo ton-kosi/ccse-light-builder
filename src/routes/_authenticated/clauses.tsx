@@ -14,12 +14,13 @@ import { Field } from "@/routes/_authenticated/customers";
 import { useMe } from "@/hooks/useMe";
 import { CLAUSE_SECTIONS, type ClauseSection } from "@/lib/clauses";
 import { toNumber } from "@/lib/format";
+import { ensureSkuComponent, SKU_PRICES_KEY } from "@/lib/skuPrices";
 
 export const Route = createFileRoute("/_authenticated/clauses")({
   head: () => ({
     meta: [
       { title: "หมายเหตุและประกัน | CCSE ERP" },
-      { name: "description", content: "ชุดข้อความหมายเหตุและประกันที่ผูกกับชิ้นส่วนขาย" },
+      { name: "description", content: "ชุดข้อความหมายเหตุและประกันที่ผูกกับ SKU" },
       { property: "og:title", content: "หมายเหตุและประกัน | CCSE ERP" },
       { property: "og:description", content: "ชุดข้อความท้ายใบเสนอราคา" },
       { property: "og:type", content: "website" },
@@ -69,7 +70,11 @@ function ClausesPage() {
   const codesByClause = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of links ?? []) {
-      const code = (l.sales_components as { code: string } | null)?.code ?? "?";
+      // SKU links are stored on the SKU's "P-<code>" price component; show the SKU code
+      const code = ((l.sales_components as { code: string } | null)?.code ?? "?").replace(
+        /^P-/,
+        "",
+      );
       m.set(l.clause_id, [...(m.get(l.clause_id) ?? []), code]);
     }
     return m;
@@ -126,7 +131,7 @@ function ClausesPage() {
     <div>
       <PageHeader
         title="หมายเหตุและประกัน"
-        description="พิมพ์ข้อความเตรียมไว้ครั้งเดียว แล้วผูกกับชิ้นส่วนขาย — ใบเสนอราคาที่มีชิ้นส่วนนั้นจะดึงข้อความไปให้อัตโนมัติ"
+        description="พิมพ์ข้อความเตรียมไว้ครั้งเดียว แล้วผูกกับ SKU — ใบเสนอราคาที่ใช้ SKU นั้น (รวมชุดไฟเส้น / FO) จะดึงข้อความไปให้อัตโนมัติ"
       />
 
       {canEdit ? (
@@ -208,7 +213,7 @@ function ClausesPage() {
                       <th className="w-16 px-3 py-2 font-medium">ลำดับ</th>
                       <th className="px-3 py-2 font-medium">ข้อความ</th>
                       <th className="w-28 px-3 py-2 font-medium">ทุกใบ</th>
-                      <th className="w-56 px-3 py-2 font-medium">ผูกกับชิ้นส่วน</th>
+                      <th className="w-56 px-3 py-2 font-medium">ผูกกับ SKU</th>
                       <th className="w-24 px-3 py-2 font-medium">ใช้งาน</th>
                       {canEdit ? <th className="w-16 px-3 py-2" /> : null}
                     </tr>
@@ -319,12 +324,12 @@ function ClausesPage() {
         })}
       </div>
 
-      {linking ? <LinkComponentsDialog clause={linking} onClose={() => setLinking(null)} /> : null}
+      {linking ? <LinkSkusDialog clause={linking} onClose={() => setLinking(null)} /> : null}
     </div>
   );
 }
 
-function LinkComponentsDialog({
+function LinkSkusDialog({
   clause,
   onClose,
 }: {
@@ -333,85 +338,154 @@ function LinkComponentsDialog({
 }) {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const { data: comps } = useQuery({
-    queryKey: ["sales_components", "clause-picker"],
+  const { data } = useQuery({
+    queryKey: ["clause-sku-links", clause.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sales_components")
-        .select("id, code, name")
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
-  });
-  const { data: linked } = useQuery({
-    queryKey: ["component_clauses", "clause", clause.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("component_clauses")
-        .select("component_id")
-        .eq("clause_id", clause.id);
-      if (error) throw error;
-      return new Set(data.map((d) => d.component_id));
+      const [skus, recipes, links] = await Promise.all([
+        supabase.from("skus").select("id, code, name, unit").order("code"),
+        supabase.from("recipes").select("component_id, sku_id"),
+        supabase
+          .from("component_clauses")
+          .select("component_id, sales_components(code, name)")
+          .eq("clause_id", clause.id),
+      ]);
+      for (const r of [skus, recipes, links]) if (r.error) throw r.error;
+      const rows = new Map<string, number>();
+      for (const r of recipes.data!) rows.set(r.component_id, (rows.get(r.component_id) ?? 0) + 1);
+      const linked = new Set(links.data!.map((l) => l.component_id));
+      // SKU -> its one-SKU component, if any
+      const skuComp = new Map<string, string>();
+      for (const r of recipes.data!)
+        if (rows.get(r.component_id) === 1 && !skuComp.has(r.sku_id))
+          skuComp.set(r.sku_id, r.component_id);
+      const skuComps = new Set(skuComp.values());
+      const legacy = links.data!.filter((l) => !skuComps.has(l.component_id));
+      return { skus: skus.data!, skuComp, linked, legacy };
     },
   });
   const toggle = useMutation({
-    mutationFn: async ({ componentId, on }: { componentId: string; on: boolean }) => {
-      const { error } = on
-        ? await supabase
-            .from("component_clauses")
-            .insert({ component_id: componentId, clause_id: clause.id })
-        : await supabase
-            .from("component_clauses")
-            .delete()
-            .eq("component_id", componentId)
-            .eq("clause_id", clause.id);
-      if (error) throw error;
+    mutationFn: async ({
+      sku,
+      on,
+    }: {
+      sku: { id: string; code: string; name: string; unit: string };
+      on: boolean;
+    }) => {
+      if (on) {
+        const { componentId } = await ensureSkuComponent(sku);
+        const { error } = await supabase
+          .from("component_clauses")
+          .insert({ component_id: componentId, clause_id: clause.id });
+        if (error) throw error;
+      } else {
+        const comp = data?.skuComp.get(sku.id);
+        if (!comp) return;
+        const { error } = await supabase
+          .from("component_clauses")
+          .delete()
+          .eq("component_id", comp)
+          .eq("clause_id", clause.id);
+        if (error) throw error;
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["component_clauses"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clause-sku-links", clause.id] });
+      qc.invalidateQueries({ queryKey: ["component_clauses"] });
+      qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+  const unlinkLegacy = useMutation({
+    mutationFn: async (componentId: string) => {
+      const { error } = await supabase
+        .from("component_clauses")
+        .delete()
+        .eq("component_id", componentId)
+        .eq("clause_id", clause.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clause-sku-links", clause.id] });
+      qc.invalidateQueries({ queryKey: ["component_clauses"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const needle = q.trim().toLowerCase();
-  const list = (comps ?? []).filter(
-    (c) =>
-      !needle || c.code.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle),
+  const list = (data?.skus ?? []).filter(
+    (s) =>
+      !needle || s.code.toLowerCase().includes(needle) || s.name.toLowerCase().includes(needle),
   );
+  const isOn = (skuId: string) => {
+    const comp = data?.skuComp.get(skuId);
+    return !!comp && !!data?.linked.has(comp);
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>ผูกข้อความกับชิ้นส่วนขาย</DialogTitle>
+          <DialogTitle>ผูกข้อความกับ SKU</DialogTitle>
         </DialogHeader>
         <p className="rounded bg-secondary px-3 py-2 text-sm">- {clause.text}</p>
+        <p className="text-xs text-muted-foreground">
+          ใบเสนอราคาที่มีบรรทัดใช้ SKU ที่ติ๊ก (รวมในชุดไฟเส้นและชุด FO)
+          จะดึงข้อความนี้ไปให้อัตโนมัติ
+        </p>
         <Input
-          placeholder="ค้นหารหัสหรือชื่อชิ้นส่วน"
+          placeholder="ค้นหารหัสหรือชื่อ SKU"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <div className="divide-y divide-border rounded border border-border">
-          {list.map((c) => (
+          {list.map((s) => (
             <label
-              key={c.id}
+              key={s.id}
               className="flex cursor-pointer items-start gap-3 px-3 py-2 text-sm hover:bg-secondary/50"
             >
               <Checkbox
                 className="mt-0.5"
-                checked={linked?.has(c.id) ?? false}
-                onCheckedChange={(v) => toggle.mutate({ componentId: c.id, on: v === true })}
+                checked={isOn(s.id)}
+                disabled={toggle.isPending}
+                onCheckedChange={(v) => toggle.mutate({ sku: s, on: v === true })}
               />
               <span>
-                <span className="font-medium">{c.code}</span>
-                <span className="block whitespace-pre-line text-xs text-muted-foreground">
-                  {c.name}
-                </span>
+                <span className="font-medium">{s.code}</span>
+                <span className="block text-xs text-muted-foreground">{s.name}</span>
               </span>
             </label>
           ))}
           {list.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">ไม่พบชิ้นส่วน</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">ไม่พบ SKU</p>
           ) : null}
         </div>
+        {data?.legacy.length ? (
+          <div className="text-sm">
+            <div className="mb-1 font-medium">ผูกกับชิ้นส่วนขายแบบเดิม</div>
+            {data.legacy.map((l) => {
+              const sc = l.sales_components as { code: string; name: string } | null;
+              return (
+                <div
+                  key={l.component_id}
+                  className="flex items-center justify-between border-t border-border py-1"
+                >
+                  <span>
+                    {sc?.code}{" "}
+                    <span className="text-xs text-muted-foreground">{sc?.name.split("\n")[0]}</span>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7"
+                    onClick={() => unlinkLegacy.mutate(l.component_id)}
+                  >
+                    เอาออก
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
