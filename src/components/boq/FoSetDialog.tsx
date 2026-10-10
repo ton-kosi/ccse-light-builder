@@ -28,7 +28,6 @@ import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
 
 export type Sku = { id: string; code: string; name: string; unit: string };
-type Comp = { id: string; code: string; name: string };
 export type FoTarget = { mode: "new"; option: string | null } | { mode: "edit"; line: GridLine };
 
 const LABELS = ["S", "M", "L", "XL", "XXL", "XXXL"];
@@ -37,14 +36,12 @@ const sel = "h-9 w-full min-w-0 rounded-md border border-input bg-background px-
 export function FoSetDialog({
   target,
   quotationId,
-  components,
   canSeeCost,
   createLine,
   onClose,
 }: {
   target: FoTarget;
   quotationId: string;
-  components: Comp[];
   canSeeCost: boolean;
   /** Inserts a new BOQ line at the end and returns its id. */
   createLine: (fields: Partial<GridLine>) => Promise<string>;
@@ -99,7 +96,6 @@ export function FoSetDialog({
 
   // Selling price of each part = admin-set selling price of its SKU (SKU page).
   const { data: partPrices } = useSkuPrices();
-  const [componentId, setComponentId] = useState<string>(editing?.component_id ?? "");
 
   // Initialise once data is in: from the saved set, or from smart defaults.
   useEffect(() => {
@@ -131,18 +127,6 @@ export function FoSetDialog({
     });
   }, [c, skus, editing, saved, loadingSaved, groups]);
 
-  const { data: compRecipeCount } = useQuery({
-    queryKey: ["recipes", "count", componentId],
-    enabled: !!componentId,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("recipes")
-        .select("id", { count: "exact", head: true })
-        .eq("component_id", componentId);
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
 
   const rows = c ? buildFoRecipes(c) : [];
   const text = c ? buildFoText(c) : "";
@@ -168,7 +152,6 @@ export function FoSetDialog({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
-      qc.invalidateQueries({ queryKey: ["sales_components"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -212,7 +195,7 @@ export function FoSetDialog({
         customer_text: text,
         unit_price: pricing.list,
         discount_percent: discNum,
-        component_id: componentId || null,
+        component_id: null,
         option_name: option.trim() || null,
       };
       let lineId: string;
@@ -462,31 +445,6 @@ export function FoSetDialog({
                 </div>
               </Block>
 
-              <Block title="ผูกกับชิ้นส่วนขาย (ไม่บังคับ)">
-                <select
-                  className={sel}
-                  value={componentId}
-                  onChange={(e) => setComponentId(e.target.value)}
-                >
-                  <option value="">— ไม่ผูก —</option>
-                  {components.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {x.code} — {x.name.split("\n")[0]}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  ผูกเพื่อให้หมายเหตุ/ประกันของชิ้นส่วนนั้นขึ้นท้ายใบอัตโนมัติ
-                </p>
-                {componentId && (compRecipeCount ?? 0) > 0 ? (
-                  <p className="mt-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                    ชิ้นส่วนนี้มีสูตรมาตรฐาน {compRecipeCount} รายการ
-                    ซึ่งจะถูกนับสต็อกและต้นทุนซ้ำกับชุดนี้ — ให้ลบสูตรของชิ้นส่วนนี้ออกที่หน้า
-                    "ชิ้นส่วนขายและสูตร" (ใช้ชิ้นส่วนนี้เป็นแค่ชื่อชุดและที่ผูกหมายเหตุ) หรือเลือก
-                    "ไม่ผูก"
-                  </p>
-                ) : null}
-              </Block>
             </div>
 
             <div className="space-y-4">

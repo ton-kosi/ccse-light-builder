@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
@@ -27,7 +26,7 @@ export type GridLine = QuoteLine & { sales_components: Comp };
 type ComponentOpt = { id: string; code: string; name: string; unit: string; list_price?: number | null; max_discount_percent?: number | null };
 
 const COLS = [
-  "option_name", "zone", "circuit_note", "item_no", "kind", "component",
+  "option_name", "zone", "circuit_note", "item_no", "kind",
   "customer_text", "cut_lengths", "qty", "unit", "unit_price", "discount_percent",
 ] as const;
 type ColKey = (typeof COLS)[number];
@@ -69,7 +68,7 @@ export function BoqGrid({
   const key = ["quote_lines", quotationId];
   const tableRef = useRef<HTMLTableElement>(null);
   const [measurementRevision, setMeasurementRevision] = useState(0);
-  const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 196, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
+  const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
   const trackWidth = (_id: string, _field: string, _value: string) =>
     setMeasurementRevision((old) => old + 1);
 
@@ -167,11 +166,11 @@ export function BoqGrid({
         context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
         return Math.max(0, ...text.split("\n").map((line) => context.measureText(line).width));
       };
-      const widths = Array.from({ length: 16 }, () => 0);
+      const widths = Array.from({ length: 15 }, () => 0);
       for (const row of Array.from(table.rows)) {
         for (const [visibleIndex, cell] of Array.from(row.cells).entries()) {
           if (cell.colSpan !== 1) continue;
-          const index = !canSeeCost && visibleIndex === 14 ? 15 : visibleIndex;
+          const index = !canSeeCost && visibleIndex === 13 ? 14 : visibleIndex;
           const control = cell.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
           let contentWidth = 0;
           if (control) {
@@ -377,7 +376,7 @@ export function BoqGrid({
     }
   };
 
-  const commitText = (l: GridLine, k: Exclude<ColKey, "kind" | "component" | "cut_lengths">, raw: string) => {
+  const commitText = (l: GridLine, k: Exclude<ColKey, "kind" | "cut_lengths">, raw: string) => {
     const numeric = k === "qty" || k === "unit_price" || k === "discount_percent";
     let v: string | number | null;
     if (numeric) {
@@ -429,9 +428,9 @@ export function BoqGrid({
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 14 && !canSeeCost ? 0 : width), 0) }}>
+        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 13 && !canSeeCost ? 0 : width), 0) }}>
           <colgroup>
-            {columnWidths.map((width, index) => index === 14 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
+            {columnWidths.map((width, index) => index === 13 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
           </colgroup>
           <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
@@ -441,7 +440,6 @@ export function BoqGrid({
               <H>เลขวงจร</H>
               <H>Item</H>
               <H>ประเภท</H>
-              <H>ชิ้นส่วนขาย</H>
               <H>รายละเอียด (ลูกค้าเห็น)</H>
               <H>ความยาวตัด (ม.)</H>
               <H w="text-right">จำนวนรวม</H>
@@ -546,36 +544,8 @@ export function BoqGrid({
                       </select>
                     </td>
                     <td className="px-0.5 py-0.5">
-                      <ComponentPicker
-                        cell={`${r}:5`}
-                        components={components}
-                        value={l.sales_components ? `${l.sales_components.code}` : ""}
-                        disabled={!canEdit}
-                        onKeyDown={(e) => onKey(e, r, 5)}
-                        onDraftChange={(value) => trackWidth(l.id, "component", value)}
-                        onPick={(c) => {
-                          if ((c?.id ?? null) === l.component_id) return;
-                          setLocal((rows) =>
-                            rows.map((x) =>
-                              x.id === l.id
-                                ? { ...x, sales_components: c ? { code: c.code, name: c.name, unit: c.unit } : null }
-                                : x,
-                            ),
-                          );
-                          update.mutate({
-                            id: l.id,
-                            patch: {
-                              component_id: c?.id ?? null,
-                              ...(c ? { unit: c.unit } : {}),
-                              ...(c && c.list_price != null ? { unit_price: c.list_price, discount_percent: 0 } : {}),
-                            },
-                          });
-                        }}
-                      />
-                    </td>
-                    <td className="px-0.5 py-0.5">
                        <DescriptionCell
-                        cell={`${r}:6`}
+                        cell={`${r}:5`}
                         value={l.customer_text ?? ""}
                         placeholder={l.sales_components?.name ?? ""}
                         disabled={!canEdit}
@@ -583,19 +553,19 @@ export function BoqGrid({
                         onCommit={(v) => commitText(l, "customer_text", v)}
                          onKeyDown={(e) => {
                            if (["Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
-                           onKey(e, r, 6);
+                           onKey(e, r, 5);
                          }}
                       />
                     </td>
                      <td className="px-0.5 py-0.5">
                        <CellInput
-                         cell={`${r}:7`}
+                         cell={`${r}:6`}
                         value={formatCutLengths(l.cut_lengths)}
                         placeholder="1.50+1.40"
                          onDraftChange={(value) => trackWidth(l.id, "cut_lengths", value)}
                         disabled={!canEdit}
                         onCommit={(v) => commitCut(l, v)}
-                        onKeyDown={(e) => onKey(e, r, 7)}
+                        onKeyDown={(e) => onKey(e, r, 6)}
                       />
                        {cutSum !== null ? (
                         <div className="px-1.5 text-[11px] not-italic text-muted-foreground">
@@ -603,9 +573,9 @@ export function BoqGrid({
                         </div>
                       ) : null}
                     </td>
-                    {txt("qty", 8, "text-right")}
-                    {txt("unit", 9)}
-                    {txt("unit_price", 10, "text-right")}
+                    {txt("qty", 7, "text-right")}
+                    {txt("unit", 8)}
+                    {txt("unit_price", 9, "text-right")}
                     {(() => {
                       const max = !isFo && l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
                       return (
@@ -614,14 +584,14 @@ export function BoqGrid({
                           title={isFo ? "แก้ราคา/ส่วนลดชุด FO ที่ปุ่ม แก้ชุด FO" : max != null ? `ลดได้สูงสุด ${max}%` : undefined}
                         >
                           <CellInput
-                            cell={`${r}:11`}
+                            cell={`${r}:10`}
                             value={String(l.discount_percent ?? "")}
                             placeholder={max != null ? `≤${max}` : ""}
                             disabled={!canEdit || isFo}
                             className="text-right"
                             onDraftChange={(value) => trackWidth(l.id, "discount_percent", value)}
                             onCommit={(v) => commitText(l, "discount_percent", v)}
-                            onKeyDown={(e) => onKey(e, r, 11)}
+                            onKeyDown={(e) => onKey(e, r, 10)}
                           />
                           {max != null ? <div className="px-1 text-right text-xs text-muted-foreground">สูงสุด<br />{max}%</div> : null}
                         </td>
@@ -697,7 +667,7 @@ export function BoqGrid({
             })}
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={16} className="px-3 py-4 text-muted-foreground">
+                <td colSpan={15} className="px-3 py-4 text-muted-foreground">
                   ยังไม่มีรายการ BOQ
                 </td>
               </tr>
@@ -745,7 +715,6 @@ export function BoqGrid({
         <FoSetDialog
           target={foTarget}
           quotationId={quotationId}
-          components={components}
           canSeeCost={canSeeCost}
           createLine={createLineAtEnd}
           onClose={() => setFoTarget(null)}
@@ -869,131 +838,3 @@ function CellInput({
   );
 }
 
-function ComponentPicker({
-  cell,
-  components,
-  value,
-  disabled,
-  onPick,
-  onKeyDown,
-  onDraftChange,
-}: {
-  cell: string;
-  components: ComponentOpt[];
-  value: string;
-  disabled?: boolean;
-  onPick: (c: ComponentOpt | null) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onDraftChange?: (value: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [position, setPosition] = useState({ left: 0, top: 0, width: 400 });
-  const [q, setQ] = useState(value);
-  const [open, setOpen] = useState(false);
-  const [hi, setHi] = useState(0);
-  useEffect(() => setQ(value), [value]);
-  const matches = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return components.slice(0, 12);
-    return components
-      .filter((c) => c.code.toLowerCase().includes(t) || c.name.toLowerCase().includes(t))
-      .slice(0, 12);
-  }, [q, components]);
-
-  useEffect(() => {
-    if (!open) return;
-    const place = () => {
-      const rect = inputRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const width = Math.min(520, window.innerWidth - 24);
-      setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: rect.bottom + 4, width });
-    };
-    place();
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
-  }, [open]);
-
-  const pick = (c: ComponentOpt | null) => {
-    setOpen(false);
-    setQ(c?.code ?? "");
-    onDraftChange?.(c?.code ?? "");
-    onPick(c);
-  };
-
-  return (
-    <div className="relative">
-      <input
-        ref={inputRef}
-        role="combobox"
-        aria-label="ชิ้นส่วนขาย"
-        aria-expanded={open}
-        aria-controls={`components-${cell}`}
-        aria-autocomplete="list"
-        data-boq-cell={cell}
-        className={cellCls}
-        value={q}
-        disabled={disabled}
-        placeholder="ค้นหารหัส/ชื่อ"
-        onFocus={() => { setHi(0); setOpen(true); }}
-        onChange={(e) => {
-          setQ(e.target.value);
-          onDraftChange?.(e.target.value);
-          setOpen(true);
-          setHi(0);
-        }}
-        onBlur={() => {
-          setTimeout(() => setOpen(false), 150);
-          if (!q.trim() && value) pick(null);
-          else if (q !== value) { setQ(value); onDraftChange?.(value); }
-        }}
-        onKeyDown={(e) => {
-          if (open && matches.length) {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setHi((h) => Math.min(matches.length - 1, h + 1));
-              return;
-            }
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setHi((h) => Math.max(0, h - 1));
-              return;
-            }
-            if (e.key === "Enter" || e.key === "Tab") {
-              if (e.key === "Enter") e.preventDefault();
-              pick(matches[hi]!);
-              return;
-            }
-          }
-          if (e.key === "Escape") {
-            setOpen(false);
-            setQ(value);
-            onDraftChange?.(value);
-            return;
-          }
-          onKeyDown(e);
-        }}
-      />
-      {open ? createPortal(
-        <ul id={`components-${cell}`} role="listbox" aria-label="ชิ้นส่วนขายที่พบ" style={position} className="fixed z-[100] max-h-80 overflow-auto rounded-md border border-border bg-popover py-1 text-base not-italic font-normal text-popover-foreground shadow-md">
-          {!matches.length ? <li className="px-3 py-3 text-muted-foreground">ไม่พบชิ้นส่วนขาย</li> : null}
-          {matches.map((c, i) => (
-            <li
-              key={c.id}
-              role="option"
-              aria-selected={i === hi}
-              className={"cursor-pointer px-3 py-3 " + (i === hi ? "bg-accent" : "")}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(c);
-              }}
-            >
-              <span className="font-mono text-sm">{c.code}</span> — {c.name}{" "}
-              <span className="text-xs text-muted-foreground">({c.unit})</span>
-            </li>
-          ))}
-        </ul>, document.body
-      ) : null}
-    </div>
-  );
-}

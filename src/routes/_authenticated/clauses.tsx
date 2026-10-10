@@ -461,7 +461,7 @@ function LinkSkusDialog({
         </div>
         {data?.legacy.length ? (
           <div className="text-sm">
-            <div className="mb-1 font-medium">ผูกกับชิ้นส่วนขายแบบเดิม</div>
+            <div className="mb-1 font-medium">ลิงก์แบบเก่า (เอาออกได้)</div>
             {data.legacy.map((l) => {
               const sc = l.sales_components as { code: string; name: string } | null;
               return (

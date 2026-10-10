@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedClausesRouteImport } from './routes/_authenticated/clauses'
-import { Route as AuthenticatedComponentsRouteImport } from './routes/_authenticated/components'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPurchaseRequestsRouteImport } from './routes/_authenticated/purchase-requests'
@@ -47,11 +46,6 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedClausesRoute = AuthenticatedClausesRouteImport.update({
   id: '/clauses',
   path: '/clauses',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedComponentsRoute = AuthenticatedComponentsRouteImport.update({
-  id: '/components',
-  path: '/components',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
@@ -140,7 +134,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/clauses': typeof AuthenticatedClausesRoute
-  '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
@@ -161,7 +154,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/clauses': typeof AuthenticatedClausesRoute
-  '/components': typeof AuthenticatedComponentsRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
@@ -184,7 +176,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/clauses': typeof AuthenticatedClausesRoute
-  '/_authenticated/components': typeof AuthenticatedComponentsRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/purchase-requests': typeof AuthenticatedPurchaseRequestsRoute
@@ -207,7 +198,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/clauses'
-    | '/components'
     | '/customers'
     | '/dashboard'
     | '/purchase-requests'
@@ -228,7 +218,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/clauses'
-    | '/components'
     | '/customers'
     | '/dashboard'
     | '/purchase-requests'
@@ -250,7 +239,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/clauses'
-    | '/_authenticated/components'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
     | '/_authenticated/purchase-requests'
@@ -305,13 +293,6 @@ declare module '@tanstack/react-router' {
       path: '/clauses'
       fullPath: '/clauses'
       preLoaderRoute: typeof AuthenticatedClausesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/components': {
-      id: '/_authenticated/components'
-      path: '/components'
-      fullPath: '/components'
-      preLoaderRoute: typeof AuthenticatedComponentsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/customers': {
@@ -424,7 +405,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedClausesRoute: typeof AuthenticatedClausesRoute
-  AuthenticatedComponentsRoute: typeof AuthenticatedComponentsRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedPurchaseRequestsRoute: typeof AuthenticatedPurchaseRequestsRoute
@@ -441,7 +421,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClausesRoute: AuthenticatedClausesRoute,
-  AuthenticatedComponentsRoute: AuthenticatedComponentsRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedPurchaseRequestsRoute: AuthenticatedPurchaseRequestsRoute,

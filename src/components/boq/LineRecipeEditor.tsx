@@ -100,11 +100,10 @@ export function LineRecipeEditor({
 
   return (
     <div className="space-y-5">
+      {componentId ? (
       <section>
-        <h3 className="text-sm font-semibold">สูตรมาตรฐานจากชิ้นส่วนขาย (อ่านอย่างเดียว)</h3>
-        {!componentId ? (
-          <p className="mt-1 text-sm text-muted-foreground">บรรทัดนี้ไม่ได้ผูกกับชิ้นส่วนขาย</p>
-        ) : (
+        <h3 className="text-sm font-semibold">สูตรมาตรฐาน (บรรทัดแบบเก่า · อ่านอย่างเดียว)</h3>
+        {(
           <table className="mt-2 w-full text-sm">
             <thead className="bg-muted text-left text-xs text-muted-foreground">
               <tr>
@@ -135,6 +134,7 @@ export function LineRecipeEditor({
           </table>
         )}
       </section>
+      ) : null}
 
       <section>
         <h3 className="text-sm font-semibold">รายการเพิ่มเติมเฉพาะบรรทัดนี้ (จำนวนรวมทั้งบรรทัด)</h3>
