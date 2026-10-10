@@ -18,6 +18,7 @@
  */
 import type { PartPrice } from "@/lib/fo";
 import { inCategory } from "./skuCategory";
+import { jediPercent, profileModel, type Chip, type Diffuser, type MountType } from "./profiles";
 
 export type IpRating = "IP44" | "IP54" | "IP65";
 export type DimType = "NON-DIM" | "0-10V" | "DMX" | "DALI";
@@ -44,7 +45,19 @@ export type LinearConfig = {
   singleJacketSkuId: string | null;
   doubleJacketSkuId: string | null;
   profileSkuId: string | null;
+  /** customer text of the profile line (generated from the choices below, still editable) */
   profileName: string;
+  /** catalogue profile (see profiles.ts); null/absent = profile picked by SKU only */
+  profileModel?: string | null;
+  mount?: MountType;
+  trim?: boolean;
+  diffuser?: Diffuser;
+  /** Jedi % typed by hand; null/absent = from the catalogue */
+  jediPct?: number | null;
+  /** LED facts used for profile / rail fit */
+  chip?: Chip;
+  pcbMm?: number | null;
+  ezClip?: boolean;
   profileExtras: Extra[];
   color: string;
   paintSkuId: string | null;
@@ -90,9 +103,24 @@ export function pickPsu(
   return { ...big, count: Math.ceil(watts / (big.watt * load) - 1e-9) };
 }
 
-export function typeHeading(c: Pick<LinearConfig, "typeCode" | "ledName" | "ip" | "dim">): string {
+/**
+ * Jedi % shown after the LED name: only with a catalogue profile and the Jedi diffuser.
+ * A hand-typed value wins over the catalogue.
+ */
+export function jediOf(c: LinearConfig): number | null {
+  const model = profileModel(c.profileModel);
+  if (!hasProfile(c.ip) || !model || (c.diffuser ?? "JEDI") !== "JEDI") return null;
+  if (c.jediPct != null) return c.jediPct;
+  return jediPercent(model, c.wattPerM, c.chip ?? "STANDARD");
+}
+
+export function typeHeading(
+  c: Pick<LinearConfig, "typeCode" | "ledName" | "ip" | "dim">,
+  jedi: number | null = null,
+): string {
   const code = c.typeCode.trim();
-  return `${code ? `${code} : ` : ""}${c.ledName.trim()} ${c.ip} ${dimLabel(c.dim)}`.trim();
+  const j = jedi != null ? ` (JEDI ${jedi}%)` : "";
+  return `${code ? `${code} : ` : ""}${c.ledName.trim()}${j} ${c.ip} ${dimLabel(c.dim)}`.trim();
 }
 
 export const TAG = "LIN ";
@@ -126,7 +154,7 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
   rows.push({
     id: newId(),
     kind: "heading",
-    customer_text: typeHeading(c),
+    customer_text: typeHeading(c, jediOf(c)),
     qty: null,
     unit: null,
     unit_price: null,

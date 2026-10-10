@@ -30,7 +30,25 @@ import {
   type PsuSkip,
   type IpRating,
   type LinearConfig,
+  jediOf,
 } from "@/lib/linear";
+import {
+  chipOf,
+  DIFFUSERS,
+  fitProblem,
+  jediPercent,
+  matchProfileSku,
+  pcbOf,
+  PROFILE_MODELS,
+  profileModel,
+  profileSize,
+  profileText,
+  railNeeded,
+  railOf,
+  usesEzClip,
+  type Chip,
+  type MountType,
+} from "@/lib/profiles";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { useSkuPrices } from "@/lib/skuPrices";
 
@@ -97,7 +115,9 @@ export function LinearDialog({
   useEffect(() => {
     if (c || !skus) return;
     const led = groups.leds[0];
-    setC({
+    const pcb = pcbOf(led);
+    const model = PROFILE_MODELS.find((m) => !fitProblem(m, pcb)) ?? null;
+    setC(withChoices({
       v: 1,
       blockId: crypto.randomUUID().slice(0, 8),
       typeCode: "",
@@ -111,6 +131,14 @@ export function LinearDialog({
       doubleJacketSkuId: groups.doubleJackets[0]?.id ?? null,
       profileSkuId: groups.profiles[0]?.id ?? null,
       profileName: groups.profiles[0] ? `${groups.profiles[0].name.toUpperCase()} w/ MOUNTING` : "",
+      profileModel: model?.key ?? null,
+      mount: "CLIP",
+      trim: false,
+      diffuser: "JEDI",
+      jediPct: null,
+      chip: chipOf(led),
+      pcbMm: pcb,
+      ezClip: usesEzClip(led),
       profileExtras: [],
       color: "",
       paintSkuId: groups.paints[0]?.id ?? null,
@@ -120,7 +148,8 @@ export function LinearDialog({
       show: { heatsink: false, profile: false, paint: false, psu: false },
       circuits: [{ ckt: "", lengths: [] }],
       rowIds: [],
-    });
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c, skus, groups]);
 
   // PSU choices always follow the dimming type
@@ -131,6 +160,38 @@ export function LinearDialog({
   }, [c, skus, groups]);
 
   const set = (p: Partial<LinearConfig>) => setC((o) => (o ? { ...o, ...p } : o));
+
+  /**
+   * After a profile / LED choice changes: regenerate the profile text, pick the matching profile
+   * SKU and an aluminium rail of the size the profile (or EZ clip) needs.
+   */
+  function withChoices(n: LinearConfig): LinearConfig {
+    let model = profileModel(n.profileModel);
+    const out = { ...n };
+    // a wide PCB doesn't fit V2 W13: move to the W22 of the same depth
+    if (model?.family === "V2.13" && fitProblem(model, n.pcbMm ?? null)) {
+      model = profileModel(model.key.replace("W13", "W22"));
+      out.profileModel = model?.key ?? null;
+    }
+    if (model) {
+      const mount: MountType = model.mounts.includes(n.mount ?? "CLIP")
+        ? (n.mount ?? "CLIP")
+        : model.mounts[0]!;
+      const choice = { model, mount, trim: !!n.trim && model.hasTrim, diffuser: n.diffuser ?? "JEDI" };
+      out.mount = mount;
+      out.trim = choice.trim;
+      out.profileName = profileText(choice);
+      out.profileSkuId = matchProfileSku(groups.profiles, choice)?.id ?? n.profileSkuId;
+    }
+    const rail = railNeeded(hasProfile(n.ip) ? model : null, !!n.ezClip);
+    const current = n.heatsinkSkuId ? byId.get(n.heatsinkSkuId) : undefined;
+    if (rail && (!current || railOf(current) !== rail)) {
+      const fit = groups.heatsinks.find((s) => railOf(s) === rail);
+      if (fit) out.heatsinkSkuId = fit.id;
+    }
+    return out;
+  }
+  const setP = (p: Partial<LinearConfig>) => setC((o) => (o ? withChoices({ ...o, ...p }) : o));
   const built = useMemo(
     () => (c && prices ? buildLinear(c, prices, () => crypto.randomUUID()) : null),
     [c, prices],
@@ -146,6 +207,9 @@ export function LinearDialog({
       if (!(c.wattPerM > 0)) throw new Error("กรุณากรอกวัตต์ต่อเมตร");
       if (!c.circuits.some((k) => circuitLength(k) > 0))
         throw new Error("กรุณาใส่ความยาวอย่างน้อย 1 วงจร");
+      const fitModel = hasProfile(c.ip) ? profileModel(c.profileModel) : null;
+      const bad = fitModel ? fitProblem(fitModel, c.pcbMm ?? null) : null;
+      if (bad) throw new Error(bad);
       if (c.show.psu && !c.psuOptions.length)
         throw new Error(`ไม่มีหม้อแปลงแบบ ${c.dim} ในหมวด Power supply — ดูรายละเอียดใต้หัวข้อ "หม้อแปลง"`);
       if (built.missing.length)
@@ -188,6 +252,13 @@ export function LinearDialog({
   });
 
   const profileOn = c ? hasProfile(c.ip) : false;
+  const model = c && profileOn ? profileModel(c.profileModel) : null;
+  const rail = c ? railNeeded(model, !!c.ezClip) : null;
+  const railFit = rail ? groups.heatsinks.filter((s) => railOf(s) === rail) : [];
+  const railChoices = railFit.length ? railFit : groups.heatsinks;
+  const modelSkus = model
+    ? groups.profiles.filter((s) => model.skuMatch.test(`${s.code} ${s.name}`))
+    : groups.profiles;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -217,10 +288,14 @@ export function LinearDialog({
                       all={skus ?? []}
                       onChange={(id) => {
                         const s = byId.get(id);
-                        set({
+                        setP({
                           ledSkuId: id,
                           ledName: s ? s.name.toUpperCase() : c.ledName,
                           wattPerM: wattPerMOf(s) ?? c.wattPerM,
+                          chip: chipOf(s),
+                          pcbMm: pcbOf(s),
+                          ezClip: usesEzClip(s),
+                          jediPct: null,
                         });
                       }}
                     />
@@ -238,12 +313,40 @@ export function LinearDialog({
                     <Input value={c.ledName} onChange={(e) => set({ ledName: e.target.value })} />
                   </Field>
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  <span className="flex items-center gap-1.5">
+                    ชิป
+                    {(["STANDARD", "NICHIA"] as Chip[]).map((x) => (
+                      <Choice key={x} on={(c.chip ?? "STANDARD") === x} onClick={() => setP({ chip: x, jediPct: null })}>
+                        {x === "STANDARD" ? "Standard" : "Nichia"}
+                      </Choice>
+                    ))}
+                  </span>
+                  <label className="flex items-center gap-1.5">
+                    แผ่นปริ้นกว้าง
+                    <Input
+                      className="h-8 w-16"
+                      inputMode="decimal"
+                      placeholder="?"
+                      value={c.pcbMm != null ? String(c.pcbMm) : ""}
+                      onChange={(e) => setP({ pcbMm: toNumber(e.target.value) })}
+                    />
+                    มม.
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <Checkbox
+                      checked={!!c.ezClip}
+                      onCheckedChange={(v) => setP({ ezClip: v === true })}
+                    />
+                    ใช้ EZ clip (ราง 4/8)
+                  </label>
+                </div>
               </Block>
 
               <Block title="2. IP และระบบดิม">
                 <div className="flex flex-wrap gap-2">
                   {IP_RATINGS.map((ip) => (
-                    <Choice key={ip} on={c.ip === ip} onClick={() => set({ ip: ip as IpRating })}>
+                    <Choice key={ip} on={c.ip === ip} onClick={() => setP({ ip: ip as IpRating })}>
                       {ip}
                     </Choice>
                   ))}
@@ -260,11 +363,11 @@ export function LinearDialog({
 
               <Block title="3. อุปกรณ์">
                 <div className="grid gap-2 text-sm">
-                  <Row label="Heat sink">
+                  <Row label={rail ? `ราง alu. (${rail}")` : "ราง alu. (heat sink)"}>
                     <SkuSelect
                       value={c.heatsinkSkuId}
-                      preferred={groups.heatsinks}
-                      category="LED heat sink"
+                      preferred={railChoices}
+                      category={rail ? `LED heat sink ขนาด ${rail}` : "LED heat sink"}
                       all={skus ?? []}
                       onChange={(id) => set({ heatsinkSkuId: id || null })}
                       noneLabel="— ไม่ใช้ —"
@@ -293,24 +396,94 @@ export function LinearDialog({
                   )}
                   {profileOn ? (
                     <>
-                      <Row label="Profile">
+                      <Row label="รุ่น profile">
+                        <div className="flex flex-wrap gap-1.5">
+                          {PROFILE_MODELS.map((m) => {
+                            const bad = fitProblem(m, c.pcbMm ?? null);
+                            return (
+                              <Choice
+                                key={m.key}
+                                on={c.profileModel === m.key}
+                                disabled={!!bad}
+                                title={bad ?? undefined}
+                                onClick={() => setP({ profileModel: m.key, jediPct: null })}
+                              >
+                                {m.key === "45R" ? "45° Reverse" : `V2 ${m.key}`}
+                              </Choice>
+                            );
+                          })}
+                          <Choice on={!model} onClick={() => setP({ profileModel: null })}>
+                            อื่นๆ
+                          </Choice>
+                        </div>
+                        {model && fitProblem(model, c.pcbMm ?? null) ? (
+                          <p className="mt-1 text-xs font-medium text-destructive">
+                            {fitProblem(model, c.pcbMm ?? null)} — เลือกรุ่นอื่น
+                          </p>
+                        ) : c.pcbMm != null && c.pcbMm > 10 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            แผ่นปริ้นกว้างกว่า 10 มม. — ใส่ V2 W13 และ 45° Reverse ไม่ได้
+                          </p>
+                        ) : null}
+                      </Row>
+                      {model ? (
+                        <>
+                          <Row label="การยึด">
+                            <div className="flex flex-wrap gap-1.5">
+                              {model.mounts.map((x) => (
+                                <Choice key={x} on={c.mount === x} onClick={() => setP({ mount: x })}>
+                                  {x === "SILICONE" ? "Silicone (ไม่มี mounting)" : x.charAt(0) + x.slice(1).toLowerCase()}
+                                </Choice>
+                              ))}
+                            </div>
+                          </Row>
+                          {model.hasTrim ? (
+                            <Row label="Trim">
+                              <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={!!c.trim}
+                                  onCheckedChange={(v) => setP({ trim: v === true })}
+                                />
+                                มีขอบ trim (ขนาดรวมกว้างขึ้น)
+                              </label>
+                            </Row>
+                          ) : null}
+                          <Row label="Diffuser">
+                            <div className="flex flex-wrap gap-1.5">
+                              {DIFFUSERS.map((x) => (
+                                <Choice
+                                  key={x}
+                                  on={(c.diffuser ?? "JEDI") === x}
+                                  onClick={() => setP({ diffuser: x })}
+                                >
+                                  {x.charAt(0) + x.slice(1).toLowerCase()}
+                                </Choice>
+                              ))}
+                            </div>
+                          </Row>
+                          <Row label="สรุป">
+                            <ProfileSummary c={c} onJedi={(v) => set({ jediPct: v })} />
+                          </Row>
+                        </>
+                      ) : null}
+                      <Row label="Profile ที่เบิก">
                         <SkuSelect
                           value={c.profileSkuId}
-                          preferred={groups.profiles}
-                          category="LED profile"
+                          preferred={modelSkus}
+                          category={model ? `LED profile รุ่น ${model.key}` : "LED profile"}
                           all={skus ?? []}
                           onChange={(id) => {
                             const s = byId.get(id);
                             set({
                               profileSkuId: id || null,
-                              profileName: s
-                                ? `${s.name.toUpperCase()} w/ MOUNTING`
-                                : c.profileName,
+                              ...(model
+                                ? {}
+                                : { profileName: s ? `${s.name.toUpperCase()} w/ MOUNTING` : c.profileName }),
                             });
                           }}
                         />
                       </Row>
-                      <Row label="ชื่อ profile ในใบ">
+                      <Row label={model ? "ชื่อ profile ในใบ (สร้างให้ แก้ได้)" : "ชื่อ profile ในใบ"}>
                         <Input
                           value={c.profileName}
                           onChange={(e) => set({ profileName: e.target.value })}
@@ -629,18 +802,24 @@ export function LinearDialog({
 function Choice({
   on,
   onClick,
+  disabled,
+  title,
   children,
 }: {
   on: boolean;
   onClick: () => void;
+  disabled?: boolean;
+  title?: string | undefined;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
+      title={title}
       className={
-        "h-8 rounded-md border px-3 text-sm " +
+        "h-8 rounded-md border px-3 text-sm disabled:cursor-not-allowed disabled:opacity-40 " +
         (on
           ? "border-primary bg-primary text-primary-foreground"
           : "border-input bg-background hover:bg-secondary")
@@ -713,6 +892,57 @@ function PsuInfo({
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/** Overall size, rail size and Jedi % of the chosen profile; Jedi % can be typed over. */
+function ProfileSummary({
+  c,
+  onJedi,
+}: {
+  c: LinearConfig;
+  onJedi: (v: number | null) => void;
+}) {
+  const model = profileModel(c.profileModel)!;
+  const [w, h] = profileSize({
+    model,
+    mount: c.mount ?? "CLIP",
+    trim: !!c.trim,
+    diffuser: c.diffuser ?? "JEDI",
+  });
+  const table = jediPercent(model, c.wattPerM, c.chip ?? "STANDARD");
+  const jedi = jediOf(c);
+  return (
+    <div className="space-y-1 text-sm">
+      <div>
+        ขนาดรวม <b>{w.toFixed(2)} × {h.toFixed(2)} มม.</b> · ราง alu. {railNeeded(model, !!c.ezClip)}"
+      </div>
+      {(c.diffuser ?? "JEDI") === "JEDI" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>
+            Jedi <b>{jedi != null ? `${jedi}%` : "—"}</b>
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {table != null
+              ? `ตามตาราง ${c.wattPerM}W/m ${c.chip === "NICHIA" ? "Nichia" : "Standard"} = ${table}%`
+              : `ไม่มี ${c.wattPerM}W/m ${c.chip === "NICHIA" ? "Nichia" : "Standard"} ในตาราง — ใส่เอง`}
+          </span>
+          <label className="flex items-center gap-1 text-xs">
+            แก้เป็น
+            <Input
+              className="h-7 w-14"
+              inputMode="numeric"
+              placeholder="auto"
+              value={c.jediPct != null ? String(c.jediPct) : ""}
+              onChange={(e) => onJedi(toNumber(e.target.value))}
+            />
+            %
+          </label>
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground">ไม่ใช่ Jedi diffuser — ไม่แสดง Jedi %</div>
+      )}
     </div>
   );
 }
