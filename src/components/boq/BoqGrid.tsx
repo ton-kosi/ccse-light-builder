@@ -430,12 +430,18 @@ export function BoqGrid({
               const cost = lineCost(l);
               const amount = lineAmount(l);
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
+              const isFo = !!foLines?.has(l.id);
               const txt = (k: Parameters<typeof commitText>[1], c: number, extra = "") => (
                 <td className="px-0.5 py-0.5">
                   <CellInput
                     cell={`${r}:${c}`}
                     value={l[k] === null || l[k] === undefined ? "" : String(l[k])}
-                    disabled={!canEdit || (k === "unit" && !!l.component_id)}
+                    disabled={
+                      !canEdit ||
+                      (k === "unit" && !!l.component_id) ||
+                      // FO sets: price, qty and unit are managed in the FO window (where discount limits apply)
+                      (isFo && (k === "unit_price" || k === "qty" || k === "unit"))
+                    }
                     className={extra}
                     onDraftChange={(value) => trackWidth(l.id, k, value)}
                     onCommit={(v) => commitText(l, k, v)}
@@ -563,14 +569,17 @@ export function BoqGrid({
                     {txt("unit", 9)}
                     {txt("unit_price", 10, "text-right")}
                     {(() => {
-                      const max = l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
+                      const max = !isFo && l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
                       return (
-                        <td className="px-0.5 py-0.5" title={max != null ? `ลดได้สูงสุด ${max}%` : undefined}>
+                        <td
+                          className="px-0.5 py-0.5"
+                          title={isFo ? "แก้ราคา/ส่วนลดชุด FO ที่ปุ่ม แก้ชุด FO" : max != null ? `ลดได้สูงสุด ${max}%` : undefined}
+                        >
                           <CellInput
                             cell={`${r}:11`}
                             value={String(l.discount_percent ?? "")}
                             placeholder={max != null ? `≤${max}` : ""}
-                            disabled={!canEdit}
+                            disabled={!canEdit || isFo}
                             className="text-right"
                             onDraftChange={(value) => trackWidth(l.id, "discount_percent", value)}
                             onCommit={(v) => commitText(l, "discount_percent", v)}

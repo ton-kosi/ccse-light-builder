@@ -191,3 +191,63 @@ export function illuminatorDisplayName(s: SkuLite | undefined): string {
         .replace(/illuminator\s*/i, "")
         .trim();
 }
+
+/* ---------------------------------------------------------------- selling price */
+
+/** Selling price per SKU unit, set by admin (from the sales component that sells exactly that SKU). */
+export type PartPrice = { unitPrice: number; maxDiscount: number };
+
+/**
+ * Set price = Σ part qty × part selling price.
+ * Max discount for the set = value-weighted average of the parts' max discounts,
+ * so the set can never be discounted more than its parts allow in total.
+ */
+export function priceFo(rows: FoRecipeRow[], prices: Map<string, PartPrice>) {
+  const parts = rows.map((r) => {
+    const p = prices.get(r.sku_id);
+    return {
+      sku_id: r.sku_id,
+      qty: r.qty,
+      unitPrice: p?.unitPrice ?? null,
+      amount: p ? n2(r.qty * p.unitPrice) : null,
+      maxDiscount: p?.maxDiscount ?? 0,
+    };
+  });
+  const missing = parts.filter((p) => p.unitPrice === null).map((p) => p.sku_id);
+  const list = n2(parts.reduce((s, p) => s + (p.amount ?? 0), 0));
+  const allowed = parts.reduce((s, p) => s + ((p.amount ?? 0) * p.maxDiscount) / 100, 0);
+  const maxDiscount = list > 0 ? Math.floor((allowed / list) * 1000) / 10 : 0;
+  return { parts, list, maxDiscount, missing };
+}
+
+/**
+ * Builds the SKU → selling price map from sales components whose recipe is exactly one SKU
+ * (e.g. component "FO50W" = 1 × SKU FO50W, priced per machine). Price per SKU unit =
+ * list price ÷ recipe qty. Components with several recipe rows (LED assemblies etc.) are ignored.
+ */
+export function partPriceMap(
+  recipes: { component_id: string; sku_id: string; qty_per_unit: number | string }[],
+  prices: {
+    component_id: string;
+    list_price: number | string | null;
+    max_discount_percent: number | string;
+  }[],
+): Map<string, PartPrice & { componentId: string }> {
+  const byComp = new Map<string, typeof recipes>();
+  for (const r of recipes) byComp.set(r.component_id, [...(byComp.get(r.component_id) ?? []), r]);
+  const priceOf = new Map(prices.map((p) => [p.component_id, p]));
+  const out = new Map<string, PartPrice & { componentId: string }>();
+  for (const [componentId, rs] of byComp) {
+    if (rs.length !== 1) continue;
+    const r = rs[0]!;
+    const p = priceOf.get(componentId);
+    const qty = Number(r.qty_per_unit);
+    if (!p || p.list_price === null || !(qty > 0) || out.has(r.sku_id)) continue;
+    out.set(r.sku_id, {
+      componentId,
+      unitPrice: Number(p.list_price) / qty,
+      maxDiscount: Number(p.max_discount_percent),
+    });
+  }
+  return out;
+}

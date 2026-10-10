@@ -117,3 +117,52 @@ test("defaults picked from CCSE SKU names", () => {
   );
   expect(illuminatorDisplayName(ill)).toBe("220Vac HALOGEN 50W STARRY MONO COLOR");
 });
+
+test("set price = sum of part prices; discount limit weighted by value", async () => {
+  const { priceFo, partPriceMap } = await import("./fo.ts");
+  const prices = partPriceMap(
+    [
+      { component_id: "P-ILL", sku_id: "ill50", qty_per_unit: 1 },
+      { component_id: "P-S", sku_id: "c05", qty_per_unit: 1 },
+      { component_id: "P-M", sku_id: "c075", qty_per_unit: 1 },
+      { component_id: "P-L", sku_id: "c1", qty_per_unit: 1 },
+      { component_id: "P-END", sku_id: "end", qty_per_unit: 1 },
+      { component_id: "P-HAR", sku_id: "har", qty_per_unit: 1 },
+      { component_id: "P-PORT", sku_id: "port", qty_per_unit: 1 },
+      { component_id: "P-WP", sku_id: "wp50", qty_per_unit: 1 },
+      // LED assembly with several recipe rows must not be used as a part price
+      { component_id: "LED", sku_id: "c05", qty_per_unit: 1 },
+      { component_id: "LED", sku_id: "led", qty_per_unit: 1 },
+    ],
+    [
+      { component_id: "P-ILL", list_price: 25000, max_discount_percent: 10 },
+      { component_id: "P-S", list_price: 20, max_discount_percent: 20 },
+      { component_id: "P-M", list_price: 40, max_discount_percent: 20 },
+      { component_id: "P-L", list_price: 60, max_discount_percent: 20 },
+      { component_id: "P-END", list_price: 30, max_discount_percent: 0 },
+      { component_id: "P-HAR", list_price: 3000, max_discount_percent: 10 },
+      { component_id: "P-PORT", list_price: 7000, max_discount_percent: 10 },
+      { component_id: "P-WP", list_price: 8000, max_discount_percent: 10 },
+      { component_id: "LED", list_price: 890, max_discount_percent: 50 },
+    ],
+  );
+  expect(prices.get("c05").unitPrice).toBe(20);
+  const r = priceFo(buildFoRecipes(alien), prices);
+  // 2×25000 + 6000×20 + 1120×40 + 400×60 + 1880×30 + 2×3000 + 2×7000 + 2×8000
+  expect(r.list).toBe(50000 + 120000 + 44800 + 24000 + 56400 + 6000 + 14000 + 16000);
+  expect(r.missing).toEqual([]);
+  // allowed = 5000 + 24000 + 8960 + 4800 + 0 + 600 + 1400 + 1600 = 46360 of 331200 → 13.99… → 13.9
+  expect(r.maxDiscount).toBe(13.9);
+});
+
+test("price per SKU unit divides by recipe qty; missing prices are reported", async () => {
+  const { priceFo, partPriceMap } = await import("./fo.ts");
+  const prices = partPriceMap(
+    [{ component_id: "box", sku_id: "end", qty_per_unit: 100 }],
+    [{ component_id: "box", list_price: 2500, max_discount_percent: 5 }],
+  );
+  expect(prices.get("end").unitPrice).toBe(25);
+  const r = priceFo(buildFoRecipes(alien), prices);
+  expect(r.missing).toContain("ill50");
+  expect(r.list).toBe(1880 * 25);
+});

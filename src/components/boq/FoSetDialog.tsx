@@ -20,6 +20,8 @@ import {
   illuminatorDisplayName,
   matchByWatt,
   parseFo,
+  partPriceMap,
+  priceFo,
   totalPoints,
   type FoConfig,
 } from "@/lib/fo";
@@ -91,8 +93,23 @@ export function FoSetDialog({
   const [option, setOption] = useState(
     editing ? (editing.option_name ?? "") : target.mode === "new" ? (target.option ?? "") : "",
   );
-  const [price, setPrice] = useState(editing?.unit_price != null ? String(editing.unit_price) : "");
-  const [factor, setFactor] = useState("2");
+  const [disc, setDisc] = useState(
+    editing?.discount_percent != null ? String(Number(editing.discount_percent)) : "0",
+  );
+
+  // Selling price of each part = price of the sales component that sells exactly that SKU (set by admin).
+  const { data: partPrices } = useQuery({
+    queryKey: ["fo_part_prices"],
+    queryFn: async () => {
+      const [r, p] = await Promise.all([
+        supabase.from("recipes").select("component_id, sku_id, qty_per_unit"),
+        supabase.from("component_prices").select("component_id, list_price, max_discount_percent"),
+      ]);
+      if (r.error) throw r.error;
+      if (p.error) throw p.error;
+      return partPriceMap(r.data, p.data);
+    },
+  });
   const [componentId, setComponentId] = useState<string>(editing?.component_id ?? "");
 
   // Initialise once data is in: from the saved set, or from smart defaults.
@@ -142,8 +159,80 @@ export function FoSetDialog({
   const text = c ? buildFoText(c) : "";
   const cost = rows.reduce((s, r) => s + r.qty * (costs?.get(r.sku_id) ?? 0), 0);
   const missingCost = canSeeCost && costs ? rows.filter((r) => !costs.has(r.sku_id)) : [];
-  const priceNum = toNumber(price) ?? 0;
-  const gp = priceNum > 0 ? ((priceNum - cost) / priceNum) * 100 : null;
+  const pricing = priceFo(rows, partPrices ?? new Map());
+  const discNum = toNumber(disc) ?? 0;
+  const net = Math.round(pricing.list * (1 - discNum / 100) * 100) / 100;
+  const gp = canSeeCost && net > 0 ? ((net - cost) / net) * 100 : null;
+  const discTooHigh = discNum > pricing.maxDiscount + 1e-9;
+
+  /** Admin: set the selling price of one part (creates a one-SKU sales component the first time). */
+  const setPartPrice = useMutation({
+    mutationFn: async (p: { skuId: string; unitPrice?: number; maxDiscount?: number }) => {
+      const sku = byId.get(p.skuId);
+      if (!sku) throw new Error("ไม่พบ SKU");
+      const { data: uses, error: e1 } = await supabase
+        .from("recipes")
+        .select("component_id, qty_per_unit")
+        .eq("sku_id", p.skuId);
+      if (e1) throw e1;
+      let compId: string | null = null;
+      let perUnit = 1;
+      if (uses.length) {
+        const { data: all, error: e2 } = await supabase
+          .from("recipes")
+          .select("component_id")
+          .in(
+            "component_id",
+            uses.map((u) => u.component_id),
+          );
+        if (e2) throw e2;
+        const single = uses.find(
+          (u) => all.filter((a) => a.component_id === u.component_id).length === 1,
+        );
+        if (single) {
+          compId = single.component_id;
+          perUnit = Number(single.qty_per_unit) || 1;
+        }
+      }
+      if (!compId) {
+        const { data: same } = await supabase
+          .from("sales_components")
+          .select("code")
+          .like("code", `P-${sku.code}%`);
+        const code = same?.length ? `P-${sku.code}-${same.length + 1}` : `P-${sku.code}`;
+        const { data: comp, error: e3 } = await supabase
+          .from("sales_components")
+          .insert({
+            code,
+            name: sku.name,
+            unit: sku.unit,
+            notes: "ราคาขายต่อชิ้น สำหรับคำนวณชุด FO",
+          })
+          .select("id")
+          .single();
+        if (e3) throw e3;
+        compId = comp.id;
+        const { error: e4 } = await supabase
+          .from("recipes")
+          .insert({ component_id: compId, sku_id: p.skuId, qty_per_unit: 1 });
+        if (e4) throw e4;
+      }
+      const cur = partPrices?.get(p.skuId);
+      const unitPrice = p.unitPrice ?? cur?.unitPrice ?? 0;
+      const maxDiscount = p.maxDiscount ?? cur?.maxDiscount ?? 0;
+      const { error: e5 } = await supabase.from("component_prices").upsert({
+        component_id: compId,
+        list_price: Math.round(unitPrice * perUnit * 100) / 100,
+        max_discount_percent: maxDiscount,
+      });
+      if (e5) throw e5;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["fo_part_prices"] });
+      qc.invalidateQueries({ queryKey: ["sales_components"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const set = (patch: Partial<FoConfig>) => setC((old) => (old ? { ...old, ...patch } : old));
   const setIlluminator = (id: string) => {
@@ -171,12 +260,19 @@ export function FoSetDialog({
       if (c.sizes.some((z) => z.points > 0 && !z.skuId))
         throw new Error("กรุณาเลือกสายของทุกขนาดที่มีจุด");
       if (!(c.lengthPerPoint > 0)) throw new Error("กรุณากรอกความยาวสายต่อจุด");
+      if (!partPrices) throw new Error("กำลังโหลดราคาขาย");
+      if (pricing.missing.length)
+        throw new Error(
+          `ยังไม่มีราคาขายของ ${pricing.missing.map((id) => byId.get(id)?.code).join(", ")} — ให้ admin ตั้งราคาก่อน`,
+        );
+      if (discTooHigh) throw new Error(`ส่วนลดสูงสุดของชุดนี้คือ ${pricing.maxDiscount}%`);
       const fields = {
         kind: "priced",
         qty: 1,
         unit: "SET",
         customer_text: text,
-        unit_price: priceNum || null,
+        unit_price: pricing.list,
+        discount_percent: discNum,
         component_id: componentId || null,
         option_name: option.trim() || null,
       };
@@ -470,76 +566,142 @@ export function FoSetDialog({
               </Block>
 
               {canSeeCost ? (
-                <Block title="ต้นทุน (ภายใน)">
+                <Block title="ราคาขายแต่ละชิ้น (admin เท่านั้น)">
                   <table className="w-full text-xs">
+                    <thead className="text-left text-muted-foreground">
+                      <tr>
+                        <th className="pb-1 font-medium">ชิ้น</th>
+                        <th className="pb-1 text-right font-medium">ราคา/หน่วย</th>
+                        <th className="pb-1 text-right font-medium">ลด≤%</th>
+                        <th className="pb-1 text-right font-medium">รวม</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {rows.map((r, i) => {
-                        const s = byId.get(r.sku_id);
-                        const u = costs?.get(r.sku_id);
+                      {pricing.parts.map((pt, i) => {
+                        const s = byId.get(pt.sku_id);
+                        const u = costs?.get(pt.sku_id);
                         return (
-                          <tr key={i} className="border-t border-border">
-                            <td className="py-1 pr-1">{s?.code}</td>
-                            <td className="py-1 pr-1 text-right tabular-nums">
-                              {formatQty(r.qty)} {s?.unit}
+                          <tr key={i} className="border-t border-border align-middle">
+                            <td className="py-1 pr-1">
+                              <div>{s?.code}</div>
+                              <div className="text-muted-foreground">
+                                {formatQty(pt.qty)} {s?.unit}
+                                {u !== undefined ? ` · ทุน ${formatTHB(u)}` : " · ไม่มีทุน"}
+                              </div>
+                            </td>
+                            <td className="py-1 pr-1">
+                              <Input
+                                key={`p${pt.sku_id}${pt.unitPrice}`}
+                                className={
+                                  "h-7 w-20 text-right text-xs " +
+                                  (pt.unitPrice === null ? "border-destructive" : "")
+                                }
+                                defaultValue={pt.unitPrice === null ? "" : String(pt.unitPrice)}
+                                placeholder="ตั้งราคา"
+                                onBlur={(e) => {
+                                  const v = toNumber(e.target.value);
+                                  if (v !== null && v !== pt.unitPrice)
+                                    setPartPrice.mutate({ skuId: pt.sku_id, unitPrice: v });
+                                }}
+                              />
+                            </td>
+                            <td className="py-1 pr-1">
+                              <Input
+                                key={`d${pt.sku_id}${pt.maxDiscount}`}
+                                className="h-7 w-12 text-right text-xs"
+                                defaultValue={String(pt.maxDiscount)}
+                                disabled={pt.unitPrice === null}
+                                onBlur={(e) => {
+                                  const v = toNumber(e.target.value);
+                                  if (v !== null && v !== pt.maxDiscount)
+                                    setPartPrice.mutate({
+                                      skuId: pt.sku_id,
+                                      maxDiscount: Math.min(100, Math.max(0, v)),
+                                    });
+                                }}
+                              />
                             </td>
                             <td className="py-1 text-right tabular-nums">
-                              {u === undefined ? "?" : formatTHB(r.qty * u)}
+                              {pt.amount === null ? "?" : formatTHB(pt.amount)}
                             </td>
                           </tr>
                         );
                       })}
-                      <tr className="border-t-2 border-border font-semibold">
-                        <td className="py-1" colSpan={2}>
-                          ต้นทุนรวม
-                        </td>
-                        <td className="py-1 text-right tabular-nums">{formatTHB(cost)}</td>
-                      </tr>
                     </tbody>
                   </table>
-                  {missingCost.length ? (
-                    <p className="mt-1 text-xs text-warning">
-                      ยังไม่มีต้นทุน: {missingCost.map((r) => byId.get(r.sku_id)?.code).join(", ")}
-                    </p>
-                  ) : null}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ตั้งครั้งเดียว ใช้กับทุกชุด FO · ราคาต่อเครื่อง / ต่อเมตร / ต่อจุด ตามหน่วยของ
+                    SKU
+                  </p>
+                  <div className="mt-2 space-y-0.5 border-t border-border pt-2 text-xs">
+                    <div className="flex justify-between">
+                      <span>ต้นทุนรวม</span>
+                      <span className="tabular-nums">{formatTHB(cost)}</span>
+                    </div>
+                    {gp !== null ? (
+                      <div
+                        className={
+                          "flex justify-between font-medium " + (gp < 20 ? "text-destructive" : "")
+                        }
+                      >
+                        <span>กำไรขั้นต้น (หลังส่วนลด)</span>
+                        <span className="tabular-nums">
+                          {formatTHB(net - cost)} ({gp.toFixed(1)}%)
+                        </span>
+                      </div>
+                    ) : null}
+                    {missingCost.length ? (
+                      <div className="text-warning">
+                        ยังไม่มีต้นทุน:{" "}
+                        {missingCost.map((r) => byId.get(r.sku_id)?.code).join(", ")}
+                      </div>
+                    ) : null}
+                  </div>
                 </Block>
               ) : null}
 
               <Block title="ราคาขายต่อชุด">
-                <Input
-                  className="text-right text-base tabular-nums"
-                  inputMode="decimal"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0.00"
-                />
-                {canSeeCost ? (
-                  <>
-                    <div className="mt-2 flex items-center gap-1.5 text-xs">
-                      ต้นทุน ×
-                      <Input
-                        className="h-7 w-14 text-xs"
-                        value={factor}
-                        onChange={(e) => setFactor(e.target.value)}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7"
-                        disabled={!cost}
-                        onClick={() =>
-                          setPrice(String(Math.ceil((cost * (toNumber(factor) ?? 1)) / 100) * 100))
-                        }
-                      >
-                        ใช้ราคานี้
-                      </Button>
+                {pricing.missing.length ? (
+                  <p className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+                    ยังไม่มีราคาขายของบางชิ้น (
+                    {pricing.missing.map((id) => byId.get(id)?.code).join(", ")}) —
+                    {canSeeCost ? " ตั้งราคาในตารางด้านบน" : " ติดต่อ admin ให้ตั้งราคาก่อน"}
+                  </p>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-muted-foreground">ราคาเต็ม</span>
+                      <span className="text-base font-semibold tabular-nums">
+                        {formatTHB(pricing.list)}
+                      </span>
                     </div>
-                    {gp !== null ? (
-                      <p className={"mt-2 text-sm " + (gp < 20 ? "text-destructive" : "")}>
-                        กำไรขั้นต้น {formatTHB(priceNum - cost)} บาท ({gp.toFixed(1)}%)
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        ส่วนลด (สูงสุด {pricing.maxDiscount}%)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Input
+                          className={
+                            "h-8 w-16 text-right " + (discTooHigh ? "border-destructive" : "")
+                          }
+                          inputMode="decimal"
+                          value={disc}
+                          onChange={(e) => setDisc(e.target.value)}
+                        />
+                        %
+                      </span>
+                    </div>
+                    {discTooHigh ? (
+                      <p className="text-xs text-destructive">
+                        ลดได้ไม่เกิน {pricing.maxDiscount}%
                       </p>
                     ) : null}
-                  </>
-                ) : null}
+                    <div className="flex items-baseline justify-between border-t border-border pt-2">
+                      <span>ราคาสุทธิต่อชุด</span>
+                      <span className="text-base font-semibold tabular-nums">{formatTHB(net)}</span>
+                    </div>
+                  </div>
+                )}
               </Block>
             </div>
           </div>
