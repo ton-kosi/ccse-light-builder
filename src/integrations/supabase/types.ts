@@ -1702,6 +1702,10 @@ export type Database = {
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
+      refresh_sku_cost_from_purchases: {
+        Args: { _sku: string }
+        Returns: undefined
+      }
       sync_quotation_clauses: { Args: { _qid: string }; Returns: undefined }
       user_display_names: {
         Args: { _ids: string[] }
