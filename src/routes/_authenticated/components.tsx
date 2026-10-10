@@ -225,6 +225,15 @@ function ComponentsPage() {
                 readOnly={!canEditMaster}
                 pending={save.isPending}
                 onSubmit={(form) => save.mutate({ id: editing.id, form })}
+                onDelete={
+                  editing.id && canEditMaster
+                    ? () => {
+                        if (window.confirm(`ยืนยันลบชิ้นส่วน "${editing.form.code}"? รายการในสูตรจะถูกลบไปด้วย`)) {
+                          removeComp.mutate(editing.id!);
+                        }
+                      }
+                    : undefined
+                }
               />
               {editing.id ? (
                 <>
