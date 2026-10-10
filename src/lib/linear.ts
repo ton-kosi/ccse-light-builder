@@ -2,7 +2,7 @@
  * LED linear block builder (THE PANO style):
  *
  *   LTI1 : LED STRIP 18W/M 24V ... IP54 DALI-DIM          ← type heading
- *     CKT. NO. BRA-01                                      ← circuit heading
+ *     CKT. NO. BRA-01                                      ← circuit heading (only when a number is given)
  *     - L = 3.20M                       3.20 M.  @price    ← LED row (always shown)
  *     - ALUMINIUM HEAT DISSIPATION & SINGLE JACKET  3.20 M. ← shown if ticked
  *     - <profile name>                  3.20 M.            ← IP54/IP65 only, shown if ticked
@@ -137,18 +137,20 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
   const jacketWord = isDoubleJacket(c.ip) ? "DOUBLE" : "SINGLE";
   const withProfile = hasProfile(c.ip) && !!c.profileSkuId;
 
-  c.circuits.forEach((ck, i) => {
+  c.circuits.forEach((ck) => {
     const L = circuitLength(ck);
     if (!(L > 0)) return;
-    rows.push({
-      id: newId(),
-      kind: "heading",
-      customer_text: `CKT. NO. ${ck.ckt.trim() || i + 1}`,
-      qty: null,
-      unit: null,
-      unit_price: null,
-      recipes: [],
-    });
+    // no circuit number = no "CKT. NO." line on the quotation
+    if (ck.ckt.trim())
+      rows.push({
+        id: newId(),
+        kind: "heading",
+        customer_text: `CKT. NO. ${ck.ckt.trim()}`,
+        qty: null,
+        unit: null,
+        unit_price: null,
+        recipes: [],
+      });
 
     const led: LinRow = {
       id: newId(),

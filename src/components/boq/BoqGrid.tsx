@@ -119,6 +119,21 @@ export function BoqGrid({
     const bid = setLines?.rowBlock.get(id);
     return bid ? (setLines?.blocks.get(bid) ?? null) : null;
   };
+  /** Reopens the linear / FO window a row was built in. */
+  const openSet = (l: GridLine) => {
+    const lin = linBlockOf(l.id);
+    if (lin) {
+      const blockRows = lines.filter((x) => lin.rowIds.includes(x.id));
+      const priced = blockRows.find((x) => x.kind === "priced");
+      setLinTarget({
+        mode: "edit",
+        config: lin,
+        option: blockRows[0]?.option_name ?? null,
+        zone: blockRows[0]?.zone ?? null,
+        discount: Number(priced?.discount_percent ?? 0),
+      });
+    } else if (foLines?.has(l.id)) setFoTarget({ mode: "edit", line: l });
+  };
   const { data: costs } = useQuery({
     queryKey: ["boq_costs", quotationId, lineIds.join(","), compIds.join(",")],
     enabled: canSeeCost && lines.length > 0,
@@ -467,6 +482,10 @@ export function BoqGrid({
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
               const lin = linBlockOf(l.id);
               const isFo = !!foLines?.has(l.id) || !!lin;
+              // first line of a linear block / the FO line carries the "edit set" shortcut
+              const setStart = lin
+                ? lines.find((x) => lin.rowIds.includes(x.id))?.id === l.id
+                : !!foLines?.has(l.id);
               const txt = (k: Parameters<typeof commitText>[1], c: number, extra = "") => (
                 <td className="px-0.5 py-0.5">
                   <CellInput
@@ -544,11 +563,21 @@ export function BoqGrid({
                       </select>
                     </td>
                     <td className="px-0.5 py-0.5">
+                      {setStart ? (
+                        <button
+                          type="button"
+                          className="mx-1 mt-1 rounded border border-primary/40 bg-primary/5 px-2 py-0.5 text-xs font-medium not-italic text-primary hover:bg-primary/10"
+                          onClick={() => openSet(l)}
+                        >
+                          ✎ {canEdit ? "แก้" : "ดู"}{lin ? "ชุดไฟเส้น" : "ชุด FO"}
+                        </button>
+                      ) : null}
                        <DescriptionCell
                         cell={`${r}:5`}
                         value={l.customer_text ?? ""}
                         placeholder={l.sales_components?.name ?? ""}
-                        disabled={!canEdit}
+                        disabled={!canEdit && !isFo}
+                        {...(isFo ? { onOpen: () => openSet(l) } : {})}
                          onDraftChange={(value) => trackWidth(l.id, "customer_text", value)}
                         onCommit={(v) => commitText(l, "customer_text", v)}
                          onKeyDown={(e) => {
@@ -612,17 +641,7 @@ export function BoqGrid({
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-primary"
-                            onClick={() => {
-                              const blockRows = lines.filter((x) => lin.rowIds.includes(x.id));
-                              const priced = blockRows.find((x) => x.kind === "priced");
-                              setLinTarget({
-                                mode: "edit",
-                                config: lin,
-                                option: blockRows[0]?.option_name ?? null,
-                                zone: blockRows[0]?.zone ?? null,
-                                discount: Number(priced?.discount_percent ?? 0),
-                              });
-                            }}
+                            onClick={() => openSet(l)}
                           >
                             {canEdit ? "แก้ชุดไฟเส้น" : "ดูชุดไฟเส้น"}
                           </Button>
@@ -767,11 +786,13 @@ function H({ children, w = "", internal }: { children: React.ReactNode; w?: stri
   );
 }
 
-function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDown, onDraftChange }: {
+function DescriptionCell({ cell, value, placeholder, disabled, onOpen, onCommit, onKeyDown, onDraftChange }: {
   cell: string;
   value: string;
   placeholder?: string;
   disabled?: boolean;
+  /** Rows made by the linear / FO windows: text is read-only here, click (or Enter) reopens the window. */
+  onOpen?: () => void;
   onDraftChange?: (value: string) => void;
   onCommit: (value: string) => boolean;
   onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -786,12 +807,18 @@ function DescriptionCell({ cell, value, placeholder, disabled, onCommit, onKeyDo
       value={draft}
       placeholder={placeholder}
       disabled={disabled}
+      readOnly={!!onOpen}
+      title={onOpen ? "คลิกเพื่อแก้ในหน้าต่างชุด" : undefined}
        rows={Math.max(2, shown.split("\n").length)}
        wrap="off"
-       className="w-full min-w-0 max-w-none resize-y whitespace-pre border-transparent bg-transparent px-2 py-2 text-base shadow-none"
+       className={"w-full min-w-0 max-w-none resize-y whitespace-pre border-transparent bg-transparent px-2 py-2 text-base shadow-none" + (onOpen ? " cursor-pointer hover:bg-primary/5" : "")}
+      onClick={onOpen}
       onChange={(e) => { setDraft(e.target.value); onDraftChange?.(e.target.value); }}
-      onKeyDown={onKeyDown}
-      onBlur={() => { if (!onCommit(draft)) { setDraft(value); onDraftChange?.(value || placeholder || ""); } }}
+      onKeyDown={(e) => {
+        if (onOpen && e.key === "Enter") { e.preventDefault(); onOpen(); return; }
+        onKeyDown(e);
+      }}
+      onBlur={() => { if (onOpen) return; if (!onCommit(draft)) { setDraft(value); onDraftChange?.(value || placeholder || ""); } }}
     />
   );
 }

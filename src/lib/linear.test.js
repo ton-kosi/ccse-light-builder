@@ -193,3 +193,13 @@ test("PSU names CCSE actually uses are recognised", () => {
   expect(r.options).toEqual([{ skuId: "A", watt: 100 }]);
   expect(r.skipped.map((x) => x.id)).toEqual(["B", "C"]);
 });
+
+test("no circuit number = no CKT. NO. line", () => {
+  const { rows } = buildLinear(
+    { ...base, circuits: [{ ckt: "", lengths: [2] }, { ckt: " ", lengths: [1] }] },
+    PRICES,
+    ids,
+  );
+  expect(rows.some((r) => r.customer_text.startsWith("CKT"))).toBe(false);
+  expect(rows.filter((r) => r.customer_text.startsWith("- L =")).length).toBe(2);
+});

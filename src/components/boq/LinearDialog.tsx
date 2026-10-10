@@ -116,7 +116,8 @@ export function LinearDialog({
       paintSkuId: groups.paints[0]?.id ?? null,
       psuOptions: groups.psuFor("DALI"),
       loadFactor: 0.8,
-      show: { heatsink: true, profile: true, paint: true, psu: true },
+      // default: prices folded into the LED line; tick an item to price it on its own line
+      show: { heatsink: false, profile: false, paint: false, psu: false },
       circuits: [{ ckt: "", lengths: [] }],
       rowIds: [],
     });
@@ -431,6 +432,8 @@ export function LinearDialog({
                           <td className="py-1 pr-2">
                             <Input
                               value={k.ckt}
+                              placeholder="ไม่แสดง"
+                              title="ไม่ใส่เลขวงจร = ไม่แสดงบรรทัด CKT. NO."
                               onChange={(e) =>
                                 set({
                                   circuits: c.circuits.map((x, j) =>
