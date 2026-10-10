@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import type { GridLine } from "@/components/boq/BoqGrid";
 import { Block, Field, SkuSelect, type Sku } from "@/components/boq/FoSetDialog";
+import { SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 import {
   buildLinear,
   circuitLength,
@@ -68,11 +69,11 @@ export function LinearDialog({
   const editing = target.mode === "edit" ? target : null;
 
   const { data: skus } = useQuery({
-    queryKey: ["skus", "options"],
+    queryKey: SKU_OPTIONS_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("skus")
-        .select("id, code, name, unit")
+        .select("id, code, name, unit, notes")
         .order("code");
       if (error) throw error;
       return data as Sku[];
@@ -210,6 +211,7 @@ export function LinearDialog({
                     <SkuSelect
                       value={c.ledSkuId}
                       preferred={groups.leds}
+                      category="LED ribbon"
                       all={skus ?? []}
                       onChange={(id) => {
                         const s = byId.get(id);
@@ -260,6 +262,7 @@ export function LinearDialog({
                     <SkuSelect
                       value={c.heatsinkSkuId}
                       preferred={groups.heatsinks}
+                      category="LED heat sink"
                       all={skus ?? []}
                       onChange={(id) => set({ heatsinkSkuId: id || null })}
                       noneLabel="— ไม่ใช้ —"
@@ -269,7 +272,8 @@ export function LinearDialog({
                     <Row label="Double jacket">
                       <SkuSelect
                         value={c.doubleJacketSkuId}
-                        preferred={groups.doubleJackets}
+                        preferred={groups.doubleJackets.length ? groups.doubleJackets : groups.jackets}
+                        category="LED jacket"
                         all={skus ?? []}
                         onChange={(id) => set({ doubleJacketSkuId: id || null })}
                       />
@@ -278,7 +282,8 @@ export function LinearDialog({
                     <Row label="Single jacket">
                       <SkuSelect
                         value={c.singleJacketSkuId}
-                        preferred={groups.singleJackets}
+                        preferred={groups.singleJackets.length ? groups.singleJackets : groups.jackets}
+                        category="LED jacket"
                         all={skus ?? []}
                         onChange={(id) => set({ singleJacketSkuId: id || null })}
                       />
@@ -290,6 +295,7 @@ export function LinearDialog({
                         <SkuSelect
                           value={c.profileSkuId}
                           preferred={groups.profiles}
+                          category="LED profile"
                           all={skus ?? []}
                           onChange={(id) => {
                             const s = byId.get(id);
@@ -313,7 +319,8 @@ export function LinearDialog({
                           <div className="flex gap-2">
                             <SkuSelect
                               value={x.skuId}
-                              preferred={[]}
+                              preferred={groups.profileExtras}
+                              category="LED profile / LED accessory"
                               all={skus ?? []}
                               onChange={(id) =>
                                 set({
@@ -382,6 +389,7 @@ export function LinearDialog({
                           <SkuSelect
                             value={c.paintSkuId}
                             preferred={groups.paints}
+                            category="Service"
                             all={skus ?? []}
                             onChange={(id) => set({ paintSkuId: id || null })}
                           />
@@ -393,7 +401,7 @@ export function LinearDialog({
                     <span className="text-xs text-muted-foreground">
                       {c.psuOptions.length
                         ? `คำนวณต่อวงจร โหลด ≤ 80% จาก: ${c.psuOptions.map((o) => `${o.watt}W`).join(", ")} (${c.dim})`
-                        : `ไม่มีหม้อแปลง ${c.dim} ในทะเบียน SKU — ชื่อ SKU ต้องมีคำว่า power supply/PSU/driver, วัตต์ เช่น 75W และ ${c.dim === "NON-DIM" ? "ไม่มีคำว่า dim" : c.dim}`}
+                        : `ไม่มีหม้อแปลง ${c.dim} ในหมวด Power supply — ชื่อ SKU ต้องมีวัตต์ เช่น 75W และ ${c.dim === "NON-DIM" ? "ไม่มีคำว่า dim" : c.dim}`}
                     </span>
                   </Row>
                 </div>

@@ -17,6 +17,7 @@
  *           IP65 = profile, heat sink + double jacket
  */
 import type { PartPrice } from "@/lib/fo";
+import { inCategory } from "./skuCategory";
 
 export type IpRating = "IP44" | "IP54" | "IP65";
 export type DimType = "NON-DIM" | "0-10V" | "DMX" | "DALI";
@@ -299,7 +300,7 @@ export function parseLengths(text: string): number[] {
 
 /* ---------------------------------------------------------------- SKU suggestions */
 
-type SkuLite = { id: string; code: string; name: string };
+type SkuLite = { id: string; code: string; name: string; notes?: string | null };
 const txt = (s: SkuLite) => `${s.code} ${s.name}`;
 export function wattOfPsu(s: SkuLite): number | null {
   const mm = txt(s).match(/(\d+(?:\.\d+)?)\s*W\b/i);
@@ -316,17 +317,23 @@ const dimRe: Record<DimType, RegExp> = {
   "NON-DIM": /^(?!.*(dali|dmx|0\s*-\s*10\s*v|dim)).*$/i,
 };
 
-export function linearSkuGroups(skus: SkuLite[]) {
-  const has = (re: RegExp) => skus.filter((s) => re.test(txt(s)));
-  const psus = has(/power\s*supply|\bpsu\b|driver|switching/i);
+/** SKU options per part, by stock category (หมวดในหน้าสต๊อก); names only split sub-types. */
+export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
+  const jackets = inCategory(skus, "LED jacket");
+  const profiles = inCategory(skus, "LED profile");
+  const service = inCategory(skus, "Service");
+  const paints = service.filter((s) => /paint|สี/i.test(txt(s)));
+  const psus = inCategory(skus, "Power supply");
   return {
-    leds: has(/\bled\b|strip/i).filter((s) => !/power|psu|driver/i.test(txt(s))),
-    heatsinks: has(/heat|alu(minium|minum)?\b|flat\s*bar/i).filter((s) => !/profile/i.test(txt(s))),
-    jackets: has(/jacket/i),
-    singleJackets: has(/jacket/i).filter((s) => !/double/i.test(txt(s))),
-    doubleJackets: has(/double/i).filter((s) => /jacket/i.test(txt(s))),
-    profiles: has(/profile/i),
-    paints: has(/paint|สี/i),
+    leds: inCategory(skus, "LED ribbon"),
+    heatsinks: inCategory(skus, "LED heat sink"),
+    jackets,
+    singleJackets: jackets.filter((s) => !/double/i.test(txt(s))),
+    doubleJackets: jackets.filter((s) => /double/i.test(txt(s))),
+    profiles,
+    profileExtras: [...profiles, ...inCategory(skus, "LED accessory")],
+    paints: paints.length ? paints : service,
+    psus,
     psuFor: (d: DimType): PsuOption[] =>
       psus
         .filter((s) => dimRe[d].test(txt(s)))

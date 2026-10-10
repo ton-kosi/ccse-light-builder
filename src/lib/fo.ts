@@ -9,6 +9,8 @@
  *   harness / port  = machines
  *   WP box          = machines, optional per job
  */
+import { inCategory } from "./skuCategory";
+
 export type FoSize = { label: string; skuId: string; points: number };
 
 export type FoConfig = {
@@ -149,7 +151,7 @@ export function parseFo(
 
 /* ---------------------------------------------------------------- defaults from the SKU list */
 
-type SkuLite = { id: string; code: string; name: string };
+type SkuLite = { id: string; code: string; name: string; notes?: string | null };
 const text = (s: SkuLite) => `${s.code} ${s.name}`;
 export const wattOf = (s: SkuLite | undefined): number | null => {
   const m = s ? text(s).match(/(\d+(?:\.\d+)?)\s*W\b/i) : null;
@@ -160,17 +162,29 @@ const diameterOf = (s: SkuLite) => {
   return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
 };
 
-export function foSkuGroups(skus: SkuLite[]) {
-  const has = (re: RegExp) => skus.filter((s) => re.test(text(s)));
+/**
+ * SKU options per part, by stock category (หมวดในหน้าสต๊อก). Inside "FO accessory" the name picks
+ * which accessory is which; when no name matches, the whole accessory category is offered.
+ */
+export function foSkuGroups<T extends SkuLite>(skus: T[]) {
+  const accessories = inCategory(skus, "FO accessory");
+  const acc = (re: RegExp) => accessories.filter((s) => re.test(text(s)));
+  const ends = acc(/end\s*finish/i);
+  const harnesses = acc(/harness/i);
+  const ports = acc(/optical\s*port/i);
+  const wps = acc(/\bwp\b|wp\s*box|waterproof/i);
+  const or = (l: T[]) => (l.length ? l : accessories);
   return {
-    illuminators: has(/illuminator/i),
-    cables: has(/cable/i)
-      .filter((s) => /\bfo|fiber|fibre/i.test(text(s)))
-      .sort((a, b) => diameterOf(a) - diameterOf(b)),
-    ends: has(/end\s*finish/i),
-    harnesses: has(/harness/i),
-    ports: has(/optical\s*port/i),
-    wps: has(/\bwp\b|wp\s*box|waterproof/i),
+    illuminators: inCategory(skus, "FO illuminator"),
+    cables: inCategory(skus, "FO cable").sort((a, b) => diameterOf(a) - diameterOf(b)),
+    accessories,
+    /** exact matches — used for the automatic defaults */
+    ends,
+    harnesses,
+    ports,
+    wps,
+    /** what each dropdown offers */
+    options: { ends: or(ends), harnesses: or(harnesses), ports: or(ports), wps: or(wps) },
   };
 }
 

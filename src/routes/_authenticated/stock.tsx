@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatQty } from "@/lib/format";
 import { useMe } from "@/hooks/useMe";
+import { categoryOf } from "@/lib/skuCategory";
+import { CategoryFilter } from "@/components/stock/CategoryFilter";
 
 export const Route = createFileRoute("/_authenticated/stock")({
   head: () => ({
@@ -31,6 +33,7 @@ function StockPage() {
   const { has } = useMe();
   const canPR = has("admin", "stock");
   const [filter, setFilter] = useState<"all" | Status>("all");
+  const [cat, setCat] = useState("");
 
   const { data: skus } = useQuery({
     queryKey: ["skus"],
@@ -91,6 +94,7 @@ function StockPage() {
   const q = search.trim().toLowerCase();
   const list = rows
     .filter((r) => filter === "all" || r.status === filter)
+    .filter((r) => !cat || categoryOf(r.k) === cat)
     .filter((r) => !q || r.k.code.toLowerCase().includes(q) || r.k.name.toLowerCase().includes(q))
     .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.k.code.localeCompare(b.k.code));
 
@@ -108,6 +112,7 @@ function StockPage() {
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input className="max-w-xs" placeholder="ค้นหารหัสหรือชื่อ" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <CategoryFilter skus={skus ?? []} value={cat} onChange={setCat} />
         {([
           ["all", `ทั้งหมด (${rows.length})`],
           ["urgent", `สั่งด่วน (${count("urgent")})`],
@@ -125,6 +130,7 @@ function StockPage() {
             <tr>
               <Th>รหัส</Th>
               <Th>ชื่อสินค้า</Th>
+              <Th>หมวด</Th>
               <Th>หน่วย</Th>
               <Th>คงเหลือ</Th>
               <Th>จอง (ขั้น 4–5)</Th>
@@ -142,6 +148,7 @@ function StockPage() {
               <tr key={r.k.id} className="border-t border-border">
                 <Td className="font-mono">{r.k.code}</Td>
                 <Td>{r.k.name}</Td>
+                <Td className="whitespace-nowrap text-xs text-muted-foreground">{categoryOf(r.k)}</Td>
                 <Td>{r.k.unit}</Td>
                 <Td className="text-right tabular-nums">{formatQty(r.onHandQty)}</Td>
                 <Td className="text-right tabular-nums">{formatQty(r.s)}</Td>
@@ -175,7 +182,7 @@ function StockPage() {
               </tr>
             ))}
             {list.length === 0 ? (
-              <tr><td colSpan={13} className="px-3 py-4 text-muted-foreground">ไม่พบรายการ</td></tr>
+              <tr><td colSpan={14} className="px-3 py-4 text-muted-foreground">ไม่พบรายการ</td></tr>
             ) : null}
           </tbody>
         </table>

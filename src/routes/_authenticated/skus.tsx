@@ -14,6 +14,17 @@ import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport"
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
+import {
+  CATEGORY_HINT,
+  categoryOf,
+  categoryOptions,
+  guessCategory,
+  noteText,
+  savedCategory,
+  withCategory,
+  type SkuCategoryName,
+} from "@/lib/skuCategory";
+import { CategoryFilter } from "@/components/stock/CategoryFilter";
 
 export const Route = createFileRoute("/_authenticated/skus")({
   head: () => ({
@@ -40,6 +51,7 @@ const moveLabel = (t: string) => MOVE_TYPES.find((m) => m.value === t)?.label ??
 const EMPTY = {
   code: "", name: "", unit: "ชิ้น", source: "domestic", lead_time_days: "0", min_stock: "0",
   is_roll: false, roll_length_m: "", roll_family: "", cut_step_cm: "", max_piece_m: "", notes: "",
+  category: "",
   unit_cost: "",
   sell_price: "",
   max_discount: "",
@@ -50,6 +62,7 @@ function SkusPage() {
   const { canEditMaster, canSeeMoney } = useMe();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [cat, setCat] = useState("");
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [moving, setMoving] = useState<Sku | null>(null);
   const [history, setHistory] = useState<Sku | null>(null);
@@ -141,20 +154,51 @@ function SkusPage() {
         roll_family: r.roll_family || null,
         cut_step_cm: numCsv(r.cut_step_cm),
         max_piece_m: numCsv(r.max_piece_m),
+        // only touch notes when the file has them, so re-importing never wipes a saved category
+        ...(r.category || r.notes
+          ? { notes: withCategory(r.notes ?? "", r.category?.trim() || null) }
+          : {}),
       };
     });
-    const { error } = await supabase.from("skus").upsert(payload, { onConflict: "code" });
-    if (error) throw new Error(friendly(error.message));
+    // rows with and without notes go separately: a bulk upsert fills missing columns with null
+    const withNotes = payload.filter((p) => "notes" in p);
+    const plain = payload.filter((p) => !("notes" in p));
+    for (const part of [withNotes, plain]) {
+      if (!part.length) continue;
+      const { error } = await supabase.from("skus").upsert(part, { onConflict: "code" });
+      if (error) throw new Error(friendly(error.message));
+    }
     qc.invalidateQueries({ queryKey: ["skus"] });
     qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
     return payload.length;
   }
 
   const s = search.trim().toLowerCase();
-  const list = (skus ?? []).filter(
-    (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
-  );
-  const cols = 9 + (canSeeMoney ? 3 : 0) + (canEditMaster ? 1 : 0);
+  const list = (skus ?? [])
+    .filter((k) => !cat || categoryOf(k) === cat)
+    .filter(
+      (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
+    );
+  const cols = 10 + (canSeeMoney ? 3 : 0) + (canEditMaster ? 1 : 0);
+  const guessed = (skus ?? []).filter((k) => !savedCategory(k.notes));
+
+  const saveGuesses = useMutation({
+    mutationFn: async () => {
+      for (const k of guessed) {
+        const { error } = await supabase
+          .from("skus")
+          .update({ notes: withCategory(k.notes ?? "", guessCategory(k)) })
+          .eq("id", k.id);
+        if (error) throw error;
+      }
+      return guessed.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`บันทึกหมวดให้ ${n} รายการแล้ว`);
+      qc.invalidateQueries({ queryKey: ["skus"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div>
@@ -166,7 +210,7 @@ function SkusPage() {
             <>
               <CsvImport
                 label="นำเข้า CSV"
-                columns="code,name,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m"
+                columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes"
                 onRows={importRows}
               />
               <Button size="sm" onClick={() => setEditing({ id: null, form: { ...EMPTY } })}>
@@ -177,12 +221,31 @@ function SkusPage() {
         }
       />
 
-      <Input
-        className="mb-4 max-w-sm"
-        placeholder="ค้นหารหัส ชื่อ หรือตระกูลม้วน..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
+          className="max-w-sm"
+          placeholder="ค้นหารหัส ชื่อ หรือตระกูลม้วน..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <CategoryFilter skus={skus ?? []} value={cat} onChange={setCat} />
+      </div>
+      {canEditMaster && guessed.length ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 text-sm">
+          <span>
+            มี {guessed.length} รายการที่ยังไม่ได้ตั้งหมวด — ระบบเดาจากชื่อให้ก่อน (ตัวเอียงในคอลัมน์หมวด)
+            ตรวจแล้วกดบันทึกทีเดียว หรือแก้ทีละรายการ
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={saveGuesses.isPending}
+            onClick={() => saveGuesses.mutate()}
+          >
+            บันทึกหมวดที่ระบบเดาทั้งหมด
+          </Button>
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
@@ -190,6 +253,7 @@ function SkusPage() {
             <tr>
               <Th>รหัส</Th>
               <Th>ชื่อสินค้า</Th>
+              <Th>หมวด</Th>
               <Th>หน่วย</Th>
               <Th>แหล่ง</Th>
               <Th>Lead time (วัน)</Th>
@@ -218,6 +282,13 @@ function SkusPage() {
                   <tr key={k.id} className="border-t border-border">
                     <Td className="font-mono text-xs">{k.code}</Td>
                     <Td className="font-medium">{k.name}</Td>
+                    <Td className="whitespace-nowrap">
+                      {savedCategory(k.notes) ?? (
+                        <span className="italic text-muted-foreground" title="ระบบเดาจากชื่อ ยังไม่ได้บันทึก">
+                          {guessCategory(k)}?
+                        </span>
+                      )}
+                    </Td>
                     <Td>{k.unit}</Td>
                     <Td>{k.source === "import" ? "นำเข้า" : "ในประเทศ"}</Td>
                     <Td>{k.lead_time_days}</Td>
@@ -264,7 +335,7 @@ function SkusPage() {
                 );
               })
             ) : (
-              <tr><Td colSpan={cols}>{s ? "ไม่พบสินค้าที่ค้นหา" : "ยังไม่มีสินค้าในคลัง"}</Td></tr>
+              <tr><Td colSpan={cols}>{s || cat ? "ไม่พบสินค้าที่ค้นหา" : "ยังไม่มีสินค้าในคลัง"}</Td></tr>
             )}
           </tbody>
         </table>
@@ -278,6 +349,7 @@ function SkusPage() {
           {editing ? (
             <SkuForm
               initial={editing.form}
+              categories={categoryOptions(skus ?? [])}
               canSeeMoney={canSeeMoney}
               pending={save.isPending}
               onSubmit={(form) => save.mutate({ id: editing.id, form })}
@@ -330,7 +402,8 @@ function rowToForm(k: Sku, cost?: number, price?: { unitPrice: number; maxDiscou
     code: k.code, name: k.name, unit: k.unit, source: k.source,
     lead_time_days: String(k.lead_time_days), min_stock: String(k.min_stock),
     is_roll: k.is_roll, roll_length_m: s(k.roll_length_m), roll_family: k.roll_family ?? "",
-    cut_step_cm: s(k.cut_step_cm), max_piece_m: s(k.max_piece_m), notes: k.notes ?? "",
+    cut_step_cm: s(k.cut_step_cm), max_piece_m: s(k.max_piece_m), notes: noteText(k.notes),
+    category: savedCategory(k.notes) ?? guessCategory(k),
     unit_cost: cost === undefined ? "" : String(cost),
     sell_price: price ? String(Math.round(price.unitPrice * 100) / 100) : "",
     max_discount: price ? String(price.maxDiscount) : "",
@@ -350,16 +423,24 @@ function formToRow(f: Form): TablesInsert<"skus"> {
     roll_family: f.roll_family.trim() || null,
     cut_step_cm: toNumber(f.cut_step_cm),
     max_piece_m: toNumber(f.max_piece_m),
-    notes: f.notes.trim() || null,
+    notes: withCategory(f.notes, f.category || null),
   };
 }
 
 const selectCls = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 function SkuForm({
-  initial, canSeeMoney, pending, onSubmit,
-}: { initial: Form; canSeeMoney: boolean; pending: boolean; onSubmit: (f: Form) => void }) {
+  initial, categories, canSeeMoney, pending, onSubmit,
+}: {
+  initial: Form;
+  categories: string[];
+  canSeeMoney: boolean;
+  pending: boolean;
+  onSubmit: (f: Form) => void;
+}) {
   const [f, setF] = useState(initial);
+  const custom = f.category !== "" && !categories.includes(f.category);
+  const [typing, setTyping] = useState(custom);
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: e.target.value });
   return (
@@ -376,6 +457,41 @@ function SkuForm({
     >
       <Field label="รหัส SKU *"><Input required value={f.code} onChange={set("code")} /></Field>
       <Field label="ชื่อสินค้า *"><Input required value={f.name} onChange={set("name")} /></Field>
+      <Field label="หมวด (ใช้กรองตัวเลือกในชุดไฟเส้น / FO)" className="sm:col-span-2">
+        {typing ? (
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              value={f.category}
+              placeholder="ชื่อหมวดใหม่"
+              onChange={set("category")}
+            />
+            <Button type="button" size="sm" variant="ghost" onClick={() => setTyping(false)}>
+              เลือกจากรายการ
+            </Button>
+          </div>
+        ) : (
+          <select
+            className={selectCls}
+            value={f.category}
+            onChange={(e) => {
+              if (e.target.value === "__new") {
+                setTyping(true);
+                setF({ ...f, category: "" });
+              } else setF({ ...f, category: e.target.value });
+            }}
+          >
+            <option value="">— ไม่ระบุ —</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+                {CATEGORY_HINT[c as SkuCategoryName] ? ` · ${CATEGORY_HINT[c as SkuCategoryName]}` : ""}
+              </option>
+            ))}
+            <option value="__new">+ เพิ่มหมวดใหม่…</option>
+          </select>
+        )}
+      </Field>
       <Field label="หน่วย"><Input value={f.unit} onChange={set("unit")} /></Field>
       <Field label="แหล่งที่มา">
         <select className={selectCls} value={f.source} onChange={set("source")}>
@@ -409,7 +525,6 @@ function SkuForm({
       {canSeeMoney ? (
         <>
           <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
-          <div className="hidden sm:block" />
           <Field label="ราคาขายต่อหน่วย (บาท) — ใช้คำนวณชุด FO / ไฟเส้น">
             <Input value={f.sell_price} placeholder="ยังไม่ตั้ง" onChange={set("sell_price")} />
           </Field>

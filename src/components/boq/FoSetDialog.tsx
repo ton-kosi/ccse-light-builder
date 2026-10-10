@@ -26,8 +26,9 @@ import {
 } from "@/lib/fo";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
+import { SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 
-export type Sku = { id: string; code: string; name: string; unit: string };
+export type Sku = { id: string; code: string; name: string; unit: string; notes?: string | null };
 export type FoTarget = { mode: "new"; option: string | null } | { mode: "edit"; line: GridLine };
 
 const LABELS = ["S", "M", "L", "XL", "XXL", "XXXL"];
@@ -51,11 +52,11 @@ export function FoSetDialog({
   const editing = target.mode === "edit" ? target.line : null;
 
   const { data: skus } = useQuery({
-    queryKey: ["skus", "options"],
+    queryKey: SKU_OPTIONS_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("skus")
-        .select("id, code, name, unit")
+        .select("id, code, name, unit, notes")
         .order("code");
       if (error) throw error;
       return data as Sku[];
@@ -268,6 +269,7 @@ export function FoSetDialog({
                     onChange={setIlluminator}
                     preferred={groups.illuminators}
                     all={skus ?? []}
+                    category="FO illuminator"
                   />
                   <label className="flex items-center gap-2 text-sm">
                     <Input
@@ -337,6 +339,7 @@ export function FoSetDialog({
                               onChange={(id) => upd({ skuId: id })}
                               preferred={groups.cables}
                               all={skus ?? []}
+                              category="FO cable"
                             />
                           </td>
                           <td className="py-1 pr-2">
@@ -403,32 +406,36 @@ export function FoSetDialog({
                     qty={`${formatQty(totalPoints(c))} = จุดทั้งหมด`}
                     value={c.endSkuId}
                     onChange={(id) => set({ endSkuId: id })}
-                    preferred={groups.ends}
+                    preferred={groups.options.ends}
                     all={skus ?? []}
+                    category="FO accessory"
                   />
                   <AccessoryRow
                     label="FO harness"
                     qty={`${c.machines} = จำนวนเครื่อง`}
                     value={c.harnessSkuId}
                     onChange={(id) => set({ harnessSkuId: id })}
-                    preferred={groups.harnesses}
+                    preferred={groups.options.harnesses}
                     all={skus ?? []}
+                    category="FO accessory"
                   />
                   <AccessoryRow
                     label="Optical port"
                     qty={`${c.machines} = จำนวนเครื่อง`}
                     value={c.portSkuId}
                     onChange={(id) => set({ portSkuId: id })}
-                    preferred={groups.ports}
+                    preferred={groups.options.ports}
                     all={skus ?? []}
+                    category="FO accessory"
                   />
                   <AccessoryRow
                     label="WP box"
                     qty={`${c.machines} = จำนวนเครื่อง`}
                     value={c.wpSkuId}
                     onChange={(id) => set({ wpSkuId: id })}
-                    preferred={groups.wps}
+                    preferred={groups.options.wps}
                     all={skus ?? []}
+                    category="FO accessory"
                     noneLabel="— ไม่ใส่ WP box —"
                     extra={
                       c.wpSkuId ? (
@@ -634,41 +641,50 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
+/**
+ * SKU dropdown limited to one stock category (หมวด). If the category has no SKU yet, every SKU is
+ * offered so work is never blocked; a value already chosen outside the category stays visible.
+ */
 export function SkuSelect({
   value,
   onChange,
   preferred,
   all,
+  category,
   noneLabel,
 }: {
   value: string | null;
   onChange: (id: string) => void;
+  /** SKUs of the right category for this field */
   preferred: { id: string }[];
   all: Sku[];
+  /** category name shown when it is empty, e.g. "Power supply" */
+  category?: string | undefined;
   noneLabel?: string;
 }) {
   const pref = new Set(preferred.map((p) => p.id));
-  const top = all.filter((s) => pref.has(s.id));
-  const rest = all.filter((s) => !pref.has(s.id));
+  const list = all.filter((s) => pref.has(s.id));
+  const current = value && !pref.has(value) ? all.find((s) => s.id === value) : undefined;
+  const opt = (s: Sku) => (
+    <option key={s.id} value={s.id}>
+      {s.code} — {s.name}
+    </option>
+  );
   return (
     <select className={sel} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
       <option value="">{noneLabel ?? "— เลือก SKU —"}</option>
-      {top.length ? (
-        <optgroup label="แนะนำ">
-          {top.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.code} — {s.name}
-            </option>
-          ))}
+      {list.length ? (
+        <>
+          {list.map(opt)}
+          {current ? <optgroup label="ที่เลือกไว้ (อยู่นอกหมวด)">{opt(current)}</optgroup> : null}
+        </>
+      ) : (
+        <optgroup
+          label={`ยังไม่มี SKU ในหมวด ${category ?? "นี้"} — ตั้งหมวดได้ที่หน้าสต๊อก · แสดงทั้งหมด`}
+        >
+          {all.map(opt)}
         </optgroup>
-      ) : null}
-      <optgroup label="SKU ทั้งหมด">
-        {rest.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.code} — {s.name}
-          </option>
-        ))}
-      </optgroup>
+      )}
     </select>
   );
 }
@@ -681,6 +697,7 @@ function AccessoryRow({
   preferred,
   all,
   noneLabel = "— ไม่ใช้ —",
+  category,
   extra,
 }: {
   label: string;
@@ -690,6 +707,7 @@ function AccessoryRow({
   preferred: { id: string }[];
   all: Sku[];
   noneLabel?: string;
+  category?: string | undefined;
   extra?: React.ReactNode;
 }) {
   return (
@@ -700,6 +718,7 @@ function AccessoryRow({
         onChange={(id) => onChange(id || null)}
         preferred={preferred}
         all={all}
+        category={category}
         noneLabel={noneLabel}
       />
       <div className="text-xs text-muted-foreground">
