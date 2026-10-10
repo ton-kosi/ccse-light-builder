@@ -754,6 +754,83 @@ export type Database = {
           },
         ]
       }
+      purchases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          doc_no: string | null
+          extra_cost: number
+          id: string
+          note: string | null
+          project_id: string | null
+          purchase_request_id: string | null
+          qty: number
+          sku_id: string
+          supplier: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          doc_no?: string | null
+          extra_cost?: number
+          id?: string
+          note?: string | null
+          project_id?: string | null
+          purchase_request_id?: string | null
+          qty: number
+          sku_id: string
+          supplier?: string | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          doc_no?: string | null
+          extra_cost?: number
+          id?: string
+          note?: string | null
+          project_id?: string | null
+          purchase_request_id?: string | null
+          qty?: number
+          sku_id?: string
+          supplier?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_purchase_request_id_fkey"
+            columns: ["purchase_request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "purchases_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotation_clauses: {
         Row: {
           clause_id: string | null
@@ -1625,6 +1702,10 @@ export type Database = {
         }[]
       }
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
+      refresh_sku_cost_from_purchases: {
+        Args: { _sku: string }
+        Returns: undefined
+      }
       sync_quotation_clauses: { Args: { _qid: string }; Returns: undefined }
       user_display_names: {
         Args: { _ids: string[] }
