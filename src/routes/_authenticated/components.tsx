@@ -98,6 +98,10 @@ function ComponentsPage() {
 
   const removeComp = useMutation({
     mutationFn: async (id: string) => {
+      const { error: e1 } = await supabase.from("component_clauses").delete().eq("component_id", id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from("recipes").delete().eq("component_id", id);
+      if (e2) throw e2;
       const { error } = await supabase.from("sales_components").delete().eq("id", id);
       if (error) throw error;
     },
