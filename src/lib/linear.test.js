@@ -94,27 +94,35 @@ test("IP44 has no profile/painting; IP65 uses double jacket", () => {
   expect(ip65[3].recipes.map((x) => x.sku_id)).toEqual(["alu", "jk2"]);
 });
 
-test("hidden items fold their price into the LED row but keep their stock", () => {
+test("price hidden: item still listed by name, price folded into the LED row", () => {
   const all = buildLinear(base, PRICES, ids);
   const hidden = buildLinear(
     { ...base, show: { heatsink: false, profile: false, paint: false, psu: false } },
     PRICES,
     ids,
   );
-  expect(hidden.rows.map((r) => r.customer_text)).toEqual([
-    all.rows[0].customer_text,
-    "CKT. NO. BRA-01",
-    "- L = 3.20M",
-    "CKT. NO. BRA-07",
-    "- L = 0.70M + 0.70M",
+  // same lines as before (names stay), PSU shows its count in the text
+  expect(hidden.rows.map((r) => r.customer_text)).toEqual(
+    all.rows.map((r) =>
+      r.customer_text.startsWith("- POWER SUPPLY") ? r.customer_text + " x 1" : r.customer_text,
+    ),
+  );
+  const ckt1 = hidden.rows.slice(2, 7);
+  expect(ckt1.map((r) => r.kind)).toEqual(["priced", "display", "display", "display", "display"]);
+  // name-only lines carry no qty/price
+  expect(ckt1.slice(1).every((r) => r.qty === null && r.unit_price === null)).toBe(true);
+  // ...but keep their own stock (display lines count in stock demand); painting is a service
+  expect(ckt1.map((r) => r.recipes.map((x) => x.sku_id))).toEqual([
+    ["led18"],
+    ["alu", "jk1"],
+    ["prf", "dif"],
+    [],
+    ["psu75"],
   ]);
+  // 3.2 × (900+250+520+250) + 2500 = 8644 → per m 2701.25
+  expect(ckt1[0].unit_price).toBe(2701.25);
   // same customer total either way (within rounding)
   expect(Math.abs(hidden.list - all.list)).toBeLessThan(0.05);
-  // LED row now carries all materials: LED, alu, jacket, profile, diffuser, PSU (painting is a service)
-  const skus = hidden.rows[2].recipes.map((x) => x.sku_id);
-  expect(skus).toEqual(["led18", "alu", "jk1", "prf", "dif", "psu75"]);
-  // 3.2 × (900+250+520+250) + 2500 = 8644 → per m 2701.25
-  expect(hidden.rows[2].unit_price).toBe(2701.25);
 });
 
 test("list total, weighted discount limit, missing prices", () => {

@@ -9,8 +9,8 @@
  *     - INDUSTRIAL SPRAY PAINTING (BLACK) 3.20 M.          ← when a colour is set, shown if ticked
  *     - POWER SUPPLY 24V 75W DALI-DIM   1 EA.              ← sized per circuit at 80 % load
  *
- * Items that are not shown still go to stock, but their price is folded into the LED row,
- * so the customer total is the same either way.
+ * "Show price" per item: when off, the item is still listed by name (no qty/price) and still
+ * goes to stock, but its price is folded into the LED row, so the customer total is the same.
  *
  * IP rules: IP44 = no profile, heat sink + single jacket
  *           IP54 = profile, heat sink + single jacket
@@ -58,7 +58,7 @@ export type LinearConfig = {
 export type LinRecipe = { sku_id: string; qty: number; note: string };
 export type LinRow = {
   id: string;
-  kind: "heading" | "priced";
+  kind: "heading" | "priced" | "display";
   customer_text: string;
   qty: number | null;
   unit: string | null;
@@ -172,6 +172,7 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
       unit: string,
       parts: { skuId: string | null; qty: number; stock: boolean }[],
       role: string,
+      hiddenSuffix = "",
     ) => {
       let amount = 0;
       const recipes: LinRecipe[] = [];
@@ -193,8 +194,17 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
           recipes,
         });
       } else {
+        // price hidden: keep the line (name only) and its stock, fold the price into the LED row
         ledAmount += amount;
-        led.recipes.push(...recipes);
+        extraRows.push({
+          id: newId(),
+          kind: "display",
+          customer_text: text + hiddenSuffix,
+          qty: null,
+          unit: null,
+          unit_price: null,
+          recipes,
+        });
       }
     };
 
@@ -242,6 +252,7 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
         "EA.",
         [{ skuId: psu.skuId, qty: psu.count, stock: true }],
         "PSU",
+        ` x ${psu.count}`,
       );
 
     led.unit_price = r2(ledAmount / L);

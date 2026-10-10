@@ -487,7 +487,7 @@ export function LinearDialog({
             </div>
 
             <div className="space-y-4">
-              <Block title="แสดงในใบเสนอราคา">
+              <Block title="แสดงราคาแยกแต่ละรายการ">
                 <div className="grid grid-cols-2 gap-1.5 text-sm">
                   <Tick on disabled label="LED (ความยาว)" />
                   <Tick
@@ -516,7 +516,8 @@ export function LinearDialog({
                   />
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  ไม่ติ๊ก = ยังเบิกของ แต่รวมราคาเข้าไปในบรรทัด LED
+                  ไม่ติ๊ก = ยังแสดงชื่อรายการในใบ แต่ไม่แสดงจำนวนและราคา (รวมราคาเข้าบรรทัด LED) ·
+                  เบิกของตามปกติ
                 </p>
               </Block>
 
