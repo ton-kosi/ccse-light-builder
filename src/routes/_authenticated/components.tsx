@@ -288,7 +288,12 @@ function CompForm({
         </div>
         <Field label="หมายเหตุ" className="sm:col-span-2"><Input value={f.notes} onChange={set("notes")} /></Field>
         {!readOnly ? (
-          <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={pending}>บันทึกชิ้นส่วน</Button></div>
+          <div className="flex items-center justify-between sm:col-span-2">
+            <Button type="submit" size="sm" disabled={pending}>บันทึกชิ้นส่วน</Button>
+            {onDelete ? (
+              <Button type="button" size="sm" variant="destructive" onClick={onDelete}>ลบชิ้นส่วน</Button>
+            ) : null}
+          </div>
         ) : null}
       </fieldset>
     </form>
