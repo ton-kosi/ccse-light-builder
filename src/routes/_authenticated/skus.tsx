@@ -525,7 +525,7 @@ function SkuForm({
       {canSeeMoney ? (
         <>
           <Field label="ต้นทุนต่อหน่วย (บาท)"><Input value={f.unit_cost} onChange={set("unit_cost")} /></Field>
-          <Field label="ราคาขายต่อหน่วย (บาท) — ใช้คำนวณชุด FO / ไฟเส้น">
+          <Field label="ราคาขายต่อหน่วย (บาท)">
             <Input value={f.sell_price} placeholder="ยังไม่ตั้ง" onChange={set("sell_price")} />
           </Field>
           <Field label="ลดได้สูงสุด (%)">
