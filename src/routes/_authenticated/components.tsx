@@ -96,6 +96,28 @@ function ComponentsPage() {
     onError: (e: Error) => toast.error(friendly(e.message)),
   });
 
+  const removeComp = useMutation({
+    mutationFn: async (id: string) => {
+      const { error: e1 } = await supabase.from("component_clauses").delete().eq("component_id", id);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.from("recipes").delete().eq("component_id", id);
+      if (e2) throw e2;
+      const { error } = await supabase.from("sales_components").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("ลบชิ้นส่วนแล้ว");
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["sales_components"] });
+    },
+    onError: (e: Error) =>
+      toast.error(
+        e.message.includes("quote_lines") || e.message.includes("violates foreign key")
+          ? "ลบไม่ได้: ชิ้นส่วนนี้ถูกใช้ในใบเสนอราคาแล้ว"
+          : e.message,
+      ),
+  });
+
   async function importComps(rows: CsvRow[]) {
     const payload: TablesInsert<"sales_components">[] = rows.map((r, i) => {
       if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
@@ -207,6 +229,15 @@ function ComponentsPage() {
                 readOnly={!canEditMaster}
                 pending={save.isPending}
                 onSubmit={(form) => save.mutate({ id: editing.id, form })}
+                onDelete={
+                  editing.id && canEditMaster
+                    ? () => {
+                        if (window.confirm(`ยืนยันลบชิ้นส่วน "${editing.form.code}"? รายการในสูตรจะถูกลบไปด้วย`)) {
+                          removeComp.mutate(editing.id!);
+                        }
+                      }
+                    : undefined
+                }
               />
               {editing.id ? (
                 <>
@@ -235,8 +266,8 @@ function toForm(c: Comp): Form {
 }
 
 function CompForm({
-  initial, readOnly, pending, onSubmit,
-}: { initial: Form; readOnly: boolean; pending: boolean; onSubmit: (f: Form) => void }) {
+  initial, readOnly, pending, onSubmit, onDelete,
+}: { initial: Form; readOnly: boolean; pending: boolean; onSubmit: (f: Form) => void; onDelete?: (() => void) | undefined }) {
   const [f, setF] = useState(initial);
    const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setF({ ...f, [k]: e.target.value });
@@ -261,7 +292,12 @@ function CompForm({
         </div>
         <Field label="หมายเหตุ" className="sm:col-span-2"><Input value={f.notes} onChange={set("notes")} /></Field>
         {!readOnly ? (
-          <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={pending}>บันทึกชิ้นส่วน</Button></div>
+          <div className="flex items-center justify-between sm:col-span-2">
+            <Button type="submit" size="sm" disabled={pending}>บันทึกชิ้นส่วน</Button>
+            {onDelete ? (
+              <Button type="button" size="sm" variant="destructive" onClick={onDelete}>ลบชิ้นส่วน</Button>
+            ) : null}
+          </div>
         ) : null}
       </fieldset>
     </form>
