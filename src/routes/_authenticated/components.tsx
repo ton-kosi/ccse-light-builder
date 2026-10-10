@@ -96,6 +96,24 @@ function ComponentsPage() {
     onError: (e: Error) => toast.error(friendly(e.message)),
   });
 
+  const removeComp = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("sales_components").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("ลบชิ้นส่วนแล้ว");
+      setEditing(null);
+      qc.invalidateQueries({ queryKey: ["sales_components"] });
+    },
+    onError: (e: Error) =>
+      toast.error(
+        e.message.includes("quote_lines") || e.message.includes("violates foreign key")
+          ? "ลบไม่ได้: ชิ้นส่วนนี้ถูกใช้ในใบเสนอราคาแล้ว"
+          : e.message,
+      ),
+  });
+
   async function importComps(rows: CsvRow[]) {
     const payload: TablesInsert<"sales_components">[] = rows.map((r, i) => {
       if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
