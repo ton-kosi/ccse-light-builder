@@ -43,6 +43,13 @@
       "when": 1791647502963,
       "tag": "0005_create_purchases",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792135937727,
+      "tag": "0006_neon_rolls_project_demand",
+      "breakpoints": true
     }
   ]
 }
