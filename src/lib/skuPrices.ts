@@ -50,8 +50,20 @@ export async function ensureSkuComponent(sku: {
         uses.map((u) => u.component_id),
       );
     if (e2) throw e2;
+    // roll-product components (Jedi flex roll families) hold a per-metre recipe, not a price
+    const { data: rollComps } = await supabase
+      .from("sales_components")
+      .select("id")
+      .in(
+        "id",
+        uses.map((u) => u.component_id),
+      )
+      .eq("is_roll_product", true);
+    const skip = new Set((rollComps ?? []).map((c) => c.id));
     const single = uses.find(
-      (u) => all.filter((a) => a.component_id === u.component_id).length === 1,
+      (u) =>
+        !skip.has(u.component_id) &&
+        all.filter((a) => a.component_id === u.component_id).length === 1,
     );
     if (single)
       return { componentId: single.component_id, perUnit: Number(single.qty_per_unit) || 1 };
@@ -87,4 +99,42 @@ export async function saveSkuPrice(
     max_discount_percent: Math.min(100, Math.max(0, maxDiscount)),
   });
   if (error) throw error;
+}
+
+/**
+ * Hidden sales component for a Jedi flex roll family ("RF-<family>", roll product): BOQ run lines
+ * point at it so the work-order roll plan cuts their lengths from that family's rolls and keeps
+ * the leftovers as remnants. Recipe = rolls per metre (for stock reservation before the plan).
+ * Needs admin / estimator / stock (RLS).
+ */
+export async function ensureRollComponent(
+  family: string,
+  roll: { id: string; length: number },
+): Promise<string> {
+  const { data: found, error } = await supabase
+    .from("sales_components")
+    .select("id")
+    .eq("is_roll_product", true)
+    .eq("roll_family", family)
+    .limit(1);
+  if (error) throw error;
+  if (found?.length) return found[0]!.id;
+  const { data: comp, error: e2 } = await supabase
+    .from("sales_components")
+    .insert({
+      code: `RF-${family}`,
+      name: `Jedi flex ${family} (ตัดจากม้วน)`,
+      unit: "M.",
+      is_roll_product: true,
+      roll_family: family,
+      notes: "ระบบสร้างอัตโนมัติสำหรับตัดม้วน Jedi flex",
+    })
+    .select("id")
+    .single();
+  if (e2) throw e2;
+  const { error: e3 } = await supabase
+    .from("recipes")
+    .insert({ component_id: comp.id, sku_id: roll.id, qty_per_unit: Math.round((1 / roll.length) * 10000) / 10000 });
+  if (e3) throw e3;
+  return comp.id;
 }

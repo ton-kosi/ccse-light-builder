@@ -6,7 +6,7 @@
  * purchases (which receive stock and set the cost to the latest purchase).
  */
 import { supabase } from "@/integrations/supabase/client";
-import { saveSkuPrice } from "@/lib/skuPrices";
+import { ensureRollComponent, saveSkuPrice } from "@/lib/skuPrices";
 import { writeTags } from "@/lib/skuCategory";
 
 export const DEMO_PREFIX = "DEMO-";
@@ -23,7 +23,22 @@ type Demo = {
   /** purchases, oldest first: [unit price, qty] */
   buys: [number, number][];
   source?: "domestic" | "import";
+  /** roll products (Jedi flex): family + roll length (5/10 m) + cut step (cm) */
+  roll?: { family: string; length: 5 | 10; stepCm: number };
 };
+
+const jf = (model: string, cct: string, w: number, step: number, len: 5 | 10, sell: number, cost: number): Demo => ({
+  code: `DEMO-JF${model}-${cct}-${len}M`,
+  name: `Jedi flex ${model} ${cct} ม้วน ${len} ม.`,
+  unit: "ม้วน",
+  cat: "Neon flex",
+  attrs: { รุ่น: model, "W/m": String(w) },
+  sell,
+  disc: 10,
+  buys: [[cost, 10]],
+  source: "import",
+  roll: { family: `DEMO-JF${model}-${cct}`, length: len, stepCm: step },
+});
 
 const led = (code: string, name: string, w: number, chip: "STANDARD" | "NICHIA", pcb: number, sell: number, cost: number, ez = false): Demo => ({
   code: `DEMO-${code}`,
@@ -91,6 +106,12 @@ export const DEMO_SKUS: Demo[] = [
   { code: "DEMO-TRK-CW", name: "Clipso track CW 2m", unit: "เส้น", cat: "Clipso track", attrs: { ราง: "CW", ยาวเส้น: "2" }, sell: 420, disc: 5, buys: [[130, 200]], source: "import" },
   { code: "DEMO-SVC-TRACK", name: "Service track w/ milled acrylic", unit: "ชุด", cat: "Clipso track", attrs: { ราง: "SERVICE" }, sell: 3500, disc: 5, buys: [[1200, 10]] },
   { code: "DEMO-MOD-1.2W", name: "LED module 3 LED 1.2W 24V (ใต้ผ้า)", unit: "ชิ้น", cat: "LED module", attrs: { "W/ชิ้น": "1.2" }, sell: 45, disc: 10, buys: [[12, 1000]], source: "import" },
+  jf("0410", "3000K", 10, 5, 5, 3000, 1100),
+  jf("0410", "3000K", 10, 5, 10, 5500, 2000),
+  jf("1010", "2700K", 14, 3.33, 5, 3800, 1400),
+  jf("1010", "2700K", 14, 3.33, 10, 7000, 2600),
+  { code: "DEMO-JF-CAP", name: "Jedi flex ชุดปิดปลาย (end cap + glue)", unit: "ชุด", cat: "LED accessory", sell: 150, disc: 0, buys: [[40, 200]] },
+  { code: "DEMO-JF-CLIP", name: "Jedi flex ขายึด (bracket)", unit: "ชิ้น", cat: "LED accessory", sell: 25, disc: 0, buys: [[6, 1000]] },
   { code: "DEMO-MISC", name: "Miscellaneous ไฟใต้ผ้า (สาย ขายึด) ต่อชุด", unit: "ชุด", cat: "LED accessory", sell: 1500, disc: 0, buys: [[400, 20]] },
   { code: "DEMO-FO50W", name: "FO illuminator 50W Halogen", unit: "EA.", cat: "FO illuminator", sell: 25000, disc: 15, buys: [[9500, 4], [10000, 4]], source: "import" },
   { code: "DEMO-FOC-0.75", name: "FO cable 0.75mm", unit: "M.", cat: "FO cable", sell: 35, disc: 10, buys: [[9, 2000]], source: "import" },
@@ -120,12 +141,24 @@ export async function loadDemoData(progress: (msg: string) => void): Promise<num
         unit: d.unit,
         source: d.source ?? "domestic",
         notes: writeTags("ข้อมูลทดสอบ", { ...(d.attrs ?? {}), หมวด: d.cat }),
+        // every row sends the same columns (a bulk upsert fills missing ones with null)
+        is_roll: !!d.roll,
+        roll_family: d.roll?.family ?? null,
+        roll_length_m: d.roll?.length ?? null,
+        cut_step_cm: d.roll?.stepCm ?? null,
+        max_piece_m: null,
       })),
       { onConflict: "code" },
     )
     .select("id, code, name, unit");
   if (error) throw error;
   const byCode = new Map(rows.map((r) => [r.code, r]));
+
+  // Jedi flex families need their roll component (BOQ run lines + work-order roll plan)
+  for (const d of DEMO_SKUS.filter((x) => x.roll?.length === 10)) {
+    progress(`เตรียมม้วน ${d.roll!.family}`);
+    await ensureRollComponent(d.roll!.family, { id: byCode.get(d.code)!.id, length: 10 });
+  }
 
   let i = 0;
   for (const d of DEMO_SKUS) {
@@ -160,7 +193,10 @@ export async function removeDemoData(progress: (msg: string) => void): Promise<v
   const d1 = await supabase.from("purchases").delete().in("sku_id", ids);
   if (d1.error) throw d1.error;
   progress("ลบราคาขาย…");
-  const { data: comps } = await supabase.from("sales_components").select("id").like("code", `P-${DEMO_PREFIX}%`);
+  const { data: comps } = await supabase
+    .from("sales_components")
+    .select("id")
+    .or(`code.like.P-${DEMO_PREFIX}%,code.like.RF-${DEMO_PREFIX}%`);
   const compIds = (comps ?? []).map((c) => c.id);
   if (compIds.length) {
     await supabase.from("component_prices").delete().in("component_id", compIds);

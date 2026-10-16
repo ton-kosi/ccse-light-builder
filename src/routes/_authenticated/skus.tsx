@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
-import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
+import { ensureRollComponent, saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
 import {
   CATEGORY_HINT,
   categoryOf,
@@ -122,6 +122,10 @@ function SkusPage() {
             md,
           );
         }
+      }
+      // Jedi flex rolls: make sure the family has its roll component (used by BOQ + roll plan)
+      if (skuId && row.is_roll && row.roll_family && form.category === "Neon flex") {
+        await ensureRollComponent(row.roll_family, { id: skuId, length: Number(row.roll_length_m) || 5 });
       }
       const cost = toNumber(form.unit_cost);
       const oldCost = skuId ? costs?.get(skuId) : undefined;

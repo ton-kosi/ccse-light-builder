@@ -11,6 +11,9 @@ import { LinearDialog, type LinearTarget } from "@/components/boq/LinearDialog";
 import { parseLinear, type LinearConfig } from "@/lib/linear";
 import { ClipsoDialog, type ClipsoTarget } from "@/components/boq/ClipsoDialog";
 import { parseClipso, type ClipsoConfig } from "@/lib/clipso";
+import { NeonDialog, type NeonTarget } from "@/components/boq/NeonDialog";
+import { parseNeon, type NeonConfig } from "@/lib/neon";
+import { rebalanceNeon } from "@/lib/neonSync";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -65,6 +68,7 @@ export function BoqGrid({
   const [foTarget, setFoTarget] = useState<FoTarget | null>(null);
   const [linTarget, setLinTarget] = useState<LinearTarget | null>(null);
   const [clpTarget, setClpTarget] = useState<ClipsoTarget | null>(null);
+  const [neoTarget, setNeoTarget] = useState<NeonTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -97,14 +101,27 @@ export function BoqGrid({
     queryKey: ["set_lines", quotationId, lineIds.join(",")],
     enabled: lineIds.length > 0,
     queryFn: async () => {
-      const [fo, lin, clp] = await Promise.all([
+      const [fo, lin, clp, neo] = await Promise.all([
         supabase.from("line_recipes").select("quote_line_id").in("quote_line_id", lineIds).like("note", "FO %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "LIN %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "CLP %"),
+        supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "NEO %"),
       ]);
       if (fo.error) throw fo.error;
       if (lin.error) throw lin.error;
       if (clp.error) throw clp.error;
+      if (neo.error) throw neo.error;
+      const neoBlocks = new Map<string, NeonConfig>();
+      const neoRow = new Map<string, string>();
+      for (const r of neo.data) {
+        const cfg = parseNeon(r.note);
+        if (cfg) {
+          neoBlocks.set(cfg.blockId, cfg);
+          for (const id of cfg.rowIds) neoRow.set(id, cfg.blockId);
+        }
+        const bid = r.note?.split(" ")[1];
+        if (bid) neoRow.set(r.quote_line_id, bid);
+      }
       const clpBlocks = new Map<string, ClipsoConfig>();
       const clpRow = new Map<string, string>();
       for (const r of clp.data) {
@@ -127,7 +144,7 @@ export function BoqGrid({
         const bid = r.note?.split(" ")[1];
         if (bid) rowBlock.set(r.quote_line_id, bid);
       }
-      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow };
+      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow };
     },
   });
   const foLines = setLines?.fo;
@@ -139,11 +156,26 @@ export function BoqGrid({
     const bid = setLines?.clpRow.get(id);
     return bid ? (setLines?.clpBlocks.get(bid) ?? null) : null;
   };
-  /** Reopens the linear / FO / Clipso window a row was built in. */
+  const neoBlockOf = (id: string) => {
+    const bid = setLines?.neoRow.get(id);
+    return bid ? (setLines?.neoBlocks.get(bid) ?? null) : null;
+  };
+  /** Reopens the linear / FO / Clipso / Jedi flex window a row was built in. */
   const openSet = (l: GridLine) => {
     const lin = linBlockOf(l.id);
     const clp = clpBlockOf(l.id);
-    if (clp) {
+    const neo = neoBlockOf(l.id);
+    if (neo) {
+      const blockRows = lines.filter((x) => neo.rowIds.includes(x.id));
+      const priced = blockRows.find((x) => x.kind === "priced");
+      setNeoTarget({
+        mode: "edit",
+        config: neo,
+        option: blockRows[0]?.option_name ?? null,
+        zone: blockRows[0]?.zone ?? null,
+        discount: Number(priced?.discount_percent ?? 0),
+      });
+    } else if (clp) {
       const blockRows = lines.filter((x) => clp.rowIds.includes(x.id));
       const priced = blockRows.find((x) => x.kind === "priced");
       setClpTarget({
@@ -349,9 +381,12 @@ export function BoqGrid({
   };
 
   const removeRow = async (id: string) => {
+    const wasRun = !!lines.find((r) => r.id === id && r.component_id && r.cut_lengths?.length);
     setLocal((rows) => rows.filter((r) => r.id !== id));
     const { error } = await supabase.from("quote_lines").delete().eq("id", id);
     if (error) toast.error(error.message);
+    // a Jedi flex run gone → the rest of that model shares a new roll plan / price per metre
+    if (!error && wasRun) await rebalanceNeon(quotationId).catch((e: Error) => toast.error(e.message));
     qc.invalidateQueries({ queryKey: key });
   };
 
@@ -513,10 +548,11 @@ export function BoqGrid({
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
               const lin = linBlockOf(l.id);
               const clp = clpBlockOf(l.id);
-              const isFo = !!foLines?.has(l.id) || !!lin || !!clp;
-              const setName = clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
-              // first line of a linear / Clipso block, or the FO line, carries the "edit set" shortcut
-              const block = lin ?? clp;
+              const neo = neoBlockOf(l.id);
+              const isFo = !!foLines?.has(l.id) || !!lin || !!clp || !!neo;
+              const setName = neo ? "ชุด Jedi flex" : clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
+              // first line of a linear / Clipso / Jedi flex block, or the FO line, carries the "edit set" shortcut
+              const block = lin ?? clp ?? neo;
               const setStart = block
                 ? lines.find((x) => block.rowIds.includes(x.id))?.id === l.id
                 : !!foLines?.has(l.id);
@@ -670,7 +706,7 @@ export function BoqGrid({
                     ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
-                        {lin || clp ? (
+                        {lin || clp || neo ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -755,6 +791,13 @@ export function BoqGrid({
             >
               + เพิ่มชุด Clipso
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setNeoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
+            >
+              + เพิ่มชุด Jedi flex
+            </Button>
           </>
         ) : null}
         <span className="text-xs text-muted-foreground">
@@ -769,6 +812,15 @@ export function BoqGrid({
           canSeeCost={canSeeCost}
           replaceRows={replaceRows}
           onClose={() => setLinTarget(null)}
+        />
+      ) : null}
+      {neoTarget ? (
+        <NeonDialog
+          target={neoTarget}
+          quotationId={quotationId}
+          canSeeCost={canSeeCost}
+          replaceRows={replaceRows}
+          onClose={() => setNeoTarget(null)}
         />
       ) : null}
       {clpTarget ? (

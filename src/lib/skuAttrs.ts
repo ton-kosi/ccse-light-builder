@@ -5,6 +5,7 @@
 import { chipOf, pcbOf, PROFILE_MODELS, profileModelOfSku, railOf, usesEzClip } from "./profiles";
 import { psuDimOf, wattOfPsu, wattPerMOf } from "./linear";
 import { wattPerModuleOf } from "./clipso";
+import { JEDI_FLEX_MODELS } from "./neon";
 import { readTags } from "./skuCategory";
 
 export type AttrField =
@@ -32,7 +33,16 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
     { key: "EZ clip", label: "ใช้ EZ clip (ต้องใช้ราง 4/8)", kind: "bool" },
   ],
   "LED module": [{ key: "W/ชิ้น", label: "วัตต์ต่อชิ้น", kind: "number", unit: "W" }],
-  "Neon flex": [{ key: "W/m", label: "วัตต์ต่อเมตร", kind: "number", unit: "W/m" }],
+  "Neon flex": [
+    {
+      key: "รุ่น",
+      label: "รุ่น Jedi flex",
+      kind: "select",
+      options: JEDI_FLEX_MODELS.map((m) => ({ value: m.key, label: `${m.title} · ${m.wattPerM}W/m · ตัดทุก ${m.cutMm} มม.` })),
+      hint: "ติ๊ก 'เป็นสินค้าม้วน' ใส่ตระกูลม้วน (รุ่น+สี เหมือนกันทั้ง 5 และ 10 ม.) และระยะตัด",
+    },
+    { key: "W/m", label: "วัตต์ต่อเมตร", kind: "number", unit: "W/m" },
+  ],
   "LED profile": [
     {
       key: "รุ่น",
