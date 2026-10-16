@@ -17,6 +17,15 @@ export const BUSBARS: { value: Busbar; label: string; text: string }[] = [
   { value: "1H", label: "1 ด้าน · ด้านสูง (H)", text: "SINGLE BUSBAR ON HEIGHT SIDE" },
   { value: "2H", label: "2 ด้าน · ด้านสูง (H)", text: "DOUBLE BUSBAR ON HEIGHT SIDES" },
 ];
+/** Edges of the first version: left/right edges run along the height, top/bottom along the width. */
+const OLD_BUSBAR: Record<string, Busbar> = {
+  LEFT: "1H",
+  RIGHT: "1H",
+  "LEFT & RIGHT": "2H",
+  TOP: "1W",
+  BOTTOM: "1W",
+  "TOP & BOTTOM": "2W",
+};
 /** Customer text of a busbar choice; "" when not (validly) chosen. */
 export const busbarText = (b: string | null | undefined) =>
   BUSBARS.find((x) => x.value === b)?.text ?? "";
@@ -241,7 +250,20 @@ export function parseFilm(note: string | null | undefined): FilmConfig | null {
   if (i < 0) return null;
   try {
     const c = JSON.parse(note!.slice(i)) as FilmConfig;
-    return c && c.v === 1 ? c : null;
+    if (!c || c.v !== 1) return null;
+    // first version stored edges (LEFT / TOP & BOTTOM ...) and a calculation size
+    return {
+      ...c,
+      locations: c.locations.map((l) => ({
+        ...l,
+        pieces: l.pieces.map(({ w, h, qty, busbar }) => ({
+          w,
+          h,
+          qty,
+          busbar: OLD_BUSBAR[busbar] ?? busbar,
+        })),
+      })),
+    };
   } catch {
     return null;
   }
