@@ -9,7 +9,8 @@ import { readTags } from "./skuCategory";
 export type AttrField =
   | { key: string; label: string; kind: "number"; unit?: string; hint?: string }
   | { key: string; label: string; kind: "select"; options: { value: string; label: string }[]; hint?: string }
-  | { key: string; label: string; kind: "bool"; hint?: string };
+  | { key: string; label: string; kind: "bool"; hint?: string }
+  | { key: string; label: string; kind: "text"; hint?: string };
 
 const DIMS = ["NON-DIM", "0-10V", "DMX", "DALI"].map((v) => ({ value: v, label: v }));
 
@@ -50,6 +51,31 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
       ],
     },
   ],
+  "Clipso fabric": [
+    { key: "รุ่นผ้า", label: "รุ่นผ้า (ชื่อในใบเสนอราคา)", kind: "text", hint: "เช่น 308T — รุ่นเดียวกันหลายหน้าผ้า ระบบเลือกหน้าที่ถูกที่สุดให้" },
+    {
+      key: "หน้าผ้า",
+      label: "หน้าผ้า",
+      kind: "select",
+      options: [
+        { value: "3.4", label: "3.40 ม." },
+        { value: "5.1", label: "5.10 ม." },
+      ],
+    },
+    { key: "ยาวม้วน", label: "ความยาวม้วนเต็ม", kind: "number", unit: "ม.", hint: "ว่าง = 50 ม." },
+  ],
+  "Clipso track": [
+    {
+      key: "ราง",
+      label: "แบบราง",
+      kind: "select",
+      options: [
+        { value: "CC", label: "CC" },
+        { value: "CW", label: "CW" },
+      ],
+    },
+    { key: "ยาวเส้น", label: "ความยาวต่อเส้น", kind: "number", unit: "ม.", hint: "ว่าง = 2 ม." },
+  ],
   "Power supply": [
     { key: "วัตต์", label: "วัตต์", kind: "number", unit: "W" },
     { key: "ดิม", label: "ระบบดิม", kind: "select", options: DIMS },
@@ -87,6 +113,10 @@ export function guessAttrs(s: SkuLite, category: string): Record<string, string>
       put("EZ clip", usesEzClip(s));
     }
   } else if (category === "LED profile") put("รุ่น", profileModelOfSku(s)?.key);
+  else if (category === "Clipso fabric") {
+    const t = `${s.code} ${s.name}`;
+    put("หน้าผ้า", /5[.,]1\s*m/i.test(t) ? "5.1" : /3[.,]4\s*m/i.test(t) ? "3.4" : null);
+  } else if (category === "Clipso track") put("ราง", `${s.code} ${s.name}`.match(/\b(C[CW])\b/i)?.[1]?.toUpperCase());
   else if (category === "LED heat sink") put("ราง", railOf(s));
   else if (category === "Power supply") {
     put("วัตต์", wattOfPsu(s));

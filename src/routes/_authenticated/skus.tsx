@@ -665,7 +665,9 @@ function AttrFields({
       </div>
       {fields.map((fd) => (
         <Field key={fd.key} label={fd.label}>
-          {fd.kind === "number" ? (
+          {fd.kind === "text" ? (
+            <Input value={attrs[fd.key] ?? ""} onChange={(e) => put(fd.key, e.target.value)} />
+          ) : fd.kind === "number" ? (
             <div className="flex items-center gap-2">
               <Input inputMode="decimal" value={attrs[fd.key] ?? ""} onChange={(e) => put(fd.key, e.target.value)} />
               {fd.unit ? <span className="text-xs text-muted-foreground">{fd.unit}</span> : null}

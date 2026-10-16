@@ -21,7 +21,8 @@ export const SKU_CATEGORIES = [
   "FO cable",
   "FO accessory",
   "Neon flex",
-  "Stretch ceiling",
+  "Clipso fabric",
+  "Clipso track",
   "Smart film",
   "Service",
   "อื่นๆ",
@@ -40,6 +41,8 @@ export const CATEGORY_HINT: Partial<Record<SkuCategoryName, string>> = {
   "FO illuminator": "เครื่องกำเนิดแสง",
   "FO cable": "สาย fiber แต่ละขนาด",
   "FO accessory": "end finishing, harness, optical port, WP box",
+  "Clipso fabric": "ผ้า Clipso แต่ละรุ่น / หน้าผ้า (ราคาต่อ ตร.ม.)",
+  "Clipso track": "รางเย็บผ้า CC / CW (ราคาต่อเส้น)",
   Service: "งานบริการ เช่น พ่นสี (ไม่ตัดสต๊อก)",
 };
 
@@ -100,6 +103,8 @@ export function guessCategory(s: SkuLike): SkuCategoryName {
   if (/end\s*finish|harness|optical\s*port/i.test(t)) return "FO accessory";
   if (fo && /cable|สาย/i.test(t)) return "FO cable";
   if (fo && /\bwp\b|wp\s*box|waterproof/i.test(t)) return "FO accessory";
+  if (/clipso|stretch|ผ้ายืด/i.test(t))
+    return /track|rail|ราง|\bc[cw]\b/i.test(t) ? "Clipso track" : "Clipso fabric";
   if (/power\s*supply|\bpsu\b|driver|switching|adapter|transformer|หม้อแปลง|ไดรเวอร์|\b(lpv|hlg|lpf|elg|xlg)-/i.test(t))
     return "Power supply";
   if (/paint|พ่นสี|ค่าแรง|labou?r|service/i.test(t)) return "Service";
@@ -108,7 +113,6 @@ export function guessCategory(s: SkuLike): SkuCategoryName {
   if (/heat|alu(minium|minum)?\b|flat\s*bar/i.test(t)) return "LED heat sink";
   if (/diffuser|end\s*cap|clip|bracket|connector/i.test(t)) return "LED accessory";
   if (/neon|flex/i.test(t)) return "Neon flex";
-  if (/clipso|stretch/i.test(t)) return "Stretch ceiling";
   if (/smart\s*film/i.test(t)) return "Smart film";
   if (/\bled\b|strip|ribbon|jedi/i.test(t)) return "LED ribbon";
   if (fo) return "FO accessory";

@@ -9,6 +9,8 @@ import { LineRecipeEditor } from "@/components/boq/LineRecipeEditor";
 import { FoSetDialog, type FoTarget } from "@/components/boq/FoSetDialog";
 import { LinearDialog, type LinearTarget } from "@/components/boq/LinearDialog";
 import { parseLinear, type LinearConfig } from "@/lib/linear";
+import { ClipsoDialog, type ClipsoTarget } from "@/components/boq/ClipsoDialog";
+import { parseClipso, type ClipsoConfig } from "@/lib/clipso";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -62,6 +64,7 @@ export function BoqGrid({
   const [openRecipe, setOpenRecipe] = useState<string | null>(null);
   const [foTarget, setFoTarget] = useState<FoTarget | null>(null);
   const [linTarget, setLinTarget] = useState<LinearTarget | null>(null);
+  const [clpTarget, setClpTarget] = useState<ClipsoTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -94,12 +97,25 @@ export function BoqGrid({
     queryKey: ["set_lines", quotationId, lineIds.join(",")],
     enabled: lineIds.length > 0,
     queryFn: async () => {
-      const [fo, lin] = await Promise.all([
+      const [fo, lin, clp] = await Promise.all([
         supabase.from("line_recipes").select("quote_line_id").in("quote_line_id", lineIds).like("note", "FO %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "LIN %"),
+        supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "CLP %"),
       ]);
       if (fo.error) throw fo.error;
       if (lin.error) throw lin.error;
+      if (clp.error) throw clp.error;
+      const clpBlocks = new Map<string, ClipsoConfig>();
+      const clpRow = new Map<string, string>();
+      for (const r of clp.data) {
+        const cfg = parseClipso(r.note);
+        if (cfg) {
+          clpBlocks.set(cfg.blockId, cfg);
+          for (const id of cfg.rowIds) clpRow.set(id, cfg.blockId);
+        }
+        const bid = r.note?.split(" ")[1];
+        if (bid) clpRow.set(r.quote_line_id, bid);
+      }
       const blocks = new Map<string, LinearConfig>();
       const rowBlock = new Map<string, string>();
       for (const r of lin.data) {
@@ -111,7 +127,7 @@ export function BoqGrid({
         const bid = r.note?.split(" ")[1];
         if (bid) rowBlock.set(r.quote_line_id, bid);
       }
-      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock };
+      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow };
     },
   });
   const foLines = setLines?.fo;
@@ -119,10 +135,25 @@ export function BoqGrid({
     const bid = setLines?.rowBlock.get(id);
     return bid ? (setLines?.blocks.get(bid) ?? null) : null;
   };
-  /** Reopens the linear / FO window a row was built in. */
+  const clpBlockOf = (id: string) => {
+    const bid = setLines?.clpRow.get(id);
+    return bid ? (setLines?.clpBlocks.get(bid) ?? null) : null;
+  };
+  /** Reopens the linear / FO / Clipso window a row was built in. */
   const openSet = (l: GridLine) => {
     const lin = linBlockOf(l.id);
-    if (lin) {
+    const clp = clpBlockOf(l.id);
+    if (clp) {
+      const blockRows = lines.filter((x) => clp.rowIds.includes(x.id));
+      const priced = blockRows.find((x) => x.kind === "priced");
+      setClpTarget({
+        mode: "edit",
+        config: clp,
+        option: blockRows[0]?.option_name ?? null,
+        zone: blockRows[0]?.zone ?? null,
+        discount: Number(priced?.discount_percent ?? 0),
+      });
+    } else if (lin) {
       const blockRows = lines.filter((x) => lin.rowIds.includes(x.id));
       const priced = blockRows.find((x) => x.kind === "priced");
       setLinTarget({
@@ -481,10 +512,13 @@ export function BoqGrid({
               const amount = lineAmount(l);
               const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
               const lin = linBlockOf(l.id);
-              const isFo = !!foLines?.has(l.id) || !!lin;
-              // first line of a linear block / the FO line carries the "edit set" shortcut
-              const setStart = lin
-                ? lines.find((x) => lin.rowIds.includes(x.id))?.id === l.id
+              const clp = clpBlockOf(l.id);
+              const isFo = !!foLines?.has(l.id) || !!lin || !!clp;
+              const setName = clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
+              // first line of a linear / Clipso block, or the FO line, carries the "edit set" shortcut
+              const block = lin ?? clp;
+              const setStart = block
+                ? lines.find((x) => block.rowIds.includes(x.id))?.id === l.id
                 : !!foLines?.has(l.id);
               const txt = (k: Parameters<typeof commitText>[1], c: number, extra = "") => (
                 <td className="px-0.5 py-0.5">
@@ -569,7 +603,7 @@ export function BoqGrid({
                           className="mx-1 mt-1 rounded border border-primary/40 bg-primary/5 px-2 py-0.5 text-xs font-medium not-italic text-primary hover:bg-primary/10"
                           onClick={() => openSet(l)}
                         >
-                          ✎ {canEdit ? "แก้" : "ดู"}{lin ? "ชุดไฟเส้น" : "ชุด FO"}
+                          ✎ {canEdit ? "แก้" : "ดู"}{setName}
                         </button>
                       ) : null}
                        <DescriptionCell
@@ -610,7 +644,7 @@ export function BoqGrid({
                       return (
                         <td
                           className="px-0.5 py-0.5"
-                          title={isFo ? "แก้ราคา/ส่วนลดชุด FO ที่ปุ่ม แก้ชุด FO" : max != null ? `ลดได้สูงสุด ${max}%` : undefined}
+                          title={isFo ? `แก้ราคา/ส่วนลดที่ปุ่ม แก้${setName}` : max != null ? `ลดได้สูงสุด ${max}%` : undefined}
                         >
                           <CellInput
                             cell={`${r}:10`}
@@ -636,14 +670,14 @@ export function BoqGrid({
                     ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
-                        {lin ? (
+                        {lin || clp ? (
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-7 px-2 text-primary"
                             onClick={() => openSet(l)}
                           >
-                            {canEdit ? "แก้ชุดไฟเส้น" : "ดูชุดไฟเส้น"}
+                            {canEdit ? "แก้" : "ดู"}{setName}
                           </Button>
                         ) : !heading && foLines?.has(l.id) ? (
                           <Button
@@ -714,6 +748,13 @@ export function BoqGrid({
             >
               + เพิ่มชุด Fiber Optic
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setClpTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
+            >
+              + เพิ่มชุด Clipso
+            </Button>
           </>
         ) : null}
         <span className="text-xs text-muted-foreground">
@@ -728,6 +769,15 @@ export function BoqGrid({
           canSeeCost={canSeeCost}
           replaceRows={replaceRows}
           onClose={() => setLinTarget(null)}
+        />
+      ) : null}
+      {clpTarget ? (
+        <ClipsoDialog
+          target={clpTarget}
+          quotationId={quotationId}
+          canSeeCost={canSeeCost}
+          replaceRows={replaceRows}
+          onClose={() => setClpTarget(null)}
         />
       ) : null}
       {foTarget ? (

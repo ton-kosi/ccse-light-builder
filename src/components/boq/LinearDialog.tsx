@@ -777,7 +777,7 @@ export function LinearDialog({
   );
 }
 
-function Choice({
+export function Choice({
   on,
   onClick,
   disabled,
@@ -808,7 +808,7 @@ function Choice({
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+export function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid items-center gap-2 sm:grid-cols-[130px_1fr]">
       <span className="text-sm font-medium">{label}</span>
