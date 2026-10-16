@@ -265,6 +265,21 @@ export type ClpRow = {
 };
 
 export const CLP_TAG = "CLP ";
+
+/**
+ * "Calculation size" for the quotation: a single piece is shown the same way round as its opening
+ * (width x length, with the rounded cut length); several pieces show roll width used x total length.
+ */
+function calcSize(lay: Layout, group: Panel[]): string {
+  const only = lay.strips.length === 1 && lay.strips[0]!.items.length === 1 ? lay.strips[0]!.items[0]! : null;
+  if (only) {
+    const [a] = cutSize(group[only.panel]!);
+    const turned = Math.abs(only.across - a) > 1e-9; // laid with its length across the roll
+    const len = lay.strips[0]!.length;
+    return turned ? `${m(len)} x ${m(only.across)}` : `${m(only.across)} x ${m(len)}`;
+  }
+  return `${m(lay.usedWidth)} x ${m(lay.length)}`;
+}
 const sizeText = (p: Panel) =>
   p.shape === "circle" ? `DIA : ${m(p.w)}` : `${m(p.w)} x ${m(p.l)}`;
 
@@ -333,7 +348,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
           (p) =>
             `- OPENING SIZE : ${sizeText(p)}${p.qty > 1 ? ` x ${p.qty}PCS.` : ""}`,
         ),
-        `- CALCULATION SIZE : ${m(f.pick.lay.usedWidth)} x ${m(f.pick.lay.length)}`,
+        `- CALCULATION SIZE : ${calcSize(f.pick.lay, panels)}`,
         profileLine,
       ];
       rows.push({
@@ -356,7 +371,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
         kind: "priced",
         customer_text: [
           `SIZE : ${sizeText(p)}`,
-          `- CALCULATION SIZE ${m(lay.usedWidth)} x ${m(lay.length)}`,
+          `- CALCULATION SIZE ${calcSize(lay, [p])}`,
           profileLine,
         ].join("\n"),
         qty: p.qty,

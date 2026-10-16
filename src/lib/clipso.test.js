@@ -148,3 +148,9 @@ test("luminous ceiling with modules", () => {
   expect(led.recipes.map((r) => [r.sku_id, r.qty])).toEqual([["led", 78], ["psu", 1]]);
   expect(led.unit_price).toBe(78 * 300 + 1000);
 });
+
+test("single piece: calculation size keeps the opening's orientation", () => {
+  const b = buildClipso({ ...base, code: "", fabricName: "", panels: [R(1.6, 3.7)] }, PRICES, ids);
+  // laid across a 5.1 roll (3.90 across, 1.80 along) but shown as width x length
+  expect(b.rows[0].customer_text).toContain("- CALCULATION SIZE : 1.80M x 3.90M");
+});
