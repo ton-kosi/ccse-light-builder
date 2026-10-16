@@ -50,6 +50,13 @@
       "when": 1792135937727,
       "tag": "0006_neon_rolls_project_demand",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792140213622,
+      "tag": "0007_quote_totals",
+      "breakpoints": true
     }
   ]
 }
