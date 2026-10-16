@@ -31,6 +31,18 @@ export type Database = {
       }
       billing_docs: {
         Row: {
+          company_id: string | null
+          term_seq: number | null
+          term_label: string | null
+          term_percent: number | null
+          quote_total_ex_vat: number | null
+          request_amount: number | null
+          deduct_amount: number
+          wht_percent: number
+          wht_amount: number
+          net_payment: number | null
+          customer_tax_id: string | null
+          customer_branch: string | null
           amount: number
           attn: string | null
           bill_date: string
@@ -59,6 +71,18 @@ export type Database = {
           vat_percent: number
         }
         Insert: {
+          company_id?: string | null
+          term_seq?: number | null
+          term_label?: string | null
+          term_percent?: number | null
+          quote_total_ex_vat?: number | null
+          request_amount?: number | null
+          deduct_amount?: number
+          wht_percent?: number
+          wht_amount?: number
+          net_payment?: number | null
+          customer_tax_id?: string | null
+          customer_branch?: string | null
           amount: number
           attn?: string | null
           bill_date: string
@@ -87,6 +111,18 @@ export type Database = {
           vat_percent?: number
         }
         Update: {
+          company_id?: string | null
+          term_seq?: number | null
+          term_label?: string | null
+          term_percent?: number | null
+          quote_total_ex_vat?: number | null
+          request_amount?: number | null
+          deduct_amount?: number
+          wht_percent?: number
+          wht_amount?: number
+          net_payment?: number | null
+          customer_tax_id?: string | null
+          customer_branch?: string | null
           amount?: number
           attn?: string | null
           bill_date?: string
@@ -137,6 +173,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      companies: {
+        Row: {
+          address_en: string | null
+          address_th: string | null
+          bank_account_name_en: string | null
+          bank_account_name_th: string | null
+          bank_account_no: string | null
+          bank_branch_en: string | null
+          bank_branch_th: string | null
+          bank_name_en: string | null
+          bank_name_th: string | null
+          contact_line: string | null
+          default_wht_percent: number
+          id: string
+          logo_data: string | null
+          name_en: string
+          name_th: string
+          quote_prefix: string | null
+          short_en: string
+          signer_name: string | null
+          signer_title: string | null
+          sort_order: number
+          tax_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_en?: string | null
+          address_th?: string | null
+          bank_account_name_en?: string | null
+          bank_account_name_th?: string | null
+          bank_account_no?: string | null
+          bank_branch_en?: string | null
+          bank_branch_th?: string | null
+          bank_name_en?: string | null
+          bank_name_th?: string | null
+          contact_line?: string | null
+          default_wht_percent?: number
+          id: string
+          logo_data?: string | null
+          name_en: string
+          name_th: string
+          quote_prefix?: string | null
+          short_en: string
+          signer_name?: string | null
+          signer_title?: string | null
+          sort_order?: number
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_en?: string | null
+          address_th?: string | null
+          bank_account_name_en?: string | null
+          bank_account_name_th?: string | null
+          bank_account_no?: string | null
+          bank_branch_en?: string | null
+          bank_branch_th?: string | null
+          bank_name_en?: string | null
+          bank_name_th?: string | null
+          contact_line?: string | null
+          default_wht_percent?: number
+          id?: string
+          logo_data?: string | null
+          name_en?: string
+          name_th?: string
+          quote_prefix?: string | null
+          short_en?: string
+          signer_name?: string | null
+          signer_title?: string | null
+          sort_order?: number
+          tax_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       component_clauses: {
         Row: {
@@ -199,6 +310,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          branch: string | null
           address: string | null
           code: string | null
           contact_person: string | null
@@ -212,6 +324,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch?: string | null
           address?: string | null
           code?: string | null
           contact_person?: string | null
@@ -225,6 +338,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch?: string | null
           address?: string | null
           code?: string | null
           contact_person?: string | null
@@ -887,6 +1001,7 @@ export type Database = {
       }
       quotations: {
         Row: {
+          company_id: string
           adjustments: Json
           closing_text: string | null
           created_at: string
@@ -908,6 +1023,7 @@ export type Database = {
           vat_percent: number
         }
         Insert: {
+          company_id?: string
           adjustments?: Json
           closing_text?: string | null
           created_at?: string
@@ -929,6 +1045,7 @@ export type Database = {
           vat_percent?: number
         }
         Update: {
+          company_id?: string
           adjustments?: Json
           closing_text?: string | null
           created_at?: string
@@ -1651,7 +1768,7 @@ export type Database = {
         }[]
       }
       issue_billing_doc: {
-        Args: { _bill_date: string; _credit_days: number; _term_id: string }
+        Args: { _bill_date: string; _credit_days: number; _term_id: string; _wht_percent?: number }
         Returns: string
       }
       material_demand: {

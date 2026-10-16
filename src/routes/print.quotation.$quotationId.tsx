@@ -17,7 +17,8 @@ import {
   type SummaryRow,
 } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
-import { DocHeader } from "@/components/print/DocHeader";
+import { DocFooter, DocHeader } from "@/components/print/DocHeader";
+import { companyOf, useCompanies } from "@/lib/companies";
 import { QuoteFooterPrint } from "@/components/print/QuoteFooterPrint";
 import { buildA4Pdf } from "@/lib/pdf";
 import { formatDate, formatQty, formatTHB } from "@/lib/format";
@@ -71,6 +72,7 @@ function FittedDescriptionLine({ children, bold = false }: { children: string; b
 
 function PrintQuotation() {
   const { quotationId } = Route.useParams();
+  const companies = useCompanies();
   const { data, isLoading } = useQuery({
     queryKey: ["print_quotation", quotationId],
     queryFn: async () => {
@@ -125,6 +127,7 @@ function PrintQuotation() {
     selected_option: string | null;
     customers: { name: string; address: string | null } | null;
   } | null;
+  const company = companyOf(companies, q.company_id);
   const sel = project?.selected_option ?? null;
   const printed = sel ? lines.filter((l) => optKey(l) === "" || optKey(l) === sel) : lines;
   const opts = optionNames(lines);
@@ -165,7 +168,7 @@ function PrintQuotation() {
         </Button>
       </div>
 
-      <DocHeader title="QUOTATION" subtitle="ใบเสนอราคา" />
+      <DocHeader company={company} title="QUOTATION" subtitle="ใบเสนอราคา" />
 
       <section className="mt-3 grid grid-cols-2 gap-4">
         <div className="space-y-0.5">
@@ -301,6 +304,7 @@ function PrintQuotation() {
       </section>
 
       <QuoteFooterPrint
+        companyName={company.short_en}
         clauses={clauses}
         legacyNotes={q.notes}
         closingText={q.closing_text}
@@ -314,6 +318,7 @@ function PrintQuotation() {
         validityDays={q.validity_days}
         deliveryText={q.delivery_text}
       />
+      <DocFooter company={company} />
     </div>
   );
 }

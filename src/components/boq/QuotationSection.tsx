@@ -22,6 +22,7 @@ import {
   vatModeOf,
   type Adjustment,
 } from "@/lib/boq";
+import { useCompanies } from "@/lib/companies";
 import { formatDate, formatTHB, toNumber } from "@/lib/format";
 
 export function QuotationSection({
@@ -40,6 +41,7 @@ export function QuotationSection({
   canManagePayments?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const companies = useCompanies();
   const [preview, setPreview] = useState(false);
   const [issuing, setIssuing] = useState(false);
   const [billDoc, setBillDoc] = useState<string | null>(null);
@@ -236,6 +238,20 @@ export function QuotationSection({
                 updateQuotation.mutate({ date: e.target.value });
             }}
           />
+        </Field>
+        <Field label="บริษัทที่ออกใบเสนอราคา / ใบเบิก" className="md:col-span-2">
+          <select
+            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={quotation.company_id ?? "ccse"}
+            disabled={!canEdit}
+            onChange={(e) => updateQuotation.mutate({ company_id: e.target.value })}
+          >
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name_th} ({c.short_en})
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
 

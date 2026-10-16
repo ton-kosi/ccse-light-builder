@@ -1,3 +1,4 @@
+-- NOTE: the create_quotation_revision body below dropped parts of the newer version; docs/sql/companies_billing.sql restores it.
 -- Quotation totals options + work-sheet-only lines.
 -- 1. quote_lines.kind 'internal' = note shown only on the work sheet (never printed for the customer, no price).
 -- 2. quotations.vat_mode: how VAT appears on the printed quotation

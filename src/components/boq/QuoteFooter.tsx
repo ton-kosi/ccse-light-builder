@@ -15,6 +15,7 @@ import {
   type ClauseSection,
 } from "@/lib/clauses";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { companyOf, useCompanies } from "@/lib/companies";
 import { syncQuotationClauses } from "@/lib/clauseSync";
 
 export const DEFAULT_CLOSING =
@@ -434,6 +435,7 @@ function SignOff({
   });
 
   const closing = quotation.closing_text ?? DEFAULT_CLOSING;
+  const companies = useCompanies();
 
   return (
     <section className={card}>
@@ -454,7 +456,7 @@ function SignOff({
         {/* left: signer */}
         <div className="space-y-2 text-sm">
           <div className="font-semibold">FAITHFULLY YOURS,</div>
-          <div>CHINGCHAI &amp; SONS ENGINEERING CO., LTD.</div>
+          <div>{companyOf(companies, quotation.company_id).short_en}</div>
           <label className="block pt-2 text-xs text-muted-foreground">ผู้ลงนาม</label>
           {canEdit && people?.length ? (
             <select

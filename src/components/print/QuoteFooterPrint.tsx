@@ -18,6 +18,7 @@ const DEFAULT_CLOSING = "WE HOPE THAT OUR QUOTATION CAN BE OF CONSIDERABLE VALUE
  * The sign-off is one block (data-pdf-keep) so neither printing nor the PDF splits it across pages.
  */
 export function QuoteFooterPrint({
+  companyName,
   clauses,
   legacyNotes,
   closingText,
@@ -27,6 +28,7 @@ export function QuoteFooterPrint({
   validityDays,
   deliveryText,
 }: {
+  companyName: string;
   clauses: FooterClause[];
   legacyNotes: string | null;
   closingText: string | null;
@@ -75,7 +77,7 @@ export function QuoteFooterPrint({
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-8">
           <div className="flex flex-col">
             <div>FAITHFULLY YOURS,</div>
-            <div>CHINGCHAI &amp; SONS ENGINEERING CO., LTD.</div>
+            <div>{companyName}</div>
             <div className="mt-auto pt-14">
               {signerName?.trim() ? <div>({signerName.trim()})</div> : <div>(……………………………)</div>}
               {signerPosition?.trim() ? <div>{signerPosition.trim()}</div> : null}

@@ -32,6 +32,7 @@ const EMPTY = {
   phone: "",
   email: "",
   tax_id: "",
+  branch: "",
   address: "",
   notes: "",
 };
@@ -41,6 +42,7 @@ function CustomersPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ ...EMPTY });
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ["customers"],
@@ -56,7 +58,7 @@ function CustomersPage() {
 
   const create = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("customers").insert({
+      const row = {
         code: form.code || null,
         name: form.name,
         contact_person: form.contact_person || null,
@@ -65,13 +67,18 @@ function CustomersPage() {
         tax_id: form.tax_id || null,
         address: form.address || null,
         notes: form.notes || null,
-      });
+        ...(form.branch.trim() ? { branch: form.branch.trim() } : editing ? { branch: null } : {}),
+      };
+      const { error } = editing
+        ? await supabase.from("customers").update(row).eq("id", editing)
+        : await supabase.from("customers").insert(row);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("บันทึกลูกค้าแล้ว");
       setForm({ ...EMPTY });
       setOpen(false);
+      setEditing(null);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -84,7 +91,14 @@ function CustomersPage() {
         description="ข้อมูลลูกค้าและผู้ติดต่อ ใช้ผูกกับโปรเจกต์และใบเสนอราคา"
         actions={
           canEditSales ? (
-            <Button size="sm" onClick={() => setOpen((v) => !v)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setOpen((v) => !v);
+                setEditing(null);
+                setForm({ ...EMPTY });
+              }}
+            >
               {open ? "ปิดฟอร์ม" : "เพิ่มลูกค้า"}
             </Button>
           ) : null
@@ -116,10 +130,16 @@ function CustomersPage() {
             />
           </Field>
           <Field label="โทรศัพท์">
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
           </Field>
           <Field label="อีเมล">
-            <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </Field>
           <Field label="เลขผู้เสียภาษี">
             <Input
@@ -127,7 +147,14 @@ function CustomersPage() {
               onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
             />
           </Field>
-          <Field label="ที่อยู่" className="md:col-span-2">
+          <Field label="สาขา (ว่าง = สำนักงานใหญ่)">
+            <Input
+              value={form.branch}
+              placeholder="สำนักงานใหญ่"
+              onChange={(e) => setForm({ ...form, branch: e.target.value })}
+            />
+          </Field>
+          <Field label="ที่อยู่ (ใช้ในใบเบิกเงิน)" className="md:col-span-2">
             <Textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -141,7 +168,7 @@ function CustomersPage() {
           </Field>
           <div className="md:col-span-3">
             <Button type="submit" size="sm" disabled={create.isPending}>
-              บันทึก
+              {editing ? "บันทึกการแก้ไข" : "บันทึก"}
             </Button>
           </div>
         </form>
@@ -166,7 +193,31 @@ function CustomersPage() {
               </tr>
             ) : customers?.length ? (
               customers.map((c) => (
-                <tr key={c.id} className="border-t border-border">
+                <tr
+                  key={c.id}
+                  className={
+                    "border-t border-border " +
+                    (canEditSales ? "cursor-pointer hover:bg-secondary/60" : "")
+                  }
+                  title={canEditSales ? "คลิกเพื่อแก้ไข" : undefined}
+                  onClick={() => {
+                    if (!canEditSales) return;
+                    setEditing(c.id);
+                    setOpen(true);
+                    setForm({
+                      code: c.code ?? "",
+                      name: c.name,
+                      contact_person: c.contact_person ?? "",
+                      phone: c.phone ?? "",
+                      email: c.email ?? "",
+                      tax_id: c.tax_id ?? "",
+                      branch: c.branch ?? "",
+                      address: c.address ?? "",
+                      notes: c.notes ?? "",
+                    });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
                   <Td>{c.code ?? "-"}</Td>
                   <Td className="font-medium">{c.name}</Td>
                   <Td>{c.contact_person ?? "-"}</Td>
