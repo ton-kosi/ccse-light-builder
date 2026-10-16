@@ -50,9 +50,12 @@ export type ClipsoConfig = {
   /** cut length rounded up per strip (m), e.g. 0.1 */
   lengthStep: number;
   light: null | {
+    /** strip: rows along the long side · module: grid of modules in both directions (x and y) */
+    kind?: "strip" | "module";
     depthCm: number;
     spacingCm: number;
     ledSkuId: string;
+    /** strip: W per metre · module: W per module */
     wattPerM: number;
     cct: string;
     dim: DimType;
@@ -216,6 +219,38 @@ export function ledMeters(p: Panel, spacingCm: number): { rows: number; meters: 
   return { rows, meters: r2(rows * long) };
 }
 
+/** LED modules in a grid at the given spacing both ways (x and y); circle: cells inside the circle. */
+export function ledModules(p: Panel, spacingCm: number): { cols: number; rows: number; count: number } {
+  const s = spacingCm / 100;
+  if (!(s > 0)) return { cols: 0, rows: 0, count: 0 };
+  if (p.shape === "circle") {
+    const n = Math.max(1, Math.ceil(p.w / s - 1e-9));
+    const gap = p.w / n;
+    const r = p.w / 2;
+    let count = 0;
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++) {
+        const x = -r + gap * (i + 0.5);
+        const y = -r + gap * (j + 0.5);
+        if (x * x + y * y <= r * r + 1e-9) count++;
+      }
+    return { cols: n, rows: n, count: Math.max(1, count) };
+  }
+  const cols = Math.max(1, Math.ceil(p.w / s - 1e-9));
+  const rows = Math.max(1, Math.ceil(p.l / s - 1e-9));
+  return { cols, rows, count: cols * rows };
+}
+
+/** Amount of LED for one piece: metres (strip) or modules (module), and its watts. */
+export function lightFor(p: Panel, L: NonNullable<ClipsoConfig["light"]>) {
+  if (L.kind === "module") {
+    const g = ledModules(p, L.spacingCm);
+    return { qty: g.count, watts: g.count * L.wattPerM, text: `${g.cols} × ${g.rows} = ${g.count} ชิ้น` };
+  }
+  const one = ledMeters(p, L.spacingCm);
+  return { qty: one.meters, watts: one.meters * L.wattPerM, text: `${one.rows} แถว · ${one.meters} ม.` };
+}
+
 /* ---------------------------------------------------------------- BOQ rows */
 
 export type ClpRecipe = { sku_id: string; qty: number; note: string };
@@ -337,14 +372,14 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
     let ledM = 0;
     const psuCount = new Map<string, { watt: number; count: number }>();
     for (const p of panels) {
-      const one = ledMeters(p, L.spacingCm);
-      ledM += one.meters * p.qty;
-      const psu = pickPsu(one.meters * L.wattPerM, L.psuOptions, L.loadFactor);
+      const one = lightFor(p, L);
+      ledM += one.qty * p.qty;
+      const psu = pickPsu(one.watts, L.psuOptions, L.loadFactor);
       if (psu) {
         const cur = psuCount.get(psu.skuId) ?? { watt: psu.watt, count: 0 };
         cur.count += psu.count * p.qty;
         psuCount.set(psu.skuId, cur);
-      } else if (one.meters > 0) problems.push(`ไม่มีหม้อแปลง ${L.dim} ในหมวด Power supply`);
+      } else if (one.watts > 0) problems.push(`ไม่มีหม้อแปลง ${L.dim} ในหมวด Power supply`);
     }
     ledM = r2(ledM);
     let amount = ledM * price(L.ledSkuId);
@@ -367,7 +402,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
       kind: "priced",
       customer_text: [
         `LED ABOVE THE FABRIC (ceiling to clipso ${L.depthCm}cm.)`,
-        `- LED MODULE (${L.cct.trim() || "TBD"})`,
+        `- ${L.kind === "module" ? "LED MODULE" : "LED STRIP"} (${L.cct.trim() || "TBD"})`,
         `- POWER SUPPLY ${dimLabel(L.dim)} x ${totalPsu}`,
         ...(L.miscSkuId ? ["- MISCELLANEOUS x 1"] : []),
       ].join("\n"),
@@ -460,4 +495,13 @@ export function clipsoSkuGroups<T extends SkuLite>(skus: T[]) {
     trackFor: (t: TrackType) => tracks.filter((s) => trackTypeOf(s) === t),
     trackLength: (s: SkuLite | undefined) => (s ? Number(readTags(s.notes)["ยาวเส้น"]) || 2 : 2),
   };
+}
+
+/** Watts per LED module: the SKU's "W/ชิ้น" field, else "1.2W" in the name. */
+export function wattPerModuleOf(s: SkuLite | undefined): number | null {
+  if (!s) return null;
+  const saved = Number(readTags(s.notes)["W/ชิ้น"]);
+  if (saved > 0) return saved;
+  const mm = txt(s).match(/(\d+(?:\.\d+)?)\s*W\b(?!\s*\/)/i);
+  return mm ? Number(mm[1]) : null;
 }

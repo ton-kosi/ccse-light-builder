@@ -12,6 +12,7 @@ export const SKU_OPTIONS_KEY = ["skus", "options", "with-category"];
 
 export const SKU_CATEGORIES = [
   "LED ribbon",
+  "LED module",
   "Power supply",
   "LED profile",
   "LED heat sink",
@@ -33,6 +34,7 @@ export type SkuCategoryName = (typeof SKU_CATEGORIES)[number];
 /** Short Thai hint shown next to each category in pickers. */
 export const CATEGORY_HINT: Partial<Record<SkuCategoryName, string>> = {
   "LED ribbon": "เส้น LED / strip",
+  "LED module": "ไฟ module เป็นชิ้น (เช่น ใต้ผ้า Clipso)",
   "Power supply": "หม้อแปลง / driver",
   "LED profile": "รางอลูมิเนียม + ฝาครอบ",
   "LED heat sink": "อลูมิเนียมระบายความร้อน",
@@ -105,6 +107,7 @@ export function guessCategory(s: SkuLike): SkuCategoryName {
   if (fo && /\bwp\b|wp\s*box|waterproof/i.test(t)) return "FO accessory";
   if (/clipso|stretch|ผ้ายืด/i.test(t))
     return /track|rail|ราง|\bc[cw]\b/i.test(t) ? "Clipso track" : "Clipso fabric";
+  if (/\bmodule\b|โมดูล/i.test(t) && !/power|psu|driver/i.test(t)) return "LED module";
   if (/power\s*supply|\bpsu\b|driver|switching|adapter|transformer|หม้อแปลง|ไดรเวอร์|\b(lpv|hlg|lpf|elg|xlg)-/i.test(t))
     return "Power supply";
   if (/paint|พ่นสี|ค่าแรง|labou?r|service/i.test(t)) return "Service";

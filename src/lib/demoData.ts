@@ -89,6 +89,7 @@ export const DEMO_SKUS: Demo[] = [
   { code: "DEMO-CLP-495D-3.4", name: "Clipso fabric 495D acoustic 3.4m", unit: "ตร.ม.", cat: "Clipso fabric", attrs: { รุ่นผ้า: "495D ACOUSTIC", หน้าผ้า: "3.4", ยาวม้วน: "50" }, sell: 1900, disc: 10, buys: [[700, 170]], source: "import" },
   { code: "DEMO-TRK-CC", name: "Clipso track CC 2m", unit: "เส้น", cat: "Clipso track", attrs: { ราง: "CC", ยาวเส้น: "2" }, sell: 450, disc: 5, buys: [[140, 200]], source: "import" },
   { code: "DEMO-TRK-CW", name: "Clipso track CW 2m", unit: "เส้น", cat: "Clipso track", attrs: { ราง: "CW", ยาวเส้น: "2" }, sell: 420, disc: 5, buys: [[130, 200]], source: "import" },
+  { code: "DEMO-MOD-1.2W", name: "LED module 3 LED 1.2W 24V (ใต้ผ้า)", unit: "ชิ้น", cat: "LED module", attrs: { "W/ชิ้น": "1.2" }, sell: 45, disc: 10, buys: [[12, 1000]], source: "import" },
   { code: "DEMO-MISC", name: "Miscellaneous ไฟใต้ผ้า (สาย ขายึด) ต่อชุด", unit: "ชุด", cat: "LED accessory", sell: 1500, disc: 0, buys: [[400, 20]] },
   { code: "DEMO-FO50W", name: "FO illuminator 50W Halogen", unit: "EA.", cat: "FO illuminator", sell: 25000, disc: 15, buys: [[9500, 4], [10000, 4]], source: "import" },
   { code: "DEMO-FOC-0.75", name: "FO cable 0.75mm", unit: "M.", cat: "FO cable", sell: 35, disc: 10, buys: [[9, 2000]], source: "import" },

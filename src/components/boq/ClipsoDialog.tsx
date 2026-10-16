@@ -23,8 +23,9 @@ import {
   clipsoSkuGroups,
   cutSize,
   DEFAULT_ALLOW_CM,
-  ledMeters,
+  lightFor,
   spacingFor,
+  wattPerModuleOf,
   trackPieces,
   type ClipsoConfig,
   type Panel,
@@ -216,6 +217,7 @@ export function ClipsoDialog({
     const led = lin.leds[0];
     set({
       light: {
+        kind: "strip",
         depthCm: 20,
         spacingCm: spacingFor(20),
         ledSkuId: led?.id ?? "",
@@ -233,6 +235,17 @@ export function ClipsoDialog({
     setC((o) => (o && o.light ? { ...o, light: { ...o.light, ...p } } : o));
   const pick = compare?.pick ?? null;
   const miscChoices = skus ? inCategory(skus, "LED accessory", "Service") : [];
+  const modules = skus ? inCategory(skus, "LED module") : [];
+  const isModule = L?.kind === "module";
+  const chooseKind = (kind: "strip" | "module") => {
+    const first = kind === "module" ? modules[0] : lin.leds[0];
+    setCells((x) => ({ ...x, wpm: "" }));
+    setL({
+      kind,
+      ledSkuId: first?.id ?? "",
+      wattPerM: (kind === "module" ? wattPerModuleOf(first) : wattPerMOf(first)) ?? 0,
+    });
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -509,16 +522,30 @@ export function ClipsoDialog({
                         ซม. <span className="text-xs text-muted-foreground">(ปกติ 1.5 เท่าของความลึก)</span>
                       </div>
                     </Row>
+                    <Row label="ชนิดไฟ">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Choice on={!isModule} onClick={() => chooseKind("strip")}>
+                          ไฟเส้น (เรียงเป็นแถว)
+                        </Choice>
+                        <Choice on={isModule} onClick={() => chooseKind("module")}>
+                          ไฟ module (ตาราง x × y)
+                        </Choice>
+                      </div>
+                    </Row>
                     <Row label="ไฟ">
                       <SkuSelect
                         value={L.ledSkuId}
-                        preferred={lin.leds}
-                        category="LED ribbon"
+                        preferred={isModule ? modules : lin.leds}
+                        category={isModule ? "LED module" : "LED ribbon"}
                         all={skus ?? []}
-                        onChange={(id) => setL({ ledSkuId: id, wattPerM: wattPerMOf(byId.get(id)) ?? L.wattPerM })}
+                        onChange={(id) => {
+                          const w = isModule ? wattPerModuleOf(byId.get(id)) : wattPerMOf(byId.get(id));
+                          setCells((x) => ({ ...x, wpm: "" }));
+                          setL({ ledSkuId: id, wattPerM: w ?? L.wattPerM });
+                        }}
                       />
                     </Row>
-                    <Row label="วัตต์/เมตร · สี">
+                    <Row label={isModule ? "วัตต์/ชิ้น · สี" : "วัตต์/เมตร · สี"}>
                       <div className="flex gap-2">
                         <Input
                           className="w-20"
@@ -553,11 +580,11 @@ export function ClipsoDialog({
                         {c.panels
                           .filter((p) => p.w > 0 && (p.shape === "circle" || p.l > 0))
                           .map((p, i) => {
-                            const one = ledMeters(p, L.spacingCm);
+                            const one = lightFor(p, L);
                             return (
                               <li key={i}>
-                                ช่อง {i + 1}: {one.rows} แถว · {formatQty(one.meters)} ม. ·{" "}
-                                {formatQty(one.meters * L.wattPerM)} W{p.qty > 1 ? ` × ${p.qty}` : ""}
+                                ช่อง {i + 1}: {one.text} · {formatQty(one.watts)} W
+                                {p.qty > 1 ? ` × ${p.qty} ช่อง` : ""}
                               </li>
                             );
                           })}

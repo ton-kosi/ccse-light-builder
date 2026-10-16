@@ -116,3 +116,35 @@ test("luminous ceiling adds the LED set", () => {
   expect(led.customer_text).toContain("- POWER SUPPLY NON-DIM x 1"); // 22.2 m x 4.8 W = 106.6 W ≤ 120
   expect(led.unit_price).toBe(22.2 * 300 + 1000);
 });
+
+import { ledModules, wattPerModuleOf } from "./clipso.ts";
+
+test("LED modules: grid in both directions", () => {
+  expect(ledModules(R(1.6, 3.7), 30)).toEqual({ cols: 6, rows: 13, count: 78 });
+  // circle Ø 2.16 at 30 cm → 8 x 8 cells, those inside the circle
+  const c = ledModules({ shape: "circle", w: 2.16, l: 0, qty: 1 }, 30);
+  expect(c.cols).toBe(8);
+  expect(c.count).toBeLessThan(64);
+  expect(c.count).toBeGreaterThan(40);
+  expect(wattPerModuleOf({ id: "m", code: "M", name: "LED module 1.2W 24V" })).toBe(1.2);
+  expect(wattPerModuleOf({ id: "m", code: "M", name: "x", notes: "[W/ชิ้น: 0.72]" })).toBe(0.72);
+});
+
+test("luminous ceiling with modules", () => {
+  const b = buildClipso(
+    {
+      ...base,
+      code: "",
+      fabricName: "",
+      panels: [R(1.6, 3.7)],
+      light: { kind: "module", depthCm: 20, spacingCm: 30, ledSkuId: "led", wattPerM: 1.2, cct: "TBD", dim: "NON-DIM", psuOptions: [{ skuId: "psu", watt: 150 }], loadFactor: 0.8, miscSkuId: null },
+    },
+    PRICES,
+    ids,
+  );
+  const led = b.rows[2];
+  expect(led.customer_text).toContain("- LED MODULE (TBD)");
+  // 78 modules x 1.2 W = 93.6 W → one 150 W
+  expect(led.recipes.map((r) => [r.sku_id, r.qty])).toEqual([["led", 78], ["psu", 1]]);
+  expect(led.unit_price).toBe(78 * 300 + 1000);
+});

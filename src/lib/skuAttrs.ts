@@ -4,6 +4,7 @@
  */
 import { chipOf, pcbOf, PROFILE_MODELS, profileModelOfSku, railOf, usesEzClip } from "./profiles";
 import { psuDimOf, wattOfPsu, wattPerMOf } from "./linear";
+import { wattPerModuleOf } from "./clipso";
 import { readTags } from "./skuCategory";
 
 export type AttrField =
@@ -30,6 +31,7 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
     { key: "ปริ้น", label: "ความกว้างแผ่นปริ้น", kind: "number", unit: "มม.", hint: "เกิน 10 มม. ใส่ V2 W13 / 45° Reverse ไม่ได้" },
     { key: "EZ clip", label: "ใช้ EZ clip (ต้องใช้ราง 4/8)", kind: "bool" },
   ],
+  "LED module": [{ key: "W/ชิ้น", label: "วัตต์ต่อชิ้น", kind: "number", unit: "W" }],
   "Neon flex": [{ key: "W/m", label: "วัตต์ต่อเมตร", kind: "number", unit: "W/m" }],
   "LED profile": [
     {
@@ -112,7 +114,8 @@ export function guessAttrs(s: SkuLite, category: string): Record<string, string>
       put("ปริ้น", pcbOf(s));
       put("EZ clip", usesEzClip(s));
     }
-  } else if (category === "LED profile") put("รุ่น", profileModelOfSku(s)?.key);
+  } else if (category === "LED module") put("W/ชิ้น", wattPerModuleOf(s));
+  else if (category === "LED profile") put("รุ่น", profileModelOfSku(s)?.key);
   else if (category === "Clipso fabric") {
     const t = `${s.code} ${s.name}`;
     put("หน้าผ้า", /5[.,]1\s*m/i.test(t) ? "5.1" : /3[.,]4\s*m/i.test(t) ? "3.4" : null);
