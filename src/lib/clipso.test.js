@@ -111,7 +111,10 @@ test("luminous ceiling adds the LED set", () => {
     "CLIPSO FABRIC w/ LUMINOUS CEILING",
     "CLIPSO FABRIC",
     "LED ABOVE THE FABRIC (ceiling to clipso 20cm.)",
+    "SERVICE TRACK w/ MILLED ACRYLIC",
   ]);
+  // no service track chosen yet → can't be saved
+  expect(b.problems.join()).toContain("service track");
   const led = b.rows[2];
   expect(led.customer_text).toContain("- POWER SUPPLY NON-DIM x 1"); // 22.2 m x 4.8 W = 106.6 W ≤ 120
   expect(led.unit_price).toBe(22.2 * 300 + 1000);
@@ -153,4 +156,17 @@ test("single piece: calculation size keeps the opening's orientation", () => {
   const b = buildClipso({ ...base, code: "", fabricName: "", panels: [R(1.6, 3.7)] }, PRICES, ids);
   // laid across a 5.1 roll (3.90 across, 1.80 along) but shown as width x length
   expect(b.rows[0].customer_text).toContain("- CALCULATION SIZE : 1.80M x 3.90M");
+});
+
+test("service track: priced or EXCLUDED", () => {
+  const light = { kind: "strip", depthCm: 20, spacingCm: 30, ledSkuId: "led", wattPerM: 4.8, cct: "TBD", dim: "NON-DIM", psuOptions: [{ skuId: "psu", watt: 150 }], loadFactor: 0.8, miscSkuId: null };
+  const prices = new Map([...PRICES, ["svc", { unitPrice: 3500, maxDiscount: 0 }]]);
+  const priced = buildClipso({ ...base, panels: [R(1.6, 3.7)], light: { ...light, service: { skuId: "svc", qty: 2, unit: "SET", excluded: false } } }, prices, ids);
+  const sv = priced.rows.at(-1);
+  expect([sv.kind, sv.qty, sv.unit, sv.unit_price]).toEqual(["priced", 2, "SET", 3500]);
+  expect(sv.recipes).toEqual([{ sku_id: "svc", qty: 2, note: "CLP c1 SERVICE" }]);
+  expect(priced.problems).toEqual([]);
+  const ex = buildClipso({ ...base, panels: [R(1.6, 3.7)], light: { ...light, service: { skuId: null, qty: 1, unit: "SET", excluded: true } } }, prices, ids);
+  expect(ex.rows.at(-1)).toMatchObject({ kind: "display", customer_text: "SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)", qty: null });
+  expect(ex.problems).toEqual([]);
 });

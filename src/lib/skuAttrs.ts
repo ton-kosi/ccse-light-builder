@@ -74,6 +74,7 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
       options: [
         { value: "CC", label: "CC" },
         { value: "CW", label: "CW" },
+        { value: "SERVICE", label: "Service track (ช่องซ่อมบำรุงไฟ)" },
       ],
     },
     { key: "ยาวเส้น", label: "ความยาวต่อเส้น", kind: "number", unit: "ม.", hint: "ว่าง = 2 ม." },

@@ -227,6 +227,7 @@ export function ClipsoDialog({
         psuOptions: lin.psuFor("NON-DIM"),
         loadFactor: 0.8,
         miscSkuId: null,
+        service: { skuId: g.services[0]?.id ?? null, qty: 1, unit: "SET", excluded: false },
       },
     });
   };
@@ -574,6 +575,52 @@ export function ClipsoDialog({
                         noneLabel="— ไม่ใส่ —"
                         onChange={(id) => setL({ miscSkuId: id || null })}
                       />
+                    </Row>
+                    <Row label="Service track">
+                      {(() => {
+                        const sv = L.service ?? { skuId: null, qty: 1, unit: "SET", excluded: false };
+                        const setSv = (p: Partial<typeof sv>) => setL({ service: { ...sv, ...p } });
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Choice on={!sv.excluded} onClick={() => setSv({ excluded: false })}>
+                                คิดราคา
+                              </Choice>
+                              <Choice on={sv.excluded} onClick={() => setSv({ excluded: true })}>
+                                ไม่รวม (EXCLUDED)
+                              </Choice>
+                            </div>
+                            {sv.excluded ? (
+                              <p className="text-xs text-muted-foreground">
+                                ขึ้นในใบว่า SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)
+                              </p>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="min-w-56 flex-1">
+                                  <SkuSelect
+                                    value={sv.skuId}
+                                    preferred={g.services.length ? g.services : g.tracks}
+                                    category="Clipso track (Service)"
+                                    all={skus ?? []}
+                                    onChange={(id) => setSv({ skuId: id || null })}
+                                  />
+                                </div>
+                                <Input
+                                  className="w-16"
+                                  inputMode="decimal"
+                                  value={cells["svq"] ?? String(sv.qty)}
+                                  onChange={numCell("svq", (n) => setSv({ qty: n ?? 0 }))}
+                                />
+                                <Input
+                                  className="w-20"
+                                  value={sv.unit}
+                                  onChange={(e) => setSv({ unit: e.target.value.toUpperCase() })}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Row>
                     <Row label="สรุปไฟ">
                       <ul className="text-xs text-muted-foreground">

@@ -62,6 +62,8 @@ export type ClipsoConfig = {
     psuOptions: PsuOption[];
     loadFactor: number;
     miscSkuId: string | null;
+    /** service track (access for maintenance) — always listed when there is lighting */
+    service?: { skuId: string | null; qty: number; unit: string; excluded: boolean };
   };
   rowIds: string[];
 };
@@ -256,7 +258,7 @@ export function lightFor(p: Panel, L: NonNullable<ClipsoConfig["light"]>) {
 export type ClpRecipe = { sku_id: string; qty: number; note: string };
 export type ClpRow = {
   id: string;
-  kind: "heading" | "priced";
+  kind: "heading" | "priced" | "display";
   customer_text: string;
   qty: number | null;
   unit: string | null;
@@ -426,6 +428,33 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
       unit_price: r2(amount),
       recipes,
     });
+
+    // service track: must be on the quotation with lighting — priced, or marked EXCLUDED
+    const sv = L.service ?? { skuId: null, qty: 1, unit: "SET", excluded: false };
+    if (sv.excluded) {
+      rows.push({
+        id: newId(),
+        kind: "display",
+        customer_text: "SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)",
+        qty: null,
+        unit: null,
+        unit_price: null,
+        recipes: [],
+      });
+    } else {
+      if (!sv.skuId) problems.push("เลือก service track (หรือติ๊กว่าไม่รวม)");
+      const each = price(sv.skuId);
+      add(each * sv.qty, sv.skuId);
+      rows.push({
+        id: newId(),
+        kind: "priced",
+        customer_text: "SERVICE TRACK w/ MILLED ACRYLIC",
+        qty: sv.qty,
+        unit: sv.unit || "SET",
+        unit_price: r2(each),
+        recipes: sv.skuId ? [{ sku_id: sv.skuId, qty: sv.qty, note: tag("SERVICE") }] : [],
+      });
+    }
   }
 
   // remember the config on the first fabric material so the block can be reopened
@@ -484,6 +513,7 @@ export function fabricTypeOf(s: SkuLite): string {
 export function trackTypeOf(s: SkuLite): TrackType | null {
   const saved = readTags(s.notes)["ราง"];
   if (saved === "CC" || saved === "CW") return saved;
+  if (saved === "SERVICE" || /service/i.test(txt(s))) return null;
   const mm = txt(s).match(/\b(C[CW])\b/i);
   return mm ? (mm[1]!.toUpperCase() as TrackType) : null;
 }
@@ -508,6 +538,8 @@ export function clipsoSkuGroups<T extends SkuLite>(skus: T[]) {
     /** fabric SKUs with no width set (can't be laid out until the width is set on the SKU page) */
     noWidth: fabrics.filter((s) => !fabricWidthOf(s)),
     trackFor: (t: TrackType) => tracks.filter((s) => trackTypeOf(s) === t),
+    /** service tracks: "ราง" set to SERVICE, or "service" in the name */
+    services: tracks.filter((s) => readTags(s.notes)["ราง"] === "SERVICE" || /service/i.test(txt(s))),
     trackLength: (s: SkuLite | undefined) => (s ? Number(readTags(s.notes)["ยาวเส้น"]) || 2 : 2),
   };
 }
