@@ -18,7 +18,9 @@ export function useWorkSheet(projectId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("id, code, name, status, selected_option, site_address, install_days_min, install_days_max, customer_id, customers(name)")
+        .select(
+          "id, code, name, status, selected_option, site_address, install_days_min, install_days_max, customer_id, customers(name)",
+        )
         .eq("id", projectId)
         .single();
       if (error) throw error;
@@ -49,7 +51,13 @@ export function useWorkSheet(projectId: string) {
       return data ?? [];
     },
   });
-  return { project: project.data, header: header.data, lines: lines.data ?? [], pick: pick.data ?? [], isLoading: project.isLoading };
+  return {
+    project: project.data,
+    header: header.data,
+    lines: lines.data ?? [],
+    pick: pick.data ?? [],
+    isLoading: project.isLoading,
+  };
 }
 
 type WoLine = ReturnType<typeof useWorkSheet>["lines"][number];
@@ -91,7 +99,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
 
   const byCat = new Map<string, number>();
   for (const l of prod) {
-    if (l.kind === "heading" || !l.install_category) continue;
+    if (l.kind === "heading" || l.kind === "internal" || !l.install_category) continue;
     byCat.set(l.install_category, (byCat.get(l.install_category) ?? 0) + Number(l.qty ?? 0));
   }
 
@@ -110,19 +118,44 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
       ) : null}
 
       <div className="mt-3 grid gap-x-6 gap-y-1 rounded-md border border-border p-3 sm:grid-cols-3">
-        <div><span className="text-muted-foreground">โปรเจกต์: </span><b>{project.code}</b> — {project.name}</div>
-        <div><span className="text-muted-foreground">ลูกค้า: </span>{custName(project.customer_id, project.customers) ?? "-"}</div>
-        <div><span className="text-muted-foreground">สถานะ: </span>{project.status}. {statusLabel(project.status)}</div>
-        <div><span className="text-muted-foreground">ใบเสนอราคา: </span>{header?.ref_no ?? "-"} Rev {header?.rev ?? "-"}</div>
-        <div><span className="text-muted-foreground">Option ที่เลือก: </span>{project.selected_option || "-"}</div>
-        <div><span className="text-muted-foreground">วันติดตั้ง: </span>{project.install_days_min ?? "-"}–{project.install_days_max ?? "-"} วัน</div>
-        {project.site_address ? <div className="sm:col-span-3"><span className="text-muted-foreground">สถานที่: </span>{project.site_address}</div> : null}
+        <div>
+          <span className="text-muted-foreground">โปรเจกต์: </span>
+          <b>{project.code}</b> — {project.name}
+        </div>
+        <div>
+          <span className="text-muted-foreground">ลูกค้า: </span>
+          {custName(project.customer_id, project.customers) ?? "-"}
+        </div>
+        <div>
+          <span className="text-muted-foreground">สถานะ: </span>
+          {project.status}. {statusLabel(project.status)}
+        </div>
+        <div>
+          <span className="text-muted-foreground">ใบเสนอราคา: </span>
+          {header?.ref_no ?? "-"} Rev {header?.rev ?? "-"}
+        </div>
+        <div>
+          <span className="text-muted-foreground">Option ที่เลือก: </span>
+          {project.selected_option || "-"}
+        </div>
+        <div>
+          <span className="text-muted-foreground">วันติดตั้ง: </span>
+          {project.install_days_min ?? "-"}–{project.install_days_max ?? "-"} วัน
+        </div>
+        {project.site_address ? (
+          <div className="sm:col-span-3">
+            <span className="text-muted-foreground">สถานที่: </span>
+            {project.site_address}
+          </div>
+        ) : null}
       </div>
 
       {!print ? (
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Button asChild variant="outline" size="sm">
-            <Link to="/print/work/$projectId" params={{ projectId }} target="_blank">พิมพ์ใบ Work (A4)</Link>
+            <Link to="/print/work/$projectId" params={{ projectId }} target="_blank">
+              พิมพ์ใบ Work (A4)
+            </Link>
           </Button>
           {has("stock", "admin") ? (
             <Button
@@ -130,16 +163,25 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
               disabled={!canConfirm || confirm.isPending}
               onClick={() => {
                 if (confirm.isPending) return;
-                if (window.confirm(`ยืนยันเบิกของ ${pick.length} รายการ ตาม Rev ${header?.rev ?? ""}?`)) confirm.mutate();
+                if (
+                  window.confirm(
+                    `ยืนยันเบิกของ ${pick.length} รายการ ตาม Rev ${header?.rev ?? ""}?`,
+                  )
+                )
+                  confirm.mutate();
               }}
             >
               ยืนยันเบิกของ
             </Button>
           ) : null}
           {header?.issued_at ? (
-            <span className="text-xs text-muted-foreground">เบิกของ Rev {header.rev} แล้วเมื่อ {formatDate(header.issued_at)}</span>
+            <span className="text-xs text-muted-foreground">
+              เบิกของ Rev {header.rev} แล้วเมื่อ {formatDate(header.issued_at)}
+            </span>
           ) : project.status !== 6 && has("stock", "admin") ? (
-            <span className="text-xs text-muted-foreground">ยืนยันเบิกของได้เมื่อสถานะ = 6 เท่านั้น</span>
+            <span className="text-xs text-muted-foreground">
+              ยืนยันเบิกของได้เมื่อสถานะ = 6 เท่านั้น
+            </span>
           ) : null}
         </div>
       ) : null}
@@ -149,8 +191,12 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
         <table className="w-full border-collapse">
           <thead className="bg-muted">
             <tr>
-              <th className={th}>ITEM</th><th className={th}>ชิ้นส่วน</th><th className={th}>วงจร</th>
-              <th className={th}>ตัดเส้น</th><th className={th + " text-right"}>จำนวน</th><th className={th}>หน่วย</th>
+              <th className={th}>ITEM</th>
+              <th className={th}>ชิ้นส่วน</th>
+              <th className={th}>วงจร</th>
+              <th className={th}>ตัดเส้น</th>
+              <th className={th + " text-right"}>จำนวน</th>
+              <th className={th}>หน่วย</th>
             </tr>
           </thead>
           <tbody>
@@ -159,22 +205,50 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                 {g.heading ? (
                   <tr className="bg-secondary font-semibold">
                     <td className={td}>{g.heading.item_no}</td>
-                    <td className={td} colSpan={5}>{name(g.heading)}{g.heading.circuit_note ? ` · ${g.heading.circuit_note}` : ""}</td>
+                    <td className={td} colSpan={5}>
+                      {name(g.heading)}
+                      {g.heading.circuit_note ? ` · ${g.heading.circuit_note}` : ""}
+                    </td>
                   </tr>
                 ) : null}
-                {g.rows.map((l) => (
-                  <tr key={l.id}>
-                    <td className={td}>{l.item_no}</td>
-                    <td className={td}>{name(l)}{l.component_code ? <span className="text-muted-foreground"> ({l.component_code})</span> : null}</td>
-                    <td className={td}>{l.circuit_note}</td>
-                    <td className={td}>{formatCutLengths(l.cut_lengths)}</td>
-                    <td className={td + " text-right tabular-nums"}>{formatQty(Number(l.qty ?? 0))}</td>
-                    <td className={td}>{l.unit}</td>
-                  </tr>
-                ))}
+                {g.rows.map((l) =>
+                  l.kind === "internal" ? (
+                    <tr key={l.id} className="bg-accent/30 italic">
+                      <td className={td}>{l.item_no}</td>
+                      <td className={td} colSpan={5}>
+                        <span className="font-semibold not-italic">หมายเหตุ: </span>
+                        {name(l)}
+                        {l.circuit_note ? ` · ${l.circuit_note}` : ""}
+                        {l.qty != null ? ` · ${formatQty(Number(l.qty))} ${l.unit ?? ""}` : ""}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={l.id}>
+                      <td className={td}>{l.item_no}</td>
+                      <td className={td}>
+                        {name(l)}
+                        {l.component_code ? (
+                          <span className="text-muted-foreground"> ({l.component_code})</span>
+                        ) : null}
+                      </td>
+                      <td className={td}>{l.circuit_note}</td>
+                      <td className={td}>{formatCutLengths(l.cut_lengths)}</td>
+                      <td className={td + " text-right tabular-nums"}>
+                        {formatQty(Number(l.qty ?? 0))}
+                      </td>
+                      <td className={td}>{l.unit}</td>
+                    </tr>
+                  ),
+                )}
               </Fragment>
             ))}
-            {prod.length === 0 ? <tr><td className={td} colSpan={6}>ไม่มีรายการ</td></tr> : null}
+            {prod.length === 0 ? (
+              <tr>
+                <td className={td} colSpan={6}>
+                  ไม่มีรายการ
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
 
@@ -187,8 +261,12 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                   <tr key={l.id} className="italic">
                     <td className={td + " w-16"}>{l.item_no}</td>
                     <td className={td}>{name(l)}</td>
-                    <td className={td + " w-24"}>{l.kind === "by_buyer" ? "by buyer" : "existing"}</td>
-                    <td className={td + " w-24 text-right"}>{l.qty != null ? `${formatQty(Number(l.qty))} ${l.unit ?? ""}` : ""}</td>
+                    <td className={td + " w-24"}>
+                      {l.kind === "by_buyer" ? "by buyer" : "existing"}
+                    </td>
+                    <td className={td + " w-24 text-right"}>
+                      {l.qty != null ? `${formatQty(Number(l.qty))} ${l.unit ?? ""}` : ""}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -199,14 +277,16 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
 
       <RollPlanSection projectId={projectId} print={print} />
 
-
       <section className={sec}>
         <h3 className="mb-1 font-semibold">2. รายการเบิกของ (Pick list)</h3>
         <table className="w-full border-collapse">
           <thead className="bg-muted">
             <tr>
-              <th className={th}>รหัส SKU</th><th className={th}>ชื่อ</th><th className={th + " text-right"}>จำนวน</th>
-              <th className={th}>หน่วย</th><th className={th + " text-right"}>คงเหลือในคลัง</th>
+              <th className={th}>รหัส SKU</th>
+              <th className={th}>ชื่อ</th>
+              <th className={th + " text-right"}>จำนวน</th>
+              <th className={th}>หน่วย</th>
+              <th className={th + " text-right"}>คงเหลือในคลัง</th>
               {print ? <th className={th}>เบิกจริง</th> : null}
             </tr>
           </thead>
@@ -217,14 +297,30 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                 <tr key={p.sku_id}>
                   <td className={td + " font-mono"}>{p.code}</td>
                   <td className={td}>{p.name}</td>
-                  <td className={td + " text-right tabular-nums font-semibold"}>{formatQty(Number(p.qty))}</td>
+                  <td className={td + " text-right tabular-nums font-semibold"}>
+                    {formatQty(Number(p.qty))}
+                  </td>
                   <td className={td}>{p.unit}</td>
-                  <td className={td + " text-right tabular-nums " + (short ? "font-semibold text-destructive" : "")}>{formatQty(Number(p.on_hand))}</td>
+                  <td
+                    className={
+                      td +
+                      " text-right tabular-nums " +
+                      (short ? "font-semibold text-destructive" : "")
+                    }
+                  >
+                    {formatQty(Number(p.on_hand))}
+                  </td>
                   {print ? <td className={td + " w-20"} /> : null}
                 </tr>
               );
             })}
-            {pick.length === 0 ? <tr><td className={td} colSpan={6}>ไม่มีรายการ</td></tr> : null}
+            {pick.length === 0 ? (
+              <tr>
+                <td className={td} colSpan={6}>
+                  ไม่มีรายการ
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </section>
@@ -239,7 +335,13 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                 <td className={td + " text-right tabular-nums font-semibold"}>{formatQty(q)}</td>
               </tr>
             ))}
-            {byCat.size === 0 ? <tr><td className={td} colSpan={2}>ไม่มีข้อมูลหมวดติดตั้ง</td></tr> : null}
+            {byCat.size === 0 ? (
+              <tr>
+                <td className={td} colSpan={2}>
+                  ไม่มีข้อมูลหมวดติดตั้ง
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </section>

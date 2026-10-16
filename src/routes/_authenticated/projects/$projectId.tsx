@@ -10,7 +10,7 @@ import { QuotationSection } from "@/components/boq/QuotationSection";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { WorkSheet } from "@/components/work/WorkSheet";
 import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
-import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
+import { adjustmentsOf, computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +45,8 @@ type QLine = Tables<"quote_lines">;
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditQuote, canEditSales, canEditProduction, isAdmin, canManagePayments } = useMe();
+  const { canSeeMoney, canEditQuote, canEditSales, canEditProduction, isAdmin, canManagePayments } =
+    useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
   const { quotation, lines } = useCurrentQuotation(projectId, canEditQuote);
@@ -166,10 +167,7 @@ function HiddenMoney() {
 /* ---------------- Overview ---------------- */
 
 type ProjTextKey = "name" | "attn" | "po_number" | "site_address";
-type ProjNumKey =
-  | "install_days_min"
-  | "install_days_max"
-  | "install_days_actual";
+type ProjNumKey = "install_days_min" | "install_days_max" | "install_days_actual";
 
 function OverviewTab({
   project,
@@ -197,6 +195,7 @@ function OverviewTab({
         Number(quotation.discount ?? 0),
         Number(quotation.vat_percent ?? 0),
         project.selected_option,
+        adjustmentsOf(quotation.adjustments),
       )
     : null;
   const max = project.install_days_max;
@@ -207,14 +206,20 @@ function OverviewTab({
     queryKey: ["project_finance", project.id],
     enabled: canManagePayments,
     queryFn: async () => {
-      const { data, error } = await supabase.from("project_finance").select("*").eq("project_id", project.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("project_finance")
+        .select("*")
+        .eq("project_id", project.id)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
   const saveRate = useMutation({
     mutationFn: async (v: number | null) => {
-      const { error } = await supabase.from("project_finance").upsert({ project_id: project.id, overrun_rate_per_day: v });
+      const { error } = await supabase
+        .from("project_finance")
+        .upsert({ project_id: project.id, overrun_rate_per_day: v });
       if (error) throw error;
     },
     onSuccess: () => qcFin.invalidateQueries({ queryKey: ["project_finance", project.id] }),
@@ -303,10 +308,12 @@ function OverviewTab({
           value={!canManagePayments ? "—" : overrun === null ? "-" : formatTHB(overrun) + " บาท"}
           hint={
             !canManagePayments
-              ? overrunDays !== null ? `เกิน ${formatQty(overrunDays)} วัน · ซ่อนจำนวนเงินตามสิทธิ์` : "ซ่อนจำนวนเงินตามสิทธิ์"
+              ? overrunDays !== null
+                ? `เกิน ${formatQty(overrunDays)} วัน · ซ่อนจำนวนเงินตามสิทธิ์`
+                : "ซ่อนจำนวนเงินตามสิทธิ์"
               : overrunDays !== null
-              ? `เกิน ${formatQty(overrunDays)} วัน × ${formatTHB(Number(rate ?? 0))} บาท/วัน`
-              : "คำนวณเมื่อกรอกวันติดตั้งจริงและวันสูงสุด"
+                ? `เกิน ${formatQty(overrunDays)} วัน × ${formatTHB(Number(rate ?? 0))} บาท/วัน`
+                : "คำนวณเมื่อกรอกวันติดตั้งจริงและวันสูงสุด"
           }
         />
       </section>
@@ -408,7 +415,8 @@ function OverviewTab({
             defaultValue={project.notes ?? ""}
             disabled={!canEditSales}
             onBlur={(e) => {
-              if (e.target.value !== (project.notes ?? "")) onUpdate({ notes: e.target.value || null });
+              if (e.target.value !== (project.notes ?? ""))
+                onUpdate({ notes: e.target.value || null });
             }}
           />
         </Field>
@@ -491,8 +499,6 @@ function StatusLog({ projectId }: { projectId: string }) {
   );
 }
 
-
-
 /* ---------------- Work orders ---------------- */
 
 function WorkOrderSection({
@@ -565,7 +571,8 @@ function WorkOrderSection({
     <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold">ใบสั่งงาน</h2>
       <p className="text-xs text-muted-foreground">
-        ใบสั่งงานไม่แสดงราคาหรือต้นทุนใดๆ — ปล่อยงานได้เมื่อสถานะโปรเจกต์ถึงขั้น {RELEASE_MIN_STATUS}
+        ใบสั่งงานไม่แสดงราคาหรือต้นทุนใดๆ — ปล่อยงานได้เมื่อสถานะโปรเจกต์ถึงขั้น{" "}
+        {RELEASE_MIN_STATUS}
       </p>
 
       <div className="mt-3 overflow-x-auto">
@@ -627,7 +634,10 @@ function WorkOrderSection({
           }}
         >
           <Field label="เรื่อง / งานที่ต้องทำ" className="md:col-span-2">
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
           </Field>
           <Field label="ประเภท">
             <select

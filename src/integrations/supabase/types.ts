@@ -887,6 +887,7 @@ export type Database = {
       }
       quotations: {
         Row: {
+          adjustments: Json
           closing_text: string | null
           created_at: string
           date: string
@@ -903,9 +904,11 @@ export type Database = {
           signer_user_id: string | null
           updated_at: string
           validity_days: number | null
+          vat_mode: string
           vat_percent: number
         }
         Insert: {
+          adjustments?: Json
           closing_text?: string | null
           created_at?: string
           date?: string
@@ -922,9 +925,11 @@ export type Database = {
           signer_user_id?: string | null
           updated_at?: string
           validity_days?: number | null
+          vat_mode?: string
           vat_percent?: number
         }
         Update: {
+          adjustments?: Json
           closing_text?: string | null
           created_at?: string
           date?: string
@@ -941,6 +946,7 @@ export type Database = {
           signer_user_id?: string | null
           updated_at?: string
           validity_days?: number | null
+          vat_mode?: string
           vat_percent?: number
         }
         Relationships: [

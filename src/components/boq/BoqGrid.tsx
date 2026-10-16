@@ -19,11 +19,8 @@ import { parseFilm, type FilmConfig } from "@/lib/film";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
-  formatCutLengths,
   lineAmount,
   optKey,
-  parseCutLengths,
-  sumCut,
   type QuoteLine,
 } from "@/lib/boq";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
@@ -34,10 +31,13 @@ type ComponentOpt = { id: string; code: string; name: string; unit: string; list
 
 const COLS = [
   "option_name", "zone", "circuit_note", "item_no", "kind",
-  "customer_text", "cut_lengths", "qty", "unit", "unit_price", "discount_percent",
+  "customer_text", "qty", "unit", "unit_price", "discount_percent",
 ] as const;
 type ColKey = (typeof COLS)[number];
 const LAST_COL = COLS.length - 1;
+/** table columns: drag handle, the COLS, total, cost (admin), actions */
+const N_COLS = COLS.length + 3;
+const COST_COL = COLS.length + 1;
 
 const cellCls =
   "h-11 w-full min-w-0 bg-transparent px-2 text-base outline-none focus:bg-background focus:ring-2 focus:ring-ring rounded-sm disabled:opacity-60";
@@ -78,7 +78,7 @@ export function BoqGrid({
   const key = ["quote_lines", quotationId];
   const tableRef = useRef<HTMLTableElement>(null);
   const [measurementRevision, setMeasurementRevision] = useState(0);
-  const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 200, 150, 90, 64, 100, 48, 112, 112, 176]);
+  const [columnWidths, setColumnWidths] = useState([24, 70, 96, 112, 52, 136, 200, 90, 64, 100, 48, 112, 112, 176]);
   const trackWidth = (_id: string, _field: string, _value: string) =>
     setMeasurementRevision((old) => old + 1);
 
@@ -276,11 +276,11 @@ export function BoqGrid({
         context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
         return Math.max(0, ...text.split("\n").map((line) => context.measureText(line).width));
       };
-      const widths = Array.from({ length: 15 }, () => 0);
+      const widths = Array.from({ length: N_COLS }, () => 0);
       for (const row of Array.from(table.rows)) {
         for (const [visibleIndex, cell] of Array.from(row.cells).entries()) {
           if (cell.colSpan !== 1) continue;
-          const index = !canSeeCost && visibleIndex === 13 ? 14 : visibleIndex;
+          const index = !canSeeCost && visibleIndex >= COST_COL ? visibleIndex + 1 : visibleIndex;
           const control = cell.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
           let contentWidth = 0;
           if (control) {
@@ -403,9 +403,9 @@ export function BoqGrid({
     sales_components: null,
   });
 
-  const addRowAfter = (index: number) => {
+  const addRowAfter = (index: number, kind = "priced") => {
     const base = index >= 0 ? lines[index] : undefined;
-    const row = blankRow(base);
+    const row = { ...blankRow(base), kind };
     const next = [...lines];
     next.splice(index + 1, 0, row);
     pendingFocus.current = { id: row.id, c: 0 };
@@ -489,7 +489,7 @@ export function BoqGrid({
     }
   };
 
-  const commitText = (l: GridLine, k: Exclude<ColKey, "kind" | "cut_lengths">, raw: string) => {
+  const commitText = (l: GridLine, k: Exclude<ColKey, "kind">, raw: string) => {
     const numeric = k === "qty" || k === "unit_price" || k === "discount_percent";
     let v: string | number | null;
     if (numeric) {
@@ -524,26 +524,14 @@ export function BoqGrid({
     return true;
   };
 
-  const commitCut = (l: GridLine, raw: string) => {
-    const arr = parseCutLengths(raw);
-    if (arr === undefined) { toast.error('รูปแบบความยาวตัดไม่ถูกต้อง เช่น "1.50+1.50+1.40"'); return; }
-    if (formatCutLengths(arr) === formatCutLengths(l.cut_lengths)) return;
-    const patch: TablesUpdate<"quote_lines"> = { cut_lengths: arr };
-    const oldSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
-    const qty = l.qty === null ? null : Number(l.qty);
-    // auto-suggest qty when it is empty or still equals the previous sum
-    if (arr && (qty === null || qty === oldSum)) patch.qty = sumCut(arr);
-    update.mutate({ id: l.id, patch });
-  };
-
   const fade = (l: GridLine) => !!selectedOption && optKey(l) !== "" && optKey(l) !== selectedOption;
 
   return (
     <div className="mt-4">
       <div className="overflow-x-auto rounded-md border border-border">
-        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === 13 && !canSeeCost ? 0 : width), 0) }}>
+        <table ref={tableRef} className="table-fixed border-collapse text-sm" style={{ width: columnWidths.reduce((sum, width, index) => sum + (index === COST_COL && !canSeeCost ? 0 : width), 0) }}>
           <colgroup>
-            {columnWidths.map((width, index) => index === 13 && !canSeeCost ? null : <col key={index} style={{ width }} />)}
+            {columnWidths.map((width, index) => index === COST_COL && !canSeeCost ? null : <col key={index} style={{ width }} />)}
           </colgroup>
           <thead className="bg-secondary text-left text-sm text-muted-foreground">
             <tr>
@@ -554,7 +542,6 @@ export function BoqGrid({
               <H>Item</H>
               <H>ประเภท</H>
               <H>รายละเอียด (ลูกค้าเห็น)</H>
-              <H>ความยาวตัด (ม.)</H>
               <H w="text-right">จำนวนรวม</H>
               <H>หน่วย</H>
               <H w="text-right">@ราคา</H>
@@ -568,8 +555,10 @@ export function BoqGrid({
             {lines.map((l, r) => {
               const heading = l.kind === "heading";
               const buyer = l.kind === "by_buyer" || l.kind === "existing";
+              const internal = l.kind === "internal";
               const rowCls = [
                 "border-t border-border",
+                internal ? "bg-accent/30 italic" : "",
                 heading ? "bg-muted font-semibold" : "",
                 buyer ? "italic text-by-buyer" : "",
                 fade(l) ? "opacity-40" : "",
@@ -577,7 +566,6 @@ export function BoqGrid({
               ].join(" ");
               const cost = lineCost(l);
               const amount = lineAmount(l);
-              const cutSum = l.cut_lengths?.length ? sumCut(l.cut_lengths) : null;
               const lin = linBlockOf(l.id);
               const clp = clpBlockOf(l.id);
               const neo = neoBlockOf(l.id);
@@ -689,25 +677,9 @@ export function BoqGrid({
                          }}
                       />
                     </td>
-                     <td className="px-0.5 py-0.5">
-                       <CellInput
-                         cell={`${r}:6`}
-                        value={formatCutLengths(l.cut_lengths)}
-                        placeholder="1.50+1.40"
-                         onDraftChange={(value) => trackWidth(l.id, "cut_lengths", value)}
-                        disabled={!canEdit}
-                        onCommit={(v) => commitCut(l, v)}
-                        onKeyDown={(e) => onKey(e, r, 6)}
-                      />
-                       {cutSum !== null ? (
-                        <div className="px-1.5 text-[11px] not-italic text-muted-foreground">
-                           รวม {formatQty(cutSum)} ม.
-                        </div>
-                      ) : null}
-                    </td>
-                    {txt("qty", 7, "text-right")}
-                    {txt("unit", 8)}
-                    {txt("unit_price", 9, "text-right")}
+                    {txt("qty", 6, "text-right")}
+                    {txt("unit", 7)}
+                    {txt("unit_price", 8, "text-right")}
                     {(() => {
                       const max = !isFo && l.component_id ? compMap.get(l.component_id)?.max_discount_percent : null;
                       return (
@@ -716,21 +688,21 @@ export function BoqGrid({
                           title={isFo ? `แก้ราคา/ส่วนลดที่ปุ่ม แก้${setName}` : max != null ? `ลดได้สูงสุด ${max}%` : undefined}
                         >
                           <CellInput
-                            cell={`${r}:10`}
+                            cell={`${r}:9`}
                             value={String(l.discount_percent ?? "")}
                             placeholder={max != null ? `≤${max}` : ""}
                             disabled={!canEdit || isFo}
                             className="text-right"
                             onDraftChange={(value) => trackWidth(l.id, "discount_percent", value)}
                             onCommit={(v) => commitText(l, "discount_percent", v)}
-                            onKeyDown={(e) => onKey(e, r, 10)}
+                            onKeyDown={(e) => onKey(e, r, 9)}
                           />
                           {max != null ? <div className="px-1 text-right text-xs text-muted-foreground">สูงสุด<br />{max}%</div> : null}
                         </td>
                       );
                     })()}
                     <td className="px-1.5 text-right tabular-nums">
-                      {l.kind === "priced" ? formatTHB(amount) : kindText(l.kind)}
+                      {l.kind === "priced" ? formatTHB(amount) : internal ? <span className="text-xs">ใบ Work เท่านั้น</span> : kindText(l.kind)}
                     </td>
                     {canSeeCost ? (
                       <td className="bg-accent/30 px-1.5 text-right tabular-nums text-muted-foreground">
@@ -757,7 +729,7 @@ export function BoqGrid({
                           >
                             {canEdit ? "แก้ชุด FO" : "ดูชุด FO"}
                           </Button>
-                        ) : !heading ? (
+                        ) : !heading && !internal ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -766,7 +738,7 @@ export function BoqGrid({
                           >
                             สูตรภายใน
                           </Button>
-                        ) : canEdit ? (
+                        ) : heading && canEdit ? (
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => duplicateCircuit(r)}>
                             คัดลอกวงจร
                           </Button>
@@ -789,7 +761,7 @@ export function BoqGrid({
             })}
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={15} className="px-3 py-4 text-muted-foreground">
+                <td colSpan={N_COLS} className="px-3 py-4 text-muted-foreground">
                   ยังไม่มีรายการ BOQ
                 </td>
               </tr>
@@ -802,6 +774,14 @@ export function BoqGrid({
           <>
             <Button size="sm" variant="outline" onClick={() => addRowAfter(lines.length - 1)}>
               + เพิ่มบรรทัด
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              title="แสดงเฉพาะในใบ Work หลังบ้าน — ลูกค้าไม่เห็น"
+              onClick={() => addRowAfter(lines.length - 1, "internal")}
+            >
+              + เพิ่มโน้ตหลังบ้าน (ใบ Work)
             </Button>
             <Button
               size="sm"

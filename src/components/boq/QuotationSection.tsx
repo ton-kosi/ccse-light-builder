@@ -11,7 +11,17 @@ import { BoqGrid, type GridLine } from "@/components/boq/BoqGrid";
 import { QuoteFooter } from "@/components/boq/QuoteFooter";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
-import { computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
+import {
+  ADJUSTMENT_PRESETS,
+  VAT_MODES,
+  adjustmentsOf,
+  computeTotals,
+  optionNames,
+  quotationRevisionSuffix,
+  summaryRows,
+  vatModeOf,
+  type Adjustment,
+} from "@/lib/boq";
 import { formatDate, formatTHB, toNumber } from "@/lib/format";
 
 export function QuotationSection({
@@ -66,7 +76,9 @@ export function QuotationSection({
         .select("id, code, name, unit")
         .order("code");
       if (error) throw error;
-      const { data: prices } = await supabase.from("component_prices").select("component_id, list_price, max_discount_percent");
+      const { data: prices } = await supabase
+        .from("component_prices")
+        .select("component_id, list_price, max_discount_percent");
       const pm = new Map((prices ?? []).map((p) => [p.component_id, p]));
       return data.map((c) => ({
         ...c,
@@ -128,7 +140,7 @@ export function QuotationSection({
         <p className="mt-1 text-sm text-muted-foreground">ยังไม่มีใบเสนอราคาสำหรับงานนี้</p>
         {canEdit ? (
           <Button size="sm" className="mt-3" onClick={() => createQuotation.mutate()}>
-             สร้างใบเสนอราคา
+            สร้างใบเสนอราคา
           </Button>
         ) : null}
       </section>
@@ -138,31 +150,47 @@ export function QuotationSection({
   const discount = Number(quotation.discount ?? 0);
   const vatPct = Number(quotation.vat_percent ?? 0);
   const opts = optionNames(lines);
-  const t = computeTotals(lines, discount, vatPct, selectedOption);
+  const vatMode = vatModeOf(quotation.vat_mode);
+  const adjustments = adjustmentsOf(quotation.adjustments);
+  const t = computeTotals(lines, discount, vatPct, selectedOption, adjustments);
+  const printed = summaryRows(t.subtotal, { discount, vatPercent: vatPct, vatMode, adjustments });
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">
-             ใบเสนอราคา {quotation.ref_no}{quotationRevisionSuffix(quotation.rev)} (ฉบับปัจจุบัน)
+            ใบเสนอราคา {quotation.ref_no}
+            {quotationRevisionSuffix(quotation.rev)} (ฉบับปัจจุบัน)
           </h2>
-           {(revisions?.length ?? 0) > 1 ? <p className="text-xs text-muted-foreground">
-             ฉบับทั้งหมด:{" "}
-            {(revisions ?? [])
-               .map((r) => `${quotationRevisionSuffix(r.rev).trim() || "ฉบับแรก"} (${formatDate(r.date)})${r.is_current ? " ✓" : ""}`)
-              .join(" · ")}
-           </p> : null}
+          {(revisions?.length ?? 0) > 1 ? (
+            <p className="text-xs text-muted-foreground">
+              ฉบับทั้งหมด:{" "}
+              {(revisions ?? [])
+                .map(
+                  (r) =>
+                    `${quotationRevisionSuffix(r.rev).trim() || "ฉบับแรก"} (${formatDate(r.date)})${r.is_current ? " ✓" : ""}`,
+                )
+                .join(" · ")}
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setPreview(true)}>
             พิมพ์ใบเสนอราคา
           </Button>
           {canManagePayments ? (
-            <Button size="sm" onClick={() => setIssuing(true)}>ออกใบเบิกเงิน</Button>
+            <Button size="sm" onClick={() => setIssuing(true)}>
+              ออกใบเบิกเงิน
+            </Button>
           ) : null}
           {canEdit ? (
-            <Button size="sm" variant="outline" disabled={newRev.isPending} onClick={() => newRev.mutate()}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={newRev.isPending}
+              onClick={() => newRev.mutate()}
+            >
               สร้าง Rev ใหม่
             </Button>
           ) : null}
@@ -171,11 +199,19 @@ export function QuotationSection({
 
       {termPct !== null && termPct !== undefined && Math.abs(termPct - 100) > 0.001 ? (
         <p className="mt-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          ผลรวม % ของงวดเงินเท่ากับ {termPct}% — ควรเท่ากับ 100% (แก้ไขที่ TERM OF PAYMENT ท้ายหน้านี้)
+          ผลรวม % ของงวดเงินเท่ากับ {termPct}% — ควรเท่ากับ 100% (แก้ไขที่ TERM OF PAYMENT
+          ท้ายหน้านี้)
         </p>
       ) : null}
       {issuing ? (
-        <IssueBillingDialog projectId={projectId} onClose={() => setIssuing(false)} onIssued={(id) => { setIssuing(false); setBillDoc(id); }} />
+        <IssueBillingDialog
+          projectId={projectId}
+          onClose={() => setIssuing(false)}
+          onIssued={(id) => {
+            setIssuing(false);
+            setBillDoc(id);
+          }}
+        />
       ) : null}
       {billDoc ? <BillingPreviewDialog docId={billDoc} onClose={() => setBillDoc(null)} /> : null}
 
@@ -206,7 +242,10 @@ export function QuotationSection({
       <Dialog open={preview} onOpenChange={setPreview}>
         <DialogContent className="flex h-[92vh] max-w-[900px] flex-col p-3">
           <DialogHeader>
-             <DialogTitle>ตัวอย่างใบเสนอราคา {quotation.ref_no}{quotationRevisionSuffix(quotation.rev)}</DialogTitle>
+            <DialogTitle>
+              ตัวอย่างใบเสนอราคา {quotation.ref_no}
+              {quotationRevisionSuffix(quotation.rev)}
+            </DialogTitle>
           </DialogHeader>
           <iframe
             title="quotation-preview"
@@ -239,9 +278,14 @@ export function QuotationSection({
             ))}
           </div>
         ) : null}
-        <div className="w-full max-w-xs space-y-1">
+        <div className="w-full max-w-md space-y-1">
           <div className="font-semibold">
-            ยอดรวม{opts.length ? (selectedOption ? ` (หลัก + Option ${selectedOption})` : " (เฉพาะรายการหลัก — ยังไม่เลือก Option)") : ""}
+            ยอดรวม
+            {opts.length
+              ? selectedOption
+                ? ` (หลัก + Option ${selectedOption})`
+                : " (เฉพาะรายการหลัก — ยังไม่เลือก Option)"
+              : ""}
           </div>
           <Row label="รวมเป็นเงิน" value={formatTHB(t.subtotal)} />
           <div className="flex items-center justify-between gap-4">
@@ -259,6 +303,14 @@ export function QuotationSection({
             />
           </div>
           <Row label="ยอดหลังหักส่วนลด" value={formatTHB(t.afterDiscount)} />
+          <AdjustmentsEditor
+            key={JSON.stringify(adjustments)}
+            value={adjustments}
+            amounts={t.adjusted.map((x) => x.amount)}
+            canEdit={canEdit}
+            onSave={(v) => updateQuotation.mutate({ adjustments: v })}
+          />
+          {adjustments.length ? <Row label="ยอดก่อน VAT" value={formatTHB(t.beforeVat)} /> : null}
           <div className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1 text-muted-foreground">
               VAT
@@ -277,6 +329,43 @@ export function QuotationSection({
             <span className="tabular-nums">{formatTHB(t.vat)}</span>
           </div>
           <Row label="ยอดสุทธิ (บาท)" value={formatTHB(t.net)} bold />
+          <div className="space-y-1 pt-3">
+            <div className="text-xs font-semibold">ท้ายใบเสนอราคา (ลูกค้าเห็น)</div>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+              value={vatMode}
+              disabled={!canEdit}
+              onChange={(e) => updateQuotation.mutate({ vat_mode: e.target.value })}
+            >
+              {VAT_MODES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <div className="rounded bg-secondary px-2 py-1.5 text-xs">
+              {printed.map((r, i) => (
+                <div
+                  key={i}
+                  className={
+                    "flex justify-between gap-3 " +
+                    (r.bold ? "font-semibold" : "") +
+                    (r.italic ? " italic" : "")
+                  }
+                >
+                  <span>{r.label}</span>
+                  <span className="tabular-nums">
+                    {typeof r.value === "number" ? formatTHB(r.value) : r.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {vatMode !== "show" && vatPct > 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                งวดเงินและใบเบิกยังคิด VAT {vatPct}% — ถ้างานนี้ไม่มี VAT ให้ใส่ VAT 0%
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -293,9 +382,125 @@ export function QuotationSection({
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className={"flex justify-between gap-4 " + (bold ? "border-t border-border pt-1 font-semibold" : "")}>
+    <div
+      className={
+        "flex justify-between gap-4 " + (bold ? "border-t border-border pt-1 font-semibold" : "")
+      }
+    >
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+/** Contract lines between the item total and VAT (overhead & profit, unforeseen ...). */
+function AdjustmentsEditor({
+  value,
+  amounts,
+  canEdit,
+  onSave,
+}: {
+  value: Adjustment[];
+  amounts: (number | null)[];
+  canEdit: boolean;
+  onSave: (v: Adjustment[]) => void;
+}) {
+  const [rows, setRows] = useState(value);
+  const [raw, setRaw] = useState<Record<number, string>>({});
+  const save = (next: Adjustment[]) => {
+    setRows(next);
+    if (JSON.stringify(next) !== JSON.stringify(value)) onSave(next);
+  };
+  const set = (i: number, p: Partial<Adjustment>) =>
+    setRows((o) => o.map((r, j) => (j === i ? { ...r, ...p } : r)));
+  const sel = "h-7 rounded-md border border-input bg-background px-1 text-xs";
+  return (
+    <div className="space-y-1">
+      <datalist id="adj-presets">
+        {ADJUSTMENT_PRESETS.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+      {rows.map((a, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <Input
+            className="h-7 min-w-0 flex-1 text-xs"
+            list="adj-presets"
+            placeholder="เช่น OVERHEAD & PROFIT 12%"
+            value={a.label}
+            disabled={!canEdit}
+            onChange={(e) => set(i, { label: e.target.value.toUpperCase() })}
+            onBlur={() => save(rows)}
+          />
+          <select
+            className={sel}
+            value={a.type}
+            disabled={!canEdit}
+            onChange={(e) =>
+              save(
+                rows.map((r, j) =>
+                  j === i ? { ...r, type: e.target.value as Adjustment["type"] } : r,
+                ),
+              )
+            }
+          >
+            <option value="percent">%</option>
+            <option value="amount">บาท</option>
+            <option value="note">ข้อความ</option>
+          </select>
+          {a.type === "note" ? (
+            <Input
+              className="h-7 w-32 text-xs"
+              placeholder="เช่น BY BUYER"
+              value={a.text ?? ""}
+              disabled={!canEdit}
+              onChange={(e) => set(i, { text: e.target.value.toUpperCase() })}
+              onBlur={() => save(rows)}
+            />
+          ) : (
+            <>
+              <Input
+                className="h-7 w-16 text-right text-xs"
+                inputMode="decimal"
+                value={raw[i] ?? (a.value ? String(a.value) : "")}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setRaw((o) => ({ ...o, [i]: e.target.value }));
+                  set(i, { value: toNumber(e.target.value) ?? 0 });
+                }}
+                onBlur={() => save(rows)}
+              />
+              <span className="w-24 text-right text-xs tabular-nums">
+                {formatTHB(amounts[i] ?? 0)}
+              </span>
+            </>
+          )}
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-1.5 text-destructive"
+              onClick={() => {
+                setRaw({});
+                save(rows.filter((_, j) => j !== i));
+              }}
+            >
+              ลบ
+            </Button>
+          ) : null}
+        </div>
+      ))}
+      {canEdit ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs"
+          title="งานรับเหมา: ค่าประสานงาน, overhead & profit, เผื่อ ฯลฯ — % คิดบนยอดสะสม"
+          onClick={() => setRows((o) => [...o, { label: "", type: "percent", value: 0 }])}
+        >
+          + เพิ่มรายการท้ายใบ (Overhead & Profit ฯลฯ)
+        </Button>
+      ) : null}
     </div>
   );
 }
