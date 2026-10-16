@@ -25,6 +25,7 @@ export const SKU_CATEGORIES = [
   "Clipso fabric",
   "Clipso track",
   "Smart film",
+  "Film transformer",
   "Service",
   "อื่นๆ",
 ] as const;
@@ -45,6 +46,8 @@ export const CATEGORY_HINT: Partial<Record<SkuCategoryName, string>> = {
   "FO accessory": "end finishing, harness, optical port, WP box",
   "Clipso fabric": "ผ้า Clipso แต่ละรุ่น / หน้าผ้า (ราคาต่อ ตร.ม.)",
   "Clipso track": "รางเย็บผ้า CC / CW (ราคาต่อเส้น)",
+  "Smart film": "ฟิล์ม privacy / PDLC (ราคาต่อ ตร.ม.)",
+  "Film transformer": "หม้อแปลงฟิล์ม เช่น 65Vac",
   Service: "งานบริการ เช่น พ่นสี (ไม่ตัดสต๊อก)",
 };
 
@@ -108,6 +111,7 @@ export function guessCategory(s: SkuLike): SkuCategoryName {
   if (/clipso|stretch|ผ้ายืด/i.test(t))
     return /track|rail|ราง|\bc[cw]\b/i.test(t) ? "Clipso track" : "Clipso fabric";
   if (/\bmodule\b|โมดูล/i.test(t) && !/power|psu|driver/i.test(t)) return "LED module";
+  if (/transformer|หม้อแปลง/i.test(t) && /film|ฟิล์ม|pdlc|privacy|\d+\s*v\s*ac/i.test(t)) return "Film transformer";
   if (/power\s*supply|\bpsu\b|driver|switching|adapter|transformer|หม้อแปลง|ไดรเวอร์|\b(lpv|hlg|lpf|elg|xlg)-/i.test(t))
     return "Power supply";
   if (/paint|พ่นสี|ค่าแรง|labou?r|service/i.test(t)) return "Service";

@@ -6,6 +6,7 @@ import { chipOf, pcbOf, PROFILE_MODELS, profileModelOfSku, railOf, usesEzClip } 
 import { psuDimOf, wattOfPsu, wattPerMOf } from "./linear";
 import { wattPerModuleOf } from "./clipso";
 import { JEDI_FLEX_MODELS } from "./neon";
+import { transformerWatt } from "./film";
 import { readTags } from "./skuCategory";
 
 export type AttrField =
@@ -89,6 +90,10 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
     },
     { key: "ยาวเส้น", label: "ความยาวต่อเส้น", kind: "number", unit: "ม.", hint: "ว่าง = 2 ม." },
   ],
+  "Film transformer": [
+    { key: "วัตต์", label: "วัตต์", kind: "number", unit: "W", hint: "ใช้คำนวณจำนวนหม้อแปลง (ฟิล์ม ~10 W/ตร.ม., โหลด 80%)" },
+    { key: "แรงดัน", label: "แรงดันขาออก", kind: "text", hint: "เช่น 65Vac" },
+  ],
   "Power supply": [
     { key: "วัตต์", label: "วัตต์", kind: "number", unit: "W" },
     { key: "ดิม", label: "ระบบดิม", kind: "select", options: DIMS },
@@ -132,6 +137,10 @@ export function guessAttrs(s: SkuLite, category: string): Record<string, string>
     put("หน้าผ้า", /5[.,]1\s*m/i.test(t) ? "5.1" : /3[.,]4\s*m/i.test(t) ? "3.4" : null);
   } else if (category === "Clipso track") put("ราง", `${s.code} ${s.name}`.match(/\b(C[CW])\b/i)?.[1]?.toUpperCase());
   else if (category === "LED heat sink") put("ราง", railOf(s));
+  else if (category === "Film transformer") {
+    put("วัตต์", transformerWatt(s));
+    put("แรงดัน", `${s.code} ${s.name}`.match(/(\d+)\s*V\s*ac/i)?.[0]?.replace(/\s+/g, "").replace(/vac/i, "Vac"));
+  }
   else if (category === "Power supply") {
     put("วัตต์", wattOfPsu(s));
     put("ดิม", psuDimOf(s));

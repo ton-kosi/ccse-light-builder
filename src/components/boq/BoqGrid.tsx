@@ -14,6 +14,8 @@ import { parseClipso, type ClipsoConfig } from "@/lib/clipso";
 import { NeonDialog, type NeonTarget } from "@/components/boq/NeonDialog";
 import { parseNeon, type NeonConfig } from "@/lib/neon";
 import { rebalanceNeon } from "@/lib/neonSync";
+import { FilmDialog, type FilmTarget } from "@/components/boq/FilmDialog";
+import { parseFilm, type FilmConfig } from "@/lib/film";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -69,6 +71,7 @@ export function BoqGrid({
   const [linTarget, setLinTarget] = useState<LinearTarget | null>(null);
   const [clpTarget, setClpTarget] = useState<ClipsoTarget | null>(null);
   const [neoTarget, setNeoTarget] = useState<NeonTarget | null>(null);
+  const [pvfTarget, setPvfTarget] = useState<FilmTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -101,16 +104,29 @@ export function BoqGrid({
     queryKey: ["set_lines", quotationId, lineIds.join(",")],
     enabled: lineIds.length > 0,
     queryFn: async () => {
-      const [fo, lin, clp, neo] = await Promise.all([
+      const [fo, lin, clp, neo, pvf] = await Promise.all([
         supabase.from("line_recipes").select("quote_line_id").in("quote_line_id", lineIds).like("note", "FO %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "LIN %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "CLP %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "NEO %"),
+        supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "PVF %"),
       ]);
       if (fo.error) throw fo.error;
       if (lin.error) throw lin.error;
       if (clp.error) throw clp.error;
       if (neo.error) throw neo.error;
+      if (pvf.error) throw pvf.error;
+      const pvfBlocks = new Map<string, FilmConfig>();
+      const pvfRow = new Map<string, string>();
+      for (const r of pvf.data) {
+        const cfg = parseFilm(r.note);
+        if (cfg) {
+          pvfBlocks.set(cfg.blockId, cfg);
+          for (const id of cfg.rowIds) pvfRow.set(id, cfg.blockId);
+        }
+        const bid = r.note?.split(" ")[1];
+        if (bid) pvfRow.set(r.quote_line_id, bid);
+      }
       const neoBlocks = new Map<string, NeonConfig>();
       const neoRow = new Map<string, string>();
       for (const r of neo.data) {
@@ -145,7 +161,7 @@ export function BoqGrid({
         const bid = r.note?.split(" ")[1];
         if (bid) rowBlock.set(r.quote_line_id, bid);
       }
-      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow };
+      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow, pvfBlocks, pvfRow };
     },
   });
   const foLines = setLines?.fo;
@@ -161,12 +177,27 @@ export function BoqGrid({
     const bid = setLines?.neoRow.get(id);
     return bid ? (setLines?.neoBlocks.get(bid) ?? null) : null;
   };
-  /** Reopens the linear / FO / Clipso / Jedi flex window a row was built in. */
+  const pvfBlockOf = (id: string) => {
+    const bid = setLines?.pvfRow.get(id);
+    return bid ? (setLines?.pvfBlocks.get(bid) ?? null) : null;
+  };
+  /** Reopens the linear / FO / Clipso / Jedi flex / film window a row was built in. */
   const openSet = (l: GridLine) => {
     const lin = linBlockOf(l.id);
     const clp = clpBlockOf(l.id);
     const neo = neoBlockOf(l.id);
-    if (neo) {
+    const pvf = pvfBlockOf(l.id);
+    if (pvf) {
+      const blockRows = lines.filter((x) => pvf.rowIds.includes(x.id));
+      const priced = blockRows.find((x) => x.kind === "priced");
+      setPvfTarget({
+        mode: "edit",
+        config: pvf,
+        option: blockRows[0]?.option_name ?? null,
+        zone: blockRows[0]?.zone ?? null,
+        discount: Number(priced?.discount_percent ?? 0),
+      });
+    } else if (neo) {
       const blockRows = lines.filter((x) => neo.rowIds.includes(x.id));
       const priced = blockRows.find((x) => x.kind === "priced");
       setNeoTarget({
@@ -550,10 +581,11 @@ export function BoqGrid({
               const lin = linBlockOf(l.id);
               const clp = clpBlockOf(l.id);
               const neo = neoBlockOf(l.id);
-              const isFo = !!foLines?.has(l.id) || !!lin || !!clp || !!neo;
-              const setName = neo ? "ชุด Jedi flex" : clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
+              const pvf = pvfBlockOf(l.id);
+              const isFo = !!foLines?.has(l.id) || !!lin || !!clp || !!neo || !!pvf;
+              const setName = pvf ? "ชุด Privacy film" : neo ? "ชุด Jedi flex" : clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
               // first line of a linear / Clipso / Jedi flex block, or the FO line, carries the "edit set" shortcut
-              const block = lin ?? clp ?? neo;
+              const block = lin ?? clp ?? neo ?? pvf;
               const setStart = block
                 ? lines.find((x) => block.rowIds.includes(x.id))?.id === l.id
                 : !!foLines?.has(l.id);
@@ -707,7 +739,7 @@ export function BoqGrid({
                     ) : null}
                     <td className="whitespace-nowrap px-1 py-0.5 not-italic">
                       <div className="flex gap-1">
-                        {lin || clp || neo ? (
+                        {lin || clp || neo || pvf ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -799,6 +831,13 @@ export function BoqGrid({
             >
               + เพิ่มชุด Jedi flex
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPvfTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
+            >
+              + เพิ่มชุด Privacy film
+            </Button>
           </>
         ) : null}
         <span className="text-xs text-muted-foreground">
@@ -813,6 +852,15 @@ export function BoqGrid({
           canSeeCost={canSeeCost}
           replaceRows={replaceRows}
           onClose={() => setLinTarget(null)}
+        />
+      ) : null}
+      {pvfTarget ? (
+        <FilmDialog
+          target={pvfTarget}
+          quotationId={quotationId}
+          canSeeCost={canSeeCost}
+          replaceRows={replaceRows}
+          onClose={() => setPvfTarget(null)}
         />
       ) : null}
       {neoTarget ? (
