@@ -25,7 +25,7 @@ import {
   type FoConfig,
 } from "@/lib/fo";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
-import { saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
+import { useSkuPrices } from "@/lib/skuPrices";
 import { SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 
 export type Sku = { id: string; code: string; name: string; unit: string; notes?: string | null };
@@ -60,15 +60,6 @@ export function FoSetDialog({
         .order("code");
       if (error) throw error;
       return data as Sku[];
-    },
-  });
-  const { data: costs } = useQuery({
-    queryKey: ["sku_costs"],
-    enabled: canSeeCost,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("sku_costs").select("sku_id, unit_cost");
-      if (error) throw error;
-      return new Map(data.map((c) => [c.sku_id, Number(c.unit_cost)]));
     },
   });
   const { data: saved, isLoading: loadingSaved } = useQuery({
@@ -131,31 +122,10 @@ export function FoSetDialog({
 
   const rows = c ? buildFoRecipes(c) : [];
   const text = c ? buildFoText(c) : "";
-  const cost = rows.reduce((s, r) => s + r.qty * (costs?.get(r.sku_id) ?? 0), 0);
-  const missingCost = canSeeCost && costs ? rows.filter((r) => !costs.has(r.sku_id)) : [];
   const pricing = priceFo(rows, partPrices ?? new Map());
   const discNum = toNumber(disc) ?? 0;
   const net = Math.round(pricing.list * (1 - discNum / 100) * 100) / 100;
-  const gp = canSeeCost && net > 0 ? ((net - cost) / net) * 100 : null;
   const discTooHigh = discNum > pricing.maxDiscount + 1e-9;
-
-  /** Admin: set the selling price of one part (creates a one-SKU sales component the first time). */
-  const setPartPrice = useMutation({
-    mutationFn: async (p: { skuId: string; unitPrice?: number; maxDiscount?: number }) => {
-      const sku = byId.get(p.skuId);
-      if (!sku) throw new Error("ไม่พบ SKU");
-      const cur = partPrices?.get(p.skuId);
-      await saveSkuPrice(
-        sku,
-        p.unitPrice ?? cur?.unitPrice ?? 0,
-        p.maxDiscount ?? cur?.maxDiscount ?? 0,
-      );
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const set = (patch: Partial<FoConfig>) => setC((old) => (old ? { ...old, ...patch } : old));
   const setIlluminator = (id: string) => {
@@ -469,112 +439,17 @@ export function FoSetDialog({
                 ) : null}
               </Block>
 
-              {canSeeCost ? (
-                <Block title="ราคาขายแต่ละชิ้น (admin เท่านั้น)">
-                  <table className="w-full text-xs">
-                    <thead className="text-left text-muted-foreground">
-                      <tr>
-                        <th className="pb-1 font-medium">ชิ้น</th>
-                        <th className="pb-1 text-right font-medium">ราคา/หน่วย</th>
-                        <th className="pb-1 text-right font-medium">ลด≤%</th>
-                        <th className="pb-1 text-right font-medium">รวม</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pricing.parts.map((pt, i) => {
-                        const s = byId.get(pt.sku_id);
-                        const u = costs?.get(pt.sku_id);
-                        return (
-                          <tr key={i} className="border-t border-border align-middle">
-                            <td className="py-1 pr-1">
-                              <div>{s?.code}</div>
-                              <div className="text-muted-foreground">
-                                {formatQty(pt.qty)} {s?.unit}
-                                {u !== undefined ? ` · ทุน ${formatTHB(u)}` : " · ไม่มีทุน"}
-                              </div>
-                            </td>
-                            <td className="py-1 pr-1">
-                              <Input
-                                key={`p${pt.sku_id}${pt.unitPrice}`}
-                                className={
-                                  "h-7 w-20 text-right text-xs " +
-                                  (pt.unitPrice === null ? "border-destructive" : "")
-                                }
-                                defaultValue={pt.unitPrice === null ? "" : String(pt.unitPrice)}
-                                placeholder="ตั้งราคา"
-                                onBlur={(e) => {
-                                  const v = toNumber(e.target.value);
-                                  if (v !== null && v !== pt.unitPrice)
-                                    setPartPrice.mutate({ skuId: pt.sku_id, unitPrice: v });
-                                }}
-                              />
-                            </td>
-                            <td className="py-1 pr-1">
-                              <Input
-                                key={`d${pt.sku_id}${pt.maxDiscount}`}
-                                className="h-7 w-12 text-right text-xs"
-                                defaultValue={String(pt.maxDiscount)}
-                                disabled={pt.unitPrice === null}
-                                onBlur={(e) => {
-                                  const v = toNumber(e.target.value);
-                                  if (v !== null && v !== pt.maxDiscount)
-                                    setPartPrice.mutate({
-                                      skuId: pt.sku_id,
-                                      maxDiscount: Math.min(100, Math.max(0, v)),
-                                    });
-                                }}
-                              />
-                            </td>
-                            <td className="py-1 text-right tabular-nums">
-                              {pt.amount === null ? "?" : formatTHB(pt.amount)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    ตั้งครั้งเดียว ใช้กับทุกชุด FO · ราคาต่อเครื่อง / ต่อเมตร / ต่อจุด ตามหน่วยของ
-                    SKU
-                  </p>
-                  <div className="mt-2 space-y-0.5 border-t border-border pt-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>ต้นทุนรวม</span>
-                      <span className="tabular-nums">{formatTHB(cost)}</span>
-                    </div>
-                    {gp !== null ? (
-                      <div
-                        className={
-                          "flex justify-between font-medium " + (gp < 20 ? "text-destructive" : "")
-                        }
-                      >
-                        <span>กำไรขั้นต้น (หลังส่วนลด)</span>
-                        <span className="tabular-nums">
-                          {formatTHB(net - cost)} ({gp.toFixed(1)}%)
-                        </span>
-                      </div>
-                    ) : null}
-                    {missingCost.length ? (
-                      <div className="text-warning">
-                        ยังไม่มีต้นทุน:{" "}
-                        {missingCost.map((r) => byId.get(r.sku_id)?.code).join(", ")}
-                      </div>
-                    ) : null}
-                  </div>
-                </Block>
-              ) : null}
-
-              <Block title="ราคาขายต่อชุด">
+              <Block title="ราคา">
                 {pricing.missing.length ? (
                   <p className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                    ยังไม่มีราคาขายของบางชิ้น (
-                    {pricing.missing.map((id) => byId.get(id)?.code).join(", ")}) —
-                    {canSeeCost ? " ตั้งราคาในตารางด้านบน" : " ติดต่อ admin ให้ตั้งราคาก่อน"}
+                    ยังไม่มีราคาขายของ{" "}
+                    {pricing.missing.map((id) => byId.get(id)?.code).join(", ")} —{" "}
+                    {canSeeCost ? "ตั้งราคาที่หน้าทะเบียน SKU (เมนู สต็อก)" : "ติดต่อ admin ให้ตั้งราคา"}
                   </p>
                 ) : (
                   <div className="space-y-2 text-sm">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-muted-foreground">ราคาเต็ม</span>
+                      <span className="text-muted-foreground">ราคาเต็มทั้งชุด</span>
                       <span className="text-base font-semibold tabular-nums">
                         {formatTHB(pricing.list)}
                       </span>
@@ -601,7 +476,7 @@ export function FoSetDialog({
                       </p>
                     ) : null}
                     <div className="flex items-baseline justify-between border-t border-border pt-2">
-                      <span>ราคาสุทธิต่อชุด</span>
+                      <span>ราคาสุทธิ</span>
                       <span className="text-base font-semibold tabular-nums">{formatTHB(net)}</span>
                     </div>
                   </div>
