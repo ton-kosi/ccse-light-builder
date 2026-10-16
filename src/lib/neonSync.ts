@@ -39,7 +39,7 @@ export function itemsFromLines(componentId: string, lines: Line[], recipes: Rec[
 export async function loadQuotationRuns(quotationId: string) {
   const { data: lines, error } = await supabase
     .from("quote_lines")
-    .select("id, component_id, cut_lengths, qty, unit_price")
+    .select("id, component_id, cut_lengths, qty, unit_price, sort_order")
     .eq("quotation_id", quotationId);
   if (error) throw error;
   const ids = lines.map((l) => l.id);
@@ -47,10 +47,19 @@ export async function loadQuotationRuns(quotationId: string) {
     ? await supabase.from("line_recipes").select("quote_line_id, sku_id, qty, note").in("quote_line_id", ids)
     : { data: [], error: null };
   if (e2) throw e2;
-  return { lines: lines as (Line & { unit_price: number | null })[], recipes: (recipes ?? []) as Rec[] };
+  return {
+    lines: lines as (Line & { unit_price: number | null; sort_order: number })[],
+    recipes: (recipes ?? []) as Rec[],
+  };
 }
 
-/** Re-prices every Jedi flex run line in the quotation. Returns how many lines changed. */
+export const ROLLS_NOTE = "NEO ROLLS";
+
+/**
+ * Re-prices every Jedi flex run line in the quotation and rewrites the rolls it needs (whole 5 m /
+ * 10 m rolls per family, kept as materials on the family's first run line so stock reserves and
+ * orders whole rolls). Returns how many lines changed price.
+ */
 export async function rebalanceNeon(quotationId: string): Promise<number> {
   const [families, runs, r, p] = await Promise.all([
     loadNeonFamilies(),
@@ -62,16 +71,37 @@ export async function rebalanceNeon(quotationId: string): Promise<number> {
   if (p.error) throw p.error;
   const prices = partPriceMap(r.data, p.data);
   let changed = 0;
+  const rollRows: { quote_line_id: string; sku_id: string; qty: number; note: string }[] = [];
   for (const f of families) {
     if (!f.componentId) continue;
-    const mine = runs.lines.filter((l) => l.component_id === f.componentId);
+    const mine = runs.lines
+      .filter((l) => l.component_id === f.componentId)
+      .sort((a, b) => a.sort_order - b.sort_order);
     if (!mine.length) continue;
     const fp = familyPrice(f, itemsFromLines(f.componentId, runs.lines, runs.recipes), prices);
+    const count = new Map<string, number>();
+    for (const roll of fp.rolls) count.set(roll.skuId, (count.get(roll.skuId) ?? 0) + 1);
+    for (const [skuId, qty] of count)
+      rollRows.push({ quote_line_id: mine[0]!.id, sku_id: skuId, qty, note: `${ROLLS_NOTE} ${f.family}` });
     const stale = mine.filter((l) => Number(l.unit_price) !== fp.perM).map((l) => l.id);
     if (!stale.length) continue;
     const { error } = await supabase.from("quote_lines").update({ unit_price: fp.perM }).in("id", stale);
     if (error) throw error;
     changed += stale.length;
+  }
+  // replace the rolls of the whole quotation
+  const ids = runs.lines.map((l) => l.id);
+  if (ids.length) {
+    const { error } = await supabase
+      .from("line_recipes")
+      .delete()
+      .in("quote_line_id", ids)
+      .like("note", `${ROLLS_NOTE}%`);
+    if (error) throw error;
+  }
+  if (rollRows.length) {
+    const { error } = await supabase.from("line_recipes").insert(rollRows);
+    if (error) throw error;
   }
   return changed;
 }

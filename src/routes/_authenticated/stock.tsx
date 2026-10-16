@@ -60,6 +60,22 @@ function StockPage() {
     },
   });
 
+  // leftover pieces of rolls (เศษม้วน) waiting to be used, per SKU
+  const { data: remnants } = useQuery({
+    queryKey: ["remnants", "available"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("remnants")
+        .select("sku_id, length_m")
+        .eq("status", "available")
+        .order("length_m", { ascending: false });
+      if (error) throw error;
+      const m = new Map<string, number[]>();
+      for (const r of data) m.set(r.sku_id, [...(m.get(r.sku_id) ?? []), Number(r.length_m)]);
+      return m;
+    },
+  });
+
   const { data: ordered } = useQuery({
     queryKey: ["purchase_requests", "ordered"],
     queryFn: async () => {
@@ -147,7 +163,14 @@ function StockPage() {
             {list.map((r) => (
               <tr key={r.k.id} className="border-t border-border">
                 <Td className="font-mono">{r.k.code}</Td>
-                <Td>{r.k.name}</Td>
+                <Td>
+                  {r.k.name}
+                  {remnants?.get(r.k.id)?.length ? (
+                    <Link to="/remnants" className="block text-xs text-primary hover:underline">
+                      + เศษ {remnants.get(r.k.id)!.length} ชิ้น ({remnants.get(r.k.id)!.map((x) => x.toFixed(2)).join(", ")} ม.)
+                    </Link>
+                  ) : null}
+                </Td>
                 <Td className="whitespace-nowrap text-xs text-muted-foreground">{categoryOf(r.k)}</Td>
                 <Td>{r.k.unit}</Td>
                 <Td className="text-right tabular-nums">{formatQty(r.onHandQty)}</Td>

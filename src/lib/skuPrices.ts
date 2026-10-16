@@ -104,8 +104,7 @@ export async function saveSkuPrice(
 /**
  * Hidden sales component for a Jedi flex roll family ("RF-<family>", roll product): BOQ run lines
  * point at it so the work-order roll plan cuts their lengths from that family's rolls and keeps
- * the leftovers as remnants. Recipe = rolls per metre (for stock reservation before the plan).
- * Needs admin / estimator / stock (RLS).
+ * the leftovers as remnants. Needs admin / estimator / stock (RLS).
  */
 export async function ensureRollComponent(
   family: string,
@@ -132,9 +131,8 @@ export async function ensureRollComponent(
     .select("id")
     .single();
   if (e2) throw e2;
-  const { error: e3 } = await supabase
-    .from("recipes")
-    .insert({ component_id: comp.id, sku_id: roll.id, qty_per_unit: Math.round((1 / roll.length) * 10000) / 10000 });
-  if (e3) throw e3;
+  // no recipe: rolls needed come from the BOQ roll plan (line materials "NEO ROLLS …") and later
+  // from the work-order roll plan, always as whole rolls
+  void roll;
   return comp.id;
 }

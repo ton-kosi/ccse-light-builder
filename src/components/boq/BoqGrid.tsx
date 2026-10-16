@@ -114,6 +114,7 @@ export function BoqGrid({
       const neoBlocks = new Map<string, NeonConfig>();
       const neoRow = new Map<string, string>();
       for (const r of neo.data) {
+        if (r.note?.startsWith("NEO ROLLS")) continue; // rolls of the whole quotation, not a block
         const cfg = parseNeon(r.note);
         if (cfg) {
           neoBlocks.set(cfg.blockId, cfg);

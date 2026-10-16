@@ -27,6 +27,8 @@ import {
 import { itemsFromLines, loadNeonFamilies, loadQuotationRuns, NEON_SKU_COLUMNS, NEON_SKU_KEY, rebalanceNeon } from "@/lib/neonSync";
 import { ensureRollComponent, useSkuPrices } from "@/lib/skuPrices";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { Link } from "@tanstack/react-router";
+import { useMe } from "@/hooks/useMe";
 
 export type NeonTarget =
   | { mode: "new"; option: string | null }
@@ -132,6 +134,32 @@ export function NeonDialog({
   const net = built ? Math.round(built.list * (1 - discNum / 100) * 100) / 100 : 0;
   const missing = [...new Set([...(fp?.missing ?? []), ...(built?.missing ?? [])])];
   const byId = useMemo(() => new Map((skus ?? []).map((s) => [s.id, s])), [skus]);
+
+  // stock of this family: whole rolls on hand per size and remnants waiting to be used
+  const { has } = useMe();
+  const rollIds = family?.rolls.map((r) => r.skuId) ?? [];
+  const { data: stock } = useQuery({
+    queryKey: ["neon_stock", rollIds.join(",")],
+    enabled: rollIds.length > 0,
+    queryFn: async () => {
+      const [oh, rem] = await Promise.all([
+        supabase.from("sku_on_hand").select("sku_id, on_hand").in("sku_id", rollIds),
+        supabase
+          .from("remnants")
+          .select("code, length_m, status")
+          .in("sku_id", rollIds)
+          .in("status", ["available", "reserved"])
+          .order("length_m", { ascending: false }),
+      ]);
+      if (oh.error) throw oh.error;
+      return {
+        onHand: new Map(oh.data.map((x) => [x.sku_id as string, Number(x.on_hand ?? 0)])),
+        remnants: rem.data ?? [],
+      };
+    },
+  });
+  const need = new Map<string, number>();
+  for (const r of fp?.rolls ?? []) need.set(r.skuId, (need.get(r.skuId) ?? 0) + 1);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -397,6 +425,62 @@ export function NeonDialog({
             </div>
 
             <div className="space-y-5">
+              {family ? (
+                <Block title="สต๊อกม้วนรุ่นนี้">
+                  <table className="w-full text-xs">
+                    <thead className="text-left text-muted-foreground">
+                      <tr>
+                        <th className="pb-1 font-medium">ม้วน</th>
+                        <th className="pb-1 text-right font-medium">คงเหลือ</th>
+                        <th className="pb-1 text-right font-medium">ใบนี้ใช้</th>
+                        <th className="pb-1 text-right font-medium" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {family.rolls.map((r) => {
+                        const on = stock?.onHand.get(r.skuId) ?? 0;
+                        const n = need.get(r.skuId) ?? 0;
+                        const short = Math.max(0, n - on);
+                        return (
+                          <tr key={r.skuId} className="border-t border-border">
+                            <td className="py-1">
+                              {r.length} ม. <span className="text-muted-foreground">{byId.get(r.skuId)?.code}</span>
+                            </td>
+                            <td className="py-1 text-right tabular-nums">{formatQty(on)}</td>
+                            <td className="py-1 text-right tabular-nums">{n || "—"}</td>
+                            <td className="py-1 text-right">
+                              {short ? (
+                                has("admin", "stock") ? (
+                                  <Link
+                                    to="/purchase-requests"
+                                    search={{ sku: r.skuId, qty: short }}
+                                    className="font-medium text-destructive hover:underline"
+                                  >
+                                    ขาด {short} → ขอซื้อ
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-destructive">ขาด {short}</span>
+                                )
+                              ) : n ? (
+                                <span className="text-success">พอ</span>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    เศษในสต๊อก:{" "}
+                    {stock?.remnants.length
+                      ? stock.remnants
+                          .map((x) => `${Number(x.length_m).toFixed(2)} ม.${x.status === "reserved" ? " (จองแล้ว)" : ""}`)
+                          .join(", ")
+                      : "ไม่มี"}{" "}
+                    · ตอนวางแผนตัดในใบ Work ระบบใช้เศษก่อนเปิดม้วนใหม่
+                  </p>
+                </Block>
+              ) : null}
               <Block title="ลูกค้าจะเห็น">
                 <div className="max-h-96 overflow-y-auto rounded bg-secondary p-2 text-xs">
                   <div className="mb-1 grid grid-cols-[110px_1fr] gap-2">
