@@ -1,34 +1,31 @@
 /**
  * Privacy film (PDLC smart film) builder.
  *
- * - Priced per square metre of the CALCULATION size of each piece (normally the cutting size;
- *   can be set larger per piece, e.g. to a production width).
+ * - Priced per square metre of the cutting size of each piece (one priced line per size + busbar).
  * - One piece is at most 1.5 m x 3 m (either way round).
- * - Every piece needs its busbar side(s) stated.
+ * - Every piece needs its busbar stated: single or double, on the width (W) or height (H) side.
  * - Transformers per location: watts (≈10 W/m²) ÷ (transformer watts x 80 %), rounded up;
  *   priced, existing or by buyer. Optional 220 V wiring line and installation line.
  */
 import type { PartPrice } from "./fo";
 import { inCategory, readTags } from "./skuCategory";
 
-export type Busbar = "LEFT" | "RIGHT" | "TOP" | "BOTTOM" | "LEFT & RIGHT" | "TOP & BOTTOM";
-export const BUSBARS: { value: Busbar; label: string }[] = [
-  { value: "LEFT", label: "ซ้าย" },
-  { value: "RIGHT", label: "ขวา" },
-  { value: "TOP", label: "บน" },
-  { value: "BOTTOM", label: "ล่าง" },
-  { value: "LEFT & RIGHT", label: "ซ้าย+ขวา" },
-  { value: "TOP & BOTTOM", label: "บน+ล่าง" },
+export type Busbar = "1W" | "2W" | "1H" | "2H";
+export const BUSBARS: { value: Busbar; label: string; text: string }[] = [
+  { value: "1W", label: "1 ด้าน · ด้านกว้าง (W)", text: "SINGLE BUSBAR ON WIDTH SIDE" },
+  { value: "2W", label: "2 ด้าน · ด้านกว้าง (W)", text: "DOUBLE BUSBAR ON WIDTH SIDES" },
+  { value: "1H", label: "1 ด้าน · ด้านสูง (H)", text: "SINGLE BUSBAR ON HEIGHT SIDE" },
+  { value: "2H", label: "2 ด้าน · ด้านสูง (H)", text: "DOUBLE BUSBAR ON HEIGHT SIDES" },
 ];
+/** Customer text of a busbar choice; "" when not (validly) chosen. */
+export const busbarText = (b: string | null | undefined) =>
+  BUSBARS.find((x) => x.value === b)?.text ?? "";
 
 export type FilmPiece = {
   w: number;
   h: number;
   qty: number;
   busbar: Busbar | "";
-  /** calculation (charged) size; null = same as cutting size */
-  calcW?: number | null;
-  calcH?: number | null;
 };
 export type FilmLocation = { name: string; pieces: FilmPiece[] };
 export type Status = "priced" | "existing" | "by_buyer" | "none";
@@ -44,7 +41,13 @@ export type FilmConfig = {
   wattPerM2: number;
   showBusbar: boolean;
   locations: FilmLocation[];
-  transformer: { mode: Status; skuId: string | null; watt: number; text: string; loadFactor: number };
+  transformer: {
+    mode: Status;
+    skuId: string | null;
+    watt: number;
+    text: string;
+    loadFactor: number;
+  };
   wiring: Status;
   install: { mode: "priced" | "included" | "none"; price: number; text: string };
   rowIds: string[];
@@ -52,9 +55,7 @@ export type FilmConfig = {
 
 const r2 = (x: number) => Math.round(x * 100) / 100;
 const m = (x: number) => `${x.toFixed(2)}M`;
-const pcs = (n: number) => `${n}${n > 1 ? "PCS." : "PC."}`;
 
-export const calcOf = (p: FilmPiece): [number, number] => [p.calcW || p.w, p.calcH || p.h];
 export const pieceOk = (p: FilmPiece) => p.w > 0 && p.h > 0 && p.qty > 0;
 
 /** Why a piece can't be made in one sheet (max size either way round), or null. */
@@ -65,8 +66,11 @@ export function sizeProblem(p: FilmPiece, maxW: number, maxH: number): string | 
 }
 
 /** Transformers for one location. */
-export function transformersFor(loc: FilmLocation, c: Pick<FilmConfig, "wattPerM2" | "transformer">): number {
-  const area = loc.pieces.filter(pieceOk).reduce((s, p) => s + calcOf(p)[0] * calcOf(p)[1] * p.qty, 0);
+export function transformersFor(
+  loc: FilmLocation,
+  c: Pick<FilmConfig, "wattPerM2" | "transformer">,
+): number {
+  const area = loc.pieces.filter(pieceOk).reduce((s, p) => s + p.w * p.h * p.qty, 0);
   const cap = c.transformer.watt * c.transformer.loadFactor;
   if (!(area > 0)) return 0;
   if (!(cap > 0)) return 1;
@@ -118,7 +122,7 @@ export function buildFilm(c: FilmConfig, prices: Map<string, PartPrice>, newId: 
     for (const p of pieces) {
       const bad = sizeProblem(p, c.maxW, c.maxH);
       if (bad) problems.push(bad);
-      if (!p.busbar) problems.push(`ระบุตำแหน่ง busbar ของแผ่น ${m(p.w)} x ${m(p.h)}`);
+      if (!busbarText(p.busbar)) problems.push(`ระบุ busbar ของแผ่น ${m(p.w)} x ${m(p.h)}`);
     }
     rows.push(
       row({
@@ -129,27 +133,12 @@ export function buildFilm(c: FilmConfig, prices: Map<string, PartPrice>, newId: 
         unit_price: null,
       }),
     );
-    // cutting sizes: shown when they differ from the calculation size, or to state the busbar
-    const differs = pieces.some((p) => calcOf(p)[0] !== p.w || calcOf(p)[1] !== p.h);
-    if (differs || c.showBusbar)
-      for (const p of pieces)
-        rows.push(
-          row({
-            kind: "display",
-            customer_text: `- CUTTING SIZE W: ${m(p.w)} x H: ${m(p.h)} x ${pcs(p.qty)}${
-              c.showBusbar && p.busbar ? ` (BUSBAR: ${p.busbar})` : ""
-            }`,
-            qty: null,
-            unit: null,
-            unit_price: null,
-          }),
-        );
-    // calculation sizes: one priced line per size
-    const groups = new Map<string, { w: number; h: number; qty: number }>();
+    // one priced line per cutting size (+ busbar when shown)
+    const groups = new Map<string, { w: number; h: number; bus: string; qty: number }>();
     for (const p of pieces) {
-      const [w, h] = calcOf(p);
-      const k = `${w}x${h}`;
-      const g = groups.get(k) ?? { w, h, qty: 0 };
+      const bus = c.showBusbar ? busbarText(p.busbar) : "";
+      const k = `${p.w}x${p.h}|${bus}`;
+      const g = groups.get(k) ?? { w: p.w, h: p.h, bus, qty: 0 };
       g.qty += p.qty;
       groups.set(k, g);
     }
@@ -159,7 +148,7 @@ export function buildFilm(c: FilmConfig, prices: Map<string, PartPrice>, newId: 
       rows.push(
         row({
           kind: "priced",
-          customer_text: `- CALCULATION SIZE W: ${m(g.w)} x H: ${m(g.h)}`,
+          customer_text: `- CUTTING SIZE W: ${m(g.w)} x H: ${m(g.h)}${g.bus ? ` (${g.bus})` : ""}`,
           qty: g.qty,
           unit: "PCS.",
           unit_price: each,
@@ -183,20 +172,54 @@ export function buildFilm(c: FilmConfig, prices: Map<string, PartPrice>, newId: 
           qty: transformers,
           unit: "EA.",
           unit_price: each,
-          recipes: T.skuId ? [{ sku_id: T.skuId, qty: transformers, note: tag("TRANSFORMER") }] : [],
+          recipes: T.skuId
+            ? [{ sku_id: T.skuId, qty: transformers, note: tag("TRANSFORMER") }]
+            : [],
         }),
       );
     } else
-      rows.push(row({ kind: T.mode, customer_text: T.text.trim() || "TRANSFORMER", qty: transformers, unit: "EA.", unit_price: null }));
+      rows.push(
+        row({
+          kind: T.mode,
+          customer_text: T.text.trim() || "TRANSFORMER",
+          qty: transformers,
+          unit: "EA.",
+          unit_price: null,
+        }),
+      );
   }
   if (c.wiring === "existing" || c.wiring === "by_buyer")
-    rows.push(row({ kind: c.wiring, customer_text: "220V WIRING & ON/OFF SWITCH", qty: 1, unit: "LOT", unit_price: null }));
+    rows.push(
+      row({
+        kind: c.wiring,
+        customer_text: "220V WIRING & ON/OFF SWITCH",
+        qty: 1,
+        unit: "LOT",
+        unit_price: null,
+      }),
+    );
   if (c.install.mode === "priced") {
     if (!(c.install.price > 0)) problems.push("ใส่ค่าติดตั้ง (หรือเลือก รวมแล้ว / ไม่ใส่)");
     list += c.install.price;
-    rows.push(row({ kind: "priced", customer_text: c.install.text.trim() || "INSTALLATION FEE", qty: 1, unit: "LOT", unit_price: c.install.price }));
+    rows.push(
+      row({
+        kind: "priced",
+        customer_text: c.install.text.trim() || "INSTALLATION FEE",
+        qty: 1,
+        unit: "LOT",
+        unit_price: c.install.price,
+      }),
+    );
   } else if (c.install.mode === "included")
-    rows.push(row({ kind: "display", customer_text: `${c.install.text.trim() || "INSTALLATION FEE"} (INCLUDED)`, qty: null, unit: null, unit_price: null }));
+    rows.push(
+      row({
+        kind: "display",
+        customer_text: `${c.install.text.trim() || "INSTALLATION FEE"} (INCLUDED)`,
+        qty: null,
+        unit: null,
+        unit_price: null,
+      }),
+    );
 
   const config: FilmConfig = { ...c, rowIds: rows.map((r) => r.id) };
   const first = rows.flatMap((r) => r.recipes)[0];

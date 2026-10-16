@@ -19,7 +19,6 @@ import { SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 import {
   BUSBARS,
   buildFilm,
-  calcOf,
   filmSkuGroups,
   pieceOk,
   sizeProblem,
@@ -35,9 +34,15 @@ import { useSkuPrices } from "@/lib/skuPrices";
 
 export type FilmTarget =
   | { mode: "new"; option: string | null }
-  | { mode: "edit"; config: FilmConfig; option: string | null; zone: string | null; discount: number };
+  | {
+      mode: "edit";
+      config: FilmConfig;
+      option: string | null;
+      zone: string | null;
+      discount: number;
+    };
 
-const newPiece = (): FilmPiece => ({ w: 0, h: 0, qty: 1, busbar: "", calcW: null, calcH: null });
+const newPiece = (): FilmPiece => ({ w: 0, h: 0, qty: 1, busbar: "" });
 const sel = "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 
 export function FilmDialog({
@@ -58,7 +63,10 @@ export function FilmDialog({
   const { data: skus } = useQuery({
     queryKey: SKU_OPTIONS_KEY,
     queryFn: async () => {
-      const { data, error } = await supabase.from("skus").select("id, code, name, unit, notes").order("code");
+      const { data, error } = await supabase
+        .from("skus")
+        .select("id, code, name, unit, notes")
+        .order("code");
       if (error) throw error;
       return data as Sku[];
     },
@@ -87,7 +95,13 @@ export function FilmDialog({
       wattPerM2: 10,
       showBusbar: true,
       locations: [{ name: "", pieces: [newPiece()] }],
-      transformer: { mode: "priced", skuId: tr?.id ?? null, watt: transformerWatt(tr) ?? 100, text: "TRANSFORMER", loadFactor: 0.8 },
+      transformer: {
+        mode: "priced",
+        skuId: tr?.id ?? null,
+        watt: transformerWatt(tr) ?? 100,
+        text: "TRANSFORMER",
+        loadFactor: 0.8,
+      },
       wiring: "by_buyer",
       install: { mode: "priced", price: 0, text: "INSTALLATION FEE" },
       rowIds: [],
@@ -96,25 +110,35 @@ export function FilmDialog({
 
   const set = (p: Partial<FilmConfig>) => setC((o) => (o ? { ...o, ...p } : o));
   const setLoc = (li: number, p: Partial<FilmConfig["locations"][number]>) =>
-    setC((o) => (o ? { ...o, locations: o.locations.map((l, i) => (i === li ? { ...l, ...p } : l)) } : o));
+    setC((o) =>
+      o ? { ...o, locations: o.locations.map((l, i) => (i === li ? { ...l, ...p } : l)) } : o,
+    );
   const setPiece = (li: number, pi: number, p: Partial<FilmPiece>) =>
     setC((o) =>
       o
         ? {
             ...o,
             locations: o.locations.map((l, i) =>
-              i === li ? { ...l, pieces: l.pieces.map((x, j) => (j === pi ? { ...x, ...p } : x)) } : l,
+              i === li
+                ? { ...l, pieces: l.pieces.map((x, j) => (j === pi ? { ...x, ...p } : x)) }
+                : l,
             ),
           }
         : o,
     );
-  const cell = (key: string, value: number | null | undefined) => cells[key] ?? (value ? String(value) : "");
-  const num = (key: string, apply: (n: number | null) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCells((x) => ({ ...x, [key]: e.target.value }));
-    apply(toNumber(e.target.value));
-  };
+  const cell = (key: string, value: number | null | undefined) =>
+    cells[key] ?? (value ? String(value) : "");
+  const num =
+    (key: string, apply: (n: number | null) => void) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setCells((x) => ({ ...x, [key]: e.target.value }));
+      apply(toNumber(e.target.value));
+    };
 
-  const built = useMemo(() => (c && prices ? buildFilm(c, prices, () => crypto.randomUUID()) : null), [c, prices]);
+  const built = useMemo(
+    () => (c && prices ? buildFilm(c, prices, () => crypto.randomUUID()) : null),
+    [c, prices],
+  );
   const discNum = toNumber(disc) ?? 0;
   const tooHigh = !!built && discNum > built.maxDiscount + 1e-9;
   const net = built ? Math.round(built.list * (1 - discNum / 100) * 100) / 100 : 0;
@@ -123,10 +147,13 @@ export function FilmDialog({
     mutationFn: async () => {
       if (!c || !built) throw new Error("ยังโหลดข้อมูลไม่เสร็จ");
       if (!c.filmSkuId) throw new Error("เลือกฟิล์ม");
-      if (!built.rows.some((r) => r.kind === "priced" && r.recipes.length)) throw new Error("ใส่ขนาดฟิล์มอย่างน้อย 1 แผ่น");
+      if (!built.rows.some((r) => r.kind === "priced" && r.recipes.length))
+        throw new Error("ใส่ขนาดฟิล์มอย่างน้อย 1 แผ่น");
       if (built.problems.length) throw new Error(built.problems.join(" · "));
       if (built.missing.length)
-        throw new Error(`ยังไม่มีราคาขายของ ${built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")}`);
+        throw new Error(
+          `ยังไม่มีราคาขายของ ${built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")}`,
+        );
       if (tooHigh) throw new Error(`ส่วนลดสูงสุดของชุดนี้คือ ${built.maxDiscount}%`);
       const rows = built.rows.map((r, i) => ({
         id: r.id,
@@ -143,7 +170,9 @@ export function FilmDialog({
         cut_lengths: null,
       }));
       await replaceRows(editing?.config.rowIds ?? [], rows);
-      const recipes = built.rows.flatMap((r) => r.recipes.map((x) => ({ ...x, quote_line_id: r.id })));
+      const recipes = built.rows.flatMap((r) =>
+        r.recipes.map((x) => ({ ...x, quote_line_id: r.id })),
+      );
       if (recipes.length) {
         const { error } = await supabase.from("line_recipes").insert(recipes);
         if (error) throw error;
@@ -151,7 +180,9 @@ export function FilmDialog({
     },
     onSuccess: () => {
       toast.success(editing ? "อัปเดตชุด Privacy film แล้ว" : "เพิ่มชุด Privacy film แล้ว");
-      ["line_recipes", "boq_costs", "set_lines"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+      ["line_recipes", "boq_costs", "set_lines"].forEach((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      );
       qc.invalidateQueries({ queryKey: ["quote_lines", quotationId] });
       onClose();
     },
@@ -179,8 +210,16 @@ export function FilmDialog({
                 <div className="grid gap-2 text-sm">
                   <Row label="รหัสแบบ · ชื่อ">
                     <div className="flex gap-2">
-                      <Input className="w-28" placeholder="GL 01" value={c.code} onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
-                      <Input value={c.title} onChange={(e) => set({ title: e.target.value.toUpperCase() })} />
+                      <Input
+                        className="w-28"
+                        placeholder="GL 01"
+                        value={c.code}
+                        onChange={(e) => set({ code: e.target.value.toUpperCase() })}
+                      />
+                      <Input
+                        value={c.title}
+                        onChange={(e) => set({ title: e.target.value.toUpperCase() })}
+                      />
                     </div>
                   </Row>
                   <Row label="ฟิล์มที่ใช้">
@@ -194,11 +233,26 @@ export function FilmDialog({
                   </Row>
                   <Row label="แผ่นใหญ่สุด">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <Input className="h-8 w-16" inputMode="decimal" value={cell("maxW", c.maxW)} onChange={num("maxW", (n) => set({ maxW: n ?? 0 }))} />
+                      <Input
+                        className="h-8 w-16"
+                        inputMode="decimal"
+                        value={cell("maxW", c.maxW)}
+                        onChange={num("maxW", (n) => set({ maxW: n ?? 0 }))}
+                      />
                       ×
-                      <Input className="h-8 w-16" inputMode="decimal" value={cell("maxH", c.maxH)} onChange={num("maxH", (n) => set({ maxH: n ?? 0 }))} />
+                      <Input
+                        className="h-8 w-16"
+                        inputMode="decimal"
+                        value={cell("maxH", c.maxH)}
+                        onChange={num("maxH", (n) => set({ maxH: n ?? 0 }))}
+                      />
                       ม. · ไฟ
-                      <Input className="h-8 w-14" inputMode="decimal" value={cell("wpm2", c.wattPerM2)} onChange={num("wpm2", (n) => set({ wattPerM2: n ?? 0 }))} />
+                      <Input
+                        className="h-8 w-14"
+                        inputMode="decimal"
+                        value={cell("wpm2", c.wattPerM2)}
+                        onChange={num("wpm2", (n) => set({ wattPerM2: n ?? 0 }))}
+                      />
                       W/ตร.ม.
                     </div>
                   </Row>
@@ -207,7 +261,10 @@ export function FilmDialog({
 
               <Block title="2. ตำแหน่งและขนาดแผ่น (ขนาดตัด กว้าง × สูง)">
                 <label className="mb-2 flex items-center gap-2 text-sm">
-                  <Checkbox checked={c.showBusbar} onCheckedChange={(v) => set({ showBusbar: v === true })} />
+                  <Checkbox
+                    checked={c.showBusbar}
+                    onCheckedChange={(v) => set({ showBusbar: v === true })}
+                  />
                   แสดงตำแหน่ง busbar ในใบเสนอราคา
                 </label>
                 <div className="space-y-3">
@@ -224,7 +281,12 @@ export function FilmDialog({
                           variant="ghost"
                           onClick={() => {
                             setCells({});
-                            set({ locations: c.locations.length > 1 ? c.locations.filter((_, i) => i !== li) : [{ name: "", pieces: [newPiece()] }] });
+                            set({
+                              locations:
+                                c.locations.length > 1
+                                  ? c.locations.filter((_, i) => i !== li)
+                                  : [{ name: "", pieces: [newPiece()] }],
+                            });
                           }}
                         >
                           ลบตำแหน่ง
@@ -236,8 +298,9 @@ export function FilmDialog({
                             <th className="w-16 pb-1 font-medium">กว้าง</th>
                             <th className="w-16 pb-1 font-medium">สูง</th>
                             <th className="w-12 pb-1 font-medium">แผ่น</th>
-                            <th className="pb-1 font-medium">busbar</th>
-                            <th className="w-32 pb-1 font-medium" title="ปกติ = ขนาดตัด">คิดเงิน ก × ส</th>
+                            <th className="pb-1 font-medium">
+                              busbar (W = ด้านกว้าง, H = ด้านสูง)
+                            </th>
                             <th className="w-16 pb-1 text-right font-medium">ตร.ม.</th>
                             <th className="w-8" />
                           </tr>
@@ -245,24 +308,43 @@ export function FilmDialog({
                         <tbody>
                           {loc.pieces.map((p, pi) => {
                             const k = `${li}-${pi}`;
-                            const [cw, ch] = calcOf(p);
                             const bad = pieceOk(p) && !!sizeProblem(p, c.maxW, c.maxH);
+                            const bus = BUSBARS.some((b) => b.value === p.busbar) ? p.busbar : "";
                             return (
                               <tr key={pi} className="align-top">
                                 <td className="py-1 pr-1">
-                                  <Input className={bad ? "border-destructive" : ""} inputMode="decimal" value={cell(`w${k}`, p.w)} onChange={num(`w${k}`, (n) => setPiece(li, pi, { w: n ?? 0 }))} />
+                                  <Input
+                                    className={bad ? "border-destructive" : ""}
+                                    inputMode="decimal"
+                                    value={cell(`w${k}`, p.w)}
+                                    onChange={num(`w${k}`, (n) => setPiece(li, pi, { w: n ?? 0 }))}
+                                  />
                                 </td>
                                 <td className="py-1 pr-1">
-                                  <Input inputMode="decimal" value={cell(`h${k}`, p.h)} onChange={num(`h${k}`, (n) => setPiece(li, pi, { h: n ?? 0 }))} />
+                                  <Input
+                                    inputMode="decimal"
+                                    value={cell(`h${k}`, p.h)}
+                                    onChange={num(`h${k}`, (n) => setPiece(li, pi, { h: n ?? 0 }))}
+                                  />
                                 </td>
                                 <td className="py-1 pr-1">
-                                  <Input inputMode="numeric" value={cell(`q${k}`, p.qty)} onChange={num(`q${k}`, (n) => setPiece(li, pi, { qty: Math.max(0, Math.round(n ?? 0)) }))} />
+                                  <Input
+                                    inputMode="numeric"
+                                    value={cell(`q${k}`, p.qty)}
+                                    onChange={num(`q${k}`, (n) =>
+                                      setPiece(li, pi, { qty: Math.max(0, Math.round(n ?? 0)) }),
+                                    )}
+                                  />
                                 </td>
                                 <td className="py-1 pr-1">
                                   <select
-                                    className={sel + (pieceOk(p) && !p.busbar ? " border-destructive" : "")}
-                                    value={p.busbar}
-                                    onChange={(e) => setPiece(li, pi, { busbar: e.target.value as Busbar | "" })}
+                                    className={
+                                      sel + (pieceOk(p) && !bus ? " border-destructive" : "")
+                                    }
+                                    value={bus}
+                                    onChange={(e) =>
+                                      setPiece(li, pi, { busbar: e.target.value as Busbar | "" })
+                                    }
                                   >
                                     <option value="">— เลือก —</option>
                                     {BUSBARS.map((b) => (
@@ -272,26 +354,10 @@ export function FilmDialog({
                                     ))}
                                   </select>
                                 </td>
-                                <td className="py-1 pr-1">
-                                  <div className="flex gap-1">
-                                    <Input
-                                      className="px-1.5"
-                                      inputMode="decimal"
-                                      placeholder={p.w ? String(p.w) : ""}
-                                      value={cells[`cw${k}`] ?? (p.calcW ? String(p.calcW) : "")}
-                                      onChange={num(`cw${k}`, (n) => setPiece(li, pi, { calcW: n }))}
-                                    />
-                                    <Input
-                                      className="px-1.5"
-                                      inputMode="decimal"
-                                      placeholder={p.h ? String(p.h) : ""}
-                                      value={cells[`ch${k}`] ?? (p.calcH ? String(p.calcH) : "")}
-                                      onChange={num(`ch${k}`, (n) => setPiece(li, pi, { calcH: n }))}
-                                    />
-                                  </div>
-                                </td>
                                 <td className="py-1 text-right text-xs tabular-nums text-muted-foreground">
-                                  {pieceOk(p) ? formatQty(Math.round(cw * ch * p.qty * 100) / 100) : "—"}
+                                  {pieceOk(p)
+                                    ? formatQty(Math.round(p.w * p.h * p.qty * 100) / 100)
+                                    : "—"}
                                 </td>
                                 <td className="py-1 text-right">
                                   <Button
@@ -299,7 +365,12 @@ export function FilmDialog({
                                     variant="ghost"
                                     onClick={() => {
                                       setCells({});
-                                      setLoc(li, { pieces: loc.pieces.length > 1 ? loc.pieces.filter((_, j) => j !== pi) : [newPiece()] });
+                                      setLoc(li, {
+                                        pieces:
+                                          loc.pieces.length > 1
+                                            ? loc.pieces.filter((_, j) => j !== pi)
+                                            : [newPiece()],
+                                      });
                                     }}
                                   >
                                     ลบ
@@ -310,13 +381,20 @@ export function FilmDialog({
                           })}
                         </tbody>
                       </table>
-                      {loc.pieces.map((p) => (pieceOk(p) ? sizeProblem(p, c.maxW, c.maxH) : null)).filter(Boolean).map((b, i) => (
-                        <p key={i} className="text-xs text-destructive">
-                          {b}
-                        </p>
-                      ))}
+                      {loc.pieces
+                        .map((p) => (pieceOk(p) ? sizeProblem(p, c.maxW, c.maxH) : null))
+                        .filter(Boolean)
+                        .map((b, i) => (
+                          <p key={i} className="text-xs text-destructive">
+                            {b}
+                          </p>
+                        ))}
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                        <Button size="sm" variant="outline" onClick={() => setLoc(li, { pieces: [...loc.pieces, newPiece()] })}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setLoc(li, { pieces: [...loc.pieces, newPiece()] })}
+                        >
                           + เพิ่มขนาด
                         </Button>
                         หม้อแปลงตำแหน่งนี้ {transformersFor(loc, c)} ตัว
@@ -324,7 +402,14 @@ export function FilmDialog({
                     </div>
                   ))}
                 </div>
-                <Button className="mt-2" size="sm" variant="outline" onClick={() => set({ locations: [...c.locations, { name: "", pieces: [newPiece()] }] })}>
+                <Button
+                  className="mt-2"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    set({ locations: [...c.locations, { name: "", pieces: [newPiece()] }] })
+                  }
+                >
                   + เพิ่มตำแหน่ง
                 </Button>
               </Block>
@@ -342,7 +427,9 @@ export function FilmDialog({
                             ["none", "ไม่ใส่"],
                           ] as [Status, string][]
                         ).map(([v, label]) =>
-                          status(v, c.transformer.mode, label, () => set({ transformer: { ...c.transformer, mode: v } })),
+                          status(v, c.transformer.mode, label, () =>
+                            set({ transformer: { ...c.transformer, mode: v } }),
+                          ),
                         )}
                       </div>
                       {c.transformer.mode !== "none" ? (
@@ -354,7 +441,13 @@ export function FilmDialog({
                               category="Film transformer"
                               all={skus ?? []}
                               onChange={(id) =>
-                                set({ transformer: { ...c.transformer, skuId: id || null, watt: transformerWatt(byId.get(id)) ?? c.transformer.watt } })
+                                set({
+                                  transformer: {
+                                    ...c.transformer,
+                                    skuId: id || null,
+                                    watt: transformerWatt(byId.get(id)) ?? c.transformer.watt,
+                                  },
+                                })
                               }
                             />
                           </div>
@@ -385,7 +478,11 @@ export function FilmDialog({
                           ["none", "ไม่ใส่"],
                         ] as const
                       ).map(([v, label]) => (
-                        <Choice key={v} on={c.install.mode === v} onClick={() => set({ install: { ...c.install, mode: v } })}>
+                        <Choice
+                          key={v}
+                          on={c.install.mode === v}
+                          onClick={() => set({ install: { ...c.install, mode: v } })}
+                        >
                           {label}
                         </Choice>
                       ))}
@@ -395,11 +492,19 @@ export function FilmDialog({
                           inputMode="decimal"
                           placeholder="บาท"
                           value={cell("inst", c.install.price)}
-                          onChange={num("inst", (n) => set({ install: { ...c.install, price: n ?? 0 } }))}
+                          onChange={num("inst", (n) =>
+                            set({ install: { ...c.install, price: n ?? 0 } }),
+                          )}
                         />
                       ) : null}
                       {c.install.mode !== "none" ? (
-                        <Input className="h-8 min-w-48 flex-1" value={c.install.text} onChange={(e) => set({ install: { ...c.install, text: e.target.value.toUpperCase() } })} />
+                        <Input
+                          className="h-8 min-w-48 flex-1"
+                          value={c.install.text}
+                          onChange={(e) =>
+                            set({ install: { ...c.install, text: e.target.value.toUpperCase() } })
+                          }
+                        />
                       ) : null}
                     </div>
                   </Row>
@@ -411,12 +516,25 @@ export function FilmDialog({
               <Block title="ลูกค้าจะเห็น">
                 <div className="max-h-[28rem] overflow-y-auto rounded bg-secondary p-2 text-xs">
                   <div className="mb-1 grid grid-cols-[110px_1fr] gap-2">
-                    <Input className="h-7 text-xs" placeholder="Option (ถ้ามี)" value={option} onChange={(e) => setOption(e.target.value)} />
-                    <Input className="h-7 text-xs" placeholder="โซน เช่น 7th. FLR." value={zone} onChange={(e) => setZone(e.target.value.toUpperCase())} />
+                    <Input
+                      className="h-7 text-xs"
+                      placeholder="Option (ถ้ามี)"
+                      value={option}
+                      onChange={(e) => setOption(e.target.value)}
+                    />
+                    <Input
+                      className="h-7 text-xs"
+                      placeholder="โซน เช่น 7th. FLR."
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value.toUpperCase())}
+                    />
                   </div>
                   {zone ? <div className="font-bold">{zone}</div> : null}
                   {(built?.rows ?? []).map((r) => (
-                    <div key={r.id} className={"flex gap-2 " + (r.kind === "heading" ? "pt-1 font-semibold" : "")}>
+                    <div
+                      key={r.id}
+                      className={"flex gap-2 " + (r.kind === "heading" ? "pt-1 font-semibold" : "")}
+                    >
                       <span className="flex-1">{r.customer_text}</span>
                       {r.kind === "priced" ? (
                         <span className="whitespace-nowrap tabular-nums">
@@ -431,23 +549,30 @@ export function FilmDialog({
                   ))}
                 </div>
                 {built?.problems.length ? (
-                  <p className="mt-1 text-xs font-medium text-destructive">{built.problems.join(" · ")}</p>
+                  <p className="mt-1 text-xs font-medium text-destructive">
+                    {built.problems.join(" · ")}
+                  </p>
                 ) : null}
               </Block>
               <Block title="ราคา">
                 {built?.missing.length ? (
                   <p className="rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
-                    ยังไม่มีราคาขายของ {built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")} —{" "}
+                    ยังไม่มีราคาขายของ{" "}
+                    {built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")} —{" "}
                     {canSeeCost ? "ตั้งราคาที่หน้าทะเบียน SKU" : "ติดต่อ admin ให้ตั้งราคา"}
                   </p>
                 ) : built ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex items-baseline justify-between">
                       <span className="text-muted-foreground">ราคาเต็มทั้งชุด</span>
-                      <span className="text-base font-semibold tabular-nums">{formatTHB(built.list)}</span>
+                      <span className="text-base font-semibold tabular-nums">
+                        {formatTHB(built.list)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground">ส่วนลด (สูงสุด {built.maxDiscount}%)</span>
+                      <span className="text-muted-foreground">
+                        ส่วนลด (สูงสุด {built.maxDiscount}%)
+                      </span>
                       <span className="flex items-center gap-1">
                         <Input
                           className={"h-8 w-16 text-right " + (tooHigh ? "border-destructive" : "")}
@@ -458,7 +583,9 @@ export function FilmDialog({
                         %
                       </span>
                     </div>
-                    {tooHigh ? <p className="text-xs text-destructive">ลดได้ไม่เกิน {built.maxDiscount}%</p> : null}
+                    {tooHigh ? (
+                      <p className="text-xs text-destructive">ลดได้ไม่เกิน {built.maxDiscount}%</p>
+                    ) : null}
                     <div className="flex items-baseline justify-between border-t border-border pt-2">
                       <span>ราคาสุทธิ</span>
                       <span className="text-base font-semibold tabular-nums">{formatTHB(net)}</span>
