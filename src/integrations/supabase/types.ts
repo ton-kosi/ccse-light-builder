@@ -29,36 +29,44 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_day_counters: {
+        Row: {
+          day: string
+          last_no: number
+        }
+        Insert: {
+          day: string
+          last_no?: number
+        }
+        Update: {
+          day?: string
+          last_no?: number
+        }
+        Relationships: []
+      }
       billing_docs: {
         Row: {
-          company_id: string | null
-          term_seq: number | null
-          term_label: string | null
-          term_percent: number | null
-          quote_total_ex_vat: number | null
-          request_amount: number | null
-          deduct_amount: number
-          wht_percent: number
-          wht_amount: number
-          net_payment: number | null
-          customer_tax_id: string | null
-          customer_branch: string | null
           amount: number
           attn: string | null
           bill_date: string
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           credit_days: number
           customer_address: string | null
+          customer_branch: string | null
           customer_name: string | null
+          customer_tax_id: string | null
+          deduct_amount: number
           description: string
           doc_no: string
           due_date: string | null
           grand_total: number
           id: string
+          net_payment: number | null
           pdf_path: string | null
           po_number: string | null
           project_id: string
@@ -66,39 +74,39 @@ export type Database = {
           quotation_id: string
           quotation_ref: string | null
           quotation_rev: string | null
+          quote_total_ex_vat: number | null
+          request_amount: number | null
           term_id: string
+          term_label: string | null
+          term_percent: number | null
+          term_seq: number | null
           vat_amount: number
           vat_percent: number
+          wht_amount: number
+          wht_percent: number
         }
         Insert: {
-          company_id?: string | null
-          term_seq?: number | null
-          term_label?: string | null
-          term_percent?: number | null
-          quote_total_ex_vat?: number | null
-          request_amount?: number | null
-          deduct_amount?: number
-          wht_percent?: number
-          wht_amount?: number
-          net_payment?: number | null
-          customer_tax_id?: string | null
-          customer_branch?: string | null
           amount: number
           attn?: string | null
           bill_date: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           credit_days?: number
           customer_address?: string | null
+          customer_branch?: string | null
           customer_name?: string | null
+          customer_tax_id?: string | null
+          deduct_amount?: number
           description: string
           doc_no: string
           due_date?: string | null
           grand_total: number
           id?: string
+          net_payment?: number | null
           pdf_path?: string | null
           po_number?: string | null
           project_id: string
@@ -106,39 +114,39 @@ export type Database = {
           quotation_id: string
           quotation_ref?: string | null
           quotation_rev?: string | null
-          term_id: string
-          vat_amount: number
-          vat_percent?: number
-        }
-        Update: {
-          company_id?: string | null
-          term_seq?: number | null
-          term_label?: string | null
-          term_percent?: number | null
           quote_total_ex_vat?: number | null
           request_amount?: number | null
-          deduct_amount?: number
-          wht_percent?: number
+          term_id: string
+          term_label?: string | null
+          term_percent?: number | null
+          term_seq?: number | null
+          vat_amount: number
+          vat_percent?: number
           wht_amount?: number
-          net_payment?: number | null
-          customer_tax_id?: string | null
-          customer_branch?: string | null
+          wht_percent?: number
+        }
+        Update: {
           amount?: number
           attn?: string | null
           bill_date?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           credit_days?: number
           customer_address?: string | null
+          customer_branch?: string | null
           customer_name?: string | null
+          customer_tax_id?: string | null
+          deduct_amount?: number
           description?: string
           doc_no?: string
           due_date?: string | null
           grand_total?: number
           id?: string
+          net_payment?: number | null
           pdf_path?: string | null
           po_number?: string | null
           project_id?: string
@@ -146,11 +154,25 @@ export type Database = {
           quotation_id?: string
           quotation_ref?: string | null
           quotation_rev?: string | null
+          quote_total_ex_vat?: number | null
+          request_amount?: number | null
           term_id?: string
+          term_label?: string | null
+          term_percent?: number | null
+          term_seq?: number | null
           vat_amount?: number
           vat_percent?: number
+          wht_amount?: number
+          wht_percent?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_docs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "billing_docs_project_id_fkey"
             columns: ["project_id"]
@@ -310,8 +332,8 @@ export type Database = {
       }
       customers: {
         Row: {
-          branch: string | null
           address: string | null
+          branch: string | null
           code: string | null
           contact_person: string | null
           created_at: string
@@ -324,8 +346,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          branch?: string | null
           address?: string | null
+          branch?: string | null
           code?: string | null
           contact_person?: string | null
           created_at?: string
@@ -338,8 +360,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          branch?: string | null
           address?: string | null
+          branch?: string | null
           code?: string | null
           contact_person?: string | null
           created_at?: string
@@ -1001,9 +1023,9 @@ export type Database = {
       }
       quotations: {
         Row: {
-          company_id: string
           adjustments: Json
           closing_text: string | null
+          company_id: string
           created_at: string
           date: string
           delivery_text: string | null
@@ -1023,9 +1045,9 @@ export type Database = {
           vat_percent: number
         }
         Insert: {
-          company_id?: string
           adjustments?: Json
           closing_text?: string | null
+          company_id?: string
           created_at?: string
           date?: string
           delivery_text?: string | null
@@ -1045,9 +1067,9 @@ export type Database = {
           vat_percent?: number
         }
         Update: {
-          company_id?: string
           adjustments?: Json
           closing_text?: string | null
+          company_id?: string
           created_at?: string
           date?: string
           delivery_text?: string | null
@@ -1067,6 +1089,13 @@ export type Database = {
           vat_percent?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "quotations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quotations_project_id_fkey"
             columns: ["project_id"]
@@ -1768,7 +1797,12 @@ export type Database = {
         }[]
       }
       issue_billing_doc: {
-        Args: { _bill_date: string; _credit_days: number; _term_id: string; _wht_percent?: number }
+        Args: {
+          _bill_date: string
+          _credit_days: number
+          _term_id: string
+          _wht_percent?: number
+        }
         Returns: string
       }
       material_demand: {
