@@ -775,47 +775,19 @@ export function BoqGrid({
             <Button size="sm" variant="outline" onClick={() => addRowAfter(lines.length - 1)}>
               + เพิ่มบรรทัด
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              title="แสดงเฉพาะในใบ Work หลังบ้าน — ลูกค้าไม่เห็น"
-              onClick={() => addRowAfter(lines.length - 1, "internal")}
-            >
-              + เพิ่มโน้ตหลังบ้าน (ใบ Work)
+            <Button size="sm" variant="outline" onClick={() => setLinTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
+              + เพิ่มชุด LED linear
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setLinTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
-            >
-              + เพิ่มชุดไฟเส้น
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setFoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
-            >
-              + เพิ่มชุด Fiber Optic
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setClpTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
-            >
-              + เพิ่มชุด Clipso
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setNeoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
-            >
+            <Button size="sm" variant="outline" onClick={() => setNeoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
               + เพิ่มชุด Jedi flex
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPvfTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}
-            >
+            <Button size="sm" variant="outline" onClick={() => setFoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
+              + เพิ่มชุด Fiber Optic
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setClpTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
+              + เพิ่มชุด Clipso
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPvfTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
               + เพิ่มชุด Privacy film
             </Button>
           </>
