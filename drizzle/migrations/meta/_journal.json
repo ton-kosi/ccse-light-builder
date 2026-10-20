@@ -64,6 +64,13 @@
       "when": 1792231188598,
       "tag": "0008_companies_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792469759230,
+      "tag": "0009_purchases_edit",
+      "breakpoints": true
     }
   ]
 }

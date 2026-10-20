@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 18/10/2026
+> Last updated: 20/10/2026
 
 ## 1. Overview
 
@@ -172,6 +172,11 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Purchase requests** (`/purchase-requests`) — from material demand.
 - ✅ **Purchases** (`/purchases`) — each purchase receives stock and updates
   the SKU cost to the latest purchase cost (price + extra cost ÷ qty).
+- 🟡 **Edit a purchase** (admin only): fix qty, price, extra cost, date,
+  supplier, bill no., project, note or SKU. The stock difference is posted as
+  an adjustment and the SKU cost is recalculated. A purchase received from a
+  purchase request keeps its SKU. Needs `docs/sql/purchases_edit.sql` applied.
+- ✅ Delete a purchase (admin only): stock taken back out, cost recalculated.
 
 ### 6.7 Work orders (`/work-orders`) ✅
 - Types: production, installation, service. Statuses: draft → released →
@@ -215,4 +220,5 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 | Date | Change |
 |---|---|
+| 20/10/2026 | Purchases: admin can edit a recorded purchase (stock and cost follow). DB migration `0009_purchases_edit` pending in Lovable. |
 | 18/10/2026 | PRD created from the current codebase (state as of GitHub `main`, last push 17/10/2026). |
