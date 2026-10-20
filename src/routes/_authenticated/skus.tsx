@@ -28,6 +28,7 @@ import {
 import { DEMO_PREFIX, loadDemoData, removeDemoData } from "@/lib/demoData";
 import { attrFieldsFor, attrsForCategory, attrsOf, attrSummary, guessAttrs } from "@/lib/skuAttrs";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
+import { countAdjustments, parseCount, STOCK_COUNT_NOTE } from "@/lib/stockCount";
 
 export const Route = createFileRoute("/_authenticated/skus")({
   head: () => ({
@@ -77,7 +78,7 @@ const EMPTY = {
 type Form = typeof EMPTY;
 
 function SkusPage() {
-  const { canEditMaster, canSeeMoney } = useMe();
+  const { canEditMaster, canSeeMoney, me } = useMe();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
@@ -166,6 +167,10 @@ function SkusPage() {
   });
 
   async function importRows(rows: CsvRow[]) {
+    // check every counted qty before saving anything, so a bad cell never half-imports
+    rows.forEach((r, i) => {
+      if (parseCount(r.qty) === "invalid") throw new Error(`แถว ${i + 2}: qty ต้องเป็นตัวเลข 0 ขึ้นไป`);
+    });
     const payload: TablesInsert<"skus">[] = rows.map((r, i) => {
       if (!r.code || !r.name) throw new Error(`แถว ${i + 2}: ต้องมี code และ name`);
       const isRoll = boolCsv(r.is_roll);
@@ -227,6 +232,38 @@ function SkusPage() {
       }
       qc.invalidateQueries({ queryKey: ["sku_costs"] });
       qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
+    }
+    // qty = counted stock: post the difference from on-hand as an adjustment
+    const counted = rows.filter((r) => parseCount(r.qty) !== null);
+    if (counted.length) {
+      if (!me?.userId) throw new Error("ไม่พบผู้ใช้ที่เข้าสู่ระบบ");
+      const { data: saved, error } = await supabase
+        .from("skus")
+        .select("id, code")
+        .in(
+          "code",
+          counted.map((r) => r.code!),
+        );
+      if (error) throw new Error(friendly(error.message));
+      const idByCode = new Map(saved.map((k) => [k.code, k.id]));
+      const { data: hand, error: e3 } = await supabase
+        .from("sku_on_hand")
+        .select("sku_id, on_hand")
+        .in(
+          "sku_id",
+          saved.map((k) => k.id),
+        );
+      if (e3) throw new Error(friendly(e3.message));
+      const moves = countAdjustments(
+        counted.map((r) => ({ skuId: idByCode.get(r.code!)!, qty: parseCount(r.qty) as number })),
+        new Map(hand.map((h) => [h.sku_id!, Number(h.on_hand ?? 0)])),
+      ).map((m) => ({ ...m, type: "adjust", note: STOCK_COUNT_NOTE, created_by: me.userId }));
+      if (moves.length) {
+        const { error: e4 } = await supabase.from("stock_movements").insert(moves);
+        if (e4) throw new Error(friendly(e4.message));
+      }
+      qc.invalidateQueries({ queryKey: ["stock_movements"] });
+      qc.invalidateQueries({ queryKey: ["material_demand"] });
     }
     qc.invalidateQueries({ queryKey: ["skus"] });
     qc.invalidateQueries({ queryKey: ["sku_on_hand"] });
@@ -299,7 +336,7 @@ function SkusPage() {
             <>
               <CsvImport
                 label="นำเข้า CSV"
-                columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes,unit_cost,sell_price,min_price (หรือ max_discount)"
+                columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes,unit_cost,sell_price,min_price (หรือ max_discount),qty (ยอดตรวจนับ)"
                 onRows={importRows}
               />
               {canSeeMoney ? (

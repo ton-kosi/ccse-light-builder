@@ -25,7 +25,7 @@ npm run dev        # dev server on http://localhost:8080
 npm run build      # production build
 npm run lint       # eslint
 npm run format     # prettier
-bun test           # unit tests (src/lib/*.test.js use bun:test; needs Bun)
+npx -y bun@1.2.23 test   # unit tests (src/lib/*.test.js use bun:test; Bun isn't installed globally)
 ```
 
 ## Stack

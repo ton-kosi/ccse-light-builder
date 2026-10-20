@@ -167,6 +167,10 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Clauses** (`/clauses`) — remark / warranty / note / warning text,
   linked to sales components or "every quotation".
 - ✅ CSV import for master data.
+- ✅ **Stock count by CSV** (admin, estimator, stock): the SKU import accepts an
+  optional `qty` column = counted stock. The difference from the current on-hand
+  is posted as an `adjust` movement ("ตรวจนับสต็อก (นำเข้า CSV)"), so importing
+  the same file twice does not double the stock. Blank `qty` = not counted.
 
 ### 6.6 Purchasing
 - ✅ **Purchase requests** (`/purchase-requests`) — from material demand.
@@ -220,5 +224,6 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 | Date | Change |
 |---|---|
+| 20/10/2026 | SKU CSV import: optional `qty` column sets counted stock (opening stock / stock take). All test data to be wiped with a one-time reset before real stock is entered. |
 | 20/10/2026 | Purchases: admin can edit a recorded purchase (stock and cost follow). DB migration `0009_purchases_edit` pending in Lovable. |
 | 18/10/2026 | PRD created from the current codebase (state as of GitHub `main`, last push 17/10/2026). |

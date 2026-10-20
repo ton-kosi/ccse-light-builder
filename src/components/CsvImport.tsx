@@ -4,7 +4,7 @@ import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Minimal CSV parser (handles quotes, commas, newlines in quotes, BOM). */
-type CsvKey = "code" | "name" | "unit" | "source" | "lead_time_days" | "min_stock" | "is_roll" | "roll_length_m" | "roll_family" | "cut_step_cm" | "max_piece_m" | "install_category" | "is_roll_product" | "component_code" | "sku_code" | "qty_per_unit" | "category" | "notes" | "unit_cost" | "sell_price" | "min_price" | "max_discount";
+type CsvKey = "code" | "name" | "unit" | "source" | "lead_time_days" | "min_stock" | "is_roll" | "roll_length_m" | "roll_family" | "cut_step_cm" | "max_piece_m" | "install_category" | "is_roll_product" | "component_code" | "sku_code" | "qty_per_unit" | "category" | "notes" | "unit_cost" | "sell_price" | "min_price" | "max_discount" | "qty";
 export type CsvRow = Partial<Record<CsvKey, string>>;
 
 export function parseCsv(text: string): CsvRow[] {
