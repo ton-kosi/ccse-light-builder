@@ -227,7 +227,7 @@ export function NeonDialog({
           <p className="text-sm text-muted-foreground">กำลังโหลด...</p>
         ) : !families.length ? (
           <p className="text-sm text-destructive">
-            ยังไม่มีม้วน Neon flex — ที่หน้า SKU ตั้งหมวด Neon flex, ติ๊ก "เป็นสินค้าม้วน", ใส่ตระกูลม้วน (รุ่น+สี) และความยาวม้วน 5/10 ม.
+            ยังไม่มีม้วน Neon flex — ที่หน้า SKU ตั้งหมวด Neon flex, ติ๊ก "LED neon flex", ใส่ตระกูลม้วน (รุ่น+สี) และความยาวม้วน 5/10 ม.
           </p>
         ) : (
           <div className="grid gap-5 lg:grid-cols-[1fr_400px]">

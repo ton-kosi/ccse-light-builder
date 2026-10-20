@@ -69,7 +69,7 @@ export function RollPlanSection({ projectId, print = false }: { projectId: strin
       </div>
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          ยังไม่ได้วางแผนตัด — ระหว่างนี้ความต้องการสินค้าม้วนคำนวณจากจำนวนในสูตรตามปกติ
+          ยังไม่ได้วางแผนตัด — ระหว่างนี้ความต้องการ LED neon flex คำนวณจากจำนวนในสูตรตามปกติ
         </p>
       ) : (
         <table className="w-full border-collapse text-sm">

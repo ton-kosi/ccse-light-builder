@@ -40,7 +40,7 @@ export const ATTR_FIELDS: Record<string, AttrField[]> = {
       label: "รุ่น Jedi flex",
       kind: "select",
       options: JEDI_FLEX_MODELS.map((m) => ({ value: m.key, label: `${m.title} · ${m.wattPerM}W/m · ตัดทุก ${m.cutMm} มม.` })),
-      hint: "ติ๊ก 'เป็นสินค้าม้วน' ใส่ตระกูลม้วน (รุ่น+สี เหมือนกันทั้ง 5 และ 10 ม.) และระยะตัด",
+      hint: "ติ๊ก 'LED neon flex' ใส่ตระกูลม้วน (รุ่น+สี เหมือนกันทั้ง 5 และ 10 ม.) และระยะตัด",
     },
     { key: "W/m", label: "วัตต์ต่อเมตร", kind: "number", unit: "W/m" },
   ],

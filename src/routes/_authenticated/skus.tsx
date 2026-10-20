@@ -63,6 +63,8 @@ const EMPTY = {
   lead_time_days: "0",
   min_stock: "0",
   is_roll: false,
+  /** LED strip cut on site: cut step and reel length live in cut_step_cm / max_piece_m (no roll settings) */
+  is_led_strip: false,
   roll_length_m: "",
   roll_family: "",
   cut_step_cm: "",
@@ -410,7 +412,7 @@ function SkusPage() {
               <Th>หน่วย</Th>
               <Th>แหล่ง</Th>
               <Th>Lead time (วัน)</Th>
-              <Th>ม้วน</Th>
+              <Th>ม้วน / ระยะตัด</Th>
               <Th>ตระกูลม้วน</Th>
               <Th>ขั้นต่ำ</Th>
               <Th>คงเหลือ</Th>
@@ -455,7 +457,13 @@ function SkusPage() {
                     <Td>{k.unit}</Td>
                     <Td>{k.source === "import" ? "นำเข้า" : "ในประเทศ"}</Td>
                     <Td>{k.lead_time_days}</Td>
-                    <Td>{k.is_roll ? `${formatQty(Number(k.roll_length_m))} ม.` : "-"}</Td>
+                    <Td className="whitespace-nowrap">
+                      {k.is_roll
+                        ? `${formatQty(Number(k.roll_length_m))} ม.`
+                        : isLedStrip(k)
+                          ? `LED ตัดทุก ${formatQty(Number(k.cut_step_cm))} ซม.`
+                          : "-"}
+                    </Td>
                     <Td className="font-mono text-xs">{k.roll_family ?? "-"}</Td>
                     <Td>{formatQty(Number(k.min_stock))}</Td>
                     <Td>
@@ -579,8 +587,13 @@ function SkusPage() {
 function friendly(msg: string) {
   if (msg.includes("skus_code_key")) return "รหัส SKU นี้มีอยู่แล้ว";
   if (msg.includes("skus_roll_len_chk"))
-    return "สินค้าม้วนต้องมีความยาวม้วน 5 หรือ 10 ม. (สินค้าไม่ใช่ม้วนต้องเว้นว่าง)";
+    return "LED neon flex ต้องมีความยาวม้วน 5 หรือ 10 ม. (สินค้าอื่นต้องเว้นว่าง)";
   return msg;
+}
+
+/** LED strip = not a Neon flex roll but has a cut step (also how a CSV row with cut_step_cm is read). */
+function isLedStrip(k: Pick<Sku, "is_roll" | "cut_step_cm">) {
+  return !k.is_roll && k.cut_step_cm !== null;
 }
 
 function rowToForm(
@@ -597,6 +610,7 @@ function rowToForm(
     lead_time_days: String(k.lead_time_days),
     min_stock: String(k.min_stock),
     is_roll: k.is_roll,
+    is_led_strip: isLedStrip(k),
     roll_length_m: s(k.roll_length_m),
     roll_family: k.roll_family ?? "",
     cut_step_cm: s(k.cut_step_cm),
@@ -622,8 +636,9 @@ function formToRow(f: Form): TablesInsert<"skus"> {
     roll_length_m: f.is_roll ? toNumber(f.roll_length_m) : null,
     // roll settings only apply to roll products
     roll_family: f.is_roll ? f.roll_family.trim() || null : null,
-    cut_step_cm: f.is_roll ? toNumber(f.cut_step_cm) : null,
-    max_piece_m: f.is_roll ? toNumber(f.max_piece_m) : null,
+    // cut step / longest piece: Neon flex rolls and LED strips
+    cut_step_cm: f.is_roll || f.is_led_strip ? toNumber(f.cut_step_cm) : null,
+    max_piece_m: f.is_roll || f.is_led_strip ? toNumber(f.max_piece_m) : null,
     notes: writeTags(f.notes, {
       ...attrsForCategory(f.category, f.attrs),
       หมวด: f.category || null,
@@ -657,7 +672,11 @@ function SkuForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (f.is_roll && !["5", "10"].includes(f.roll_length_m)) {
-          toast.error("สินค้าม้วนต้องเลือกความยาวม้วน 5 หรือ 10 ม.");
+          toast.error("LED neon flex ต้องเลือกความยาวม้วน 5 หรือ 10 ม.");
+          return;
+        }
+        if (f.is_led_strip && !((toNumber(f.cut_step_cm) ?? 0) > 0)) {
+          toast.error("LED เส้นต้องใส่ระยะตัด (ซม.)");
           return;
         }
         onSubmit(f);
@@ -734,12 +753,29 @@ function SkuForm({
             setF({
               ...f,
               is_roll: v === true,
+              is_led_strip: v === true ? false : f.is_led_strip,
               roll_length_m: v === true ? f.roll_length_m || "5" : "",
             })
           }
         />
         <label htmlFor="is_roll" className="text-sm">
-          เป็นสินค้าม้วน
+          LED neon flex
+        </label>
+        <Checkbox
+          id="is_led_strip"
+          className="ml-6"
+          checked={f.is_led_strip}
+          onCheckedChange={(v) =>
+            setF({
+              ...f,
+              is_led_strip: v === true,
+              is_roll: v === true ? false : f.is_roll,
+              roll_length_m: v === true ? "" : f.roll_length_m,
+            })
+          }
+        />
+        <label htmlFor="is_led_strip" className="text-sm">
+          LED เส้น (ตัดได้ทุกระยะ)
         </label>
       </div>
       {/* roll-only settings: shown only for roll products */}
@@ -759,6 +795,27 @@ function SkuForm({
           </Field>
           <Field label="ความยาวชิ้นสูงสุด (ม.)">
             <Input value={f.max_piece_m} onChange={set("max_piece_m")} />
+          </Field>
+        </>
+      ) : null}
+      {/* LED strip: where it can be cut, used later by the work order / production sheet */}
+      {f.is_led_strip ? (
+        <>
+          <Field label="ระยะตัด (ซม.) — ตัดได้ทุกกี่ ซม. *">
+            <Input
+              inputMode="decimal"
+              value={f.cut_step_cm}
+              placeholder="เช่น 5 หรือ 2.5"
+              onChange={set("cut_step_cm")}
+            />
+          </Field>
+          <Field label="ความยาวต่อม้วน / ชิ้นยาวสุด (ม.)">
+            <Input
+              inputMode="decimal"
+              value={f.max_piece_m}
+              placeholder="เช่น 5"
+              onChange={set("max_piece_m")}
+            />
           </Field>
         </>
       ) : null}

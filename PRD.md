@@ -162,6 +162,12 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 ### 6.5 Stock and master data
 - ✅ **SKUs** (`/skus`) — categories and per-category attributes (LED W/m, chip,
   PCB width, profile model, rail size, PSU watt/dim) stored as tags in notes.
+- ✅ **SKU types:** tick **LED neon flex** (sold by 5/10 m roll: roll family, cut
+  step, max piece) or **LED เส้น** (LED strip cut on site: cut step in cm, reel
+  length / longest piece in m). Stored in `cut_step_cm` / `max_piece_m`; an LED
+  strip is a non-roll SKU with a cut step. In CSV: leave `is_roll` empty and fill
+  `cut_step_cm`. ⬜ Next: use the LED strip cut step on the ใบ Work /
+  production sheet.
 - ✅ **Stock** (`/stock`) — on-hand by category.
 - ✅ **Remnants** (`/remnants`, เศษม้วน) — roll leftovers that can be reused.
 - ✅ **Clauses** (`/clauses`) — remark / warranty / note / warning text,
@@ -224,6 +230,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 | Date | Change |
 |---|---|
+| 20/10/2026 | SKU: new **LED เส้น** option with cut step (ซม.) and reel length; "เป็นสินค้าม้วน" renamed **LED neon flex**. |
 | 20/10/2026 | SKU CSV import: optional `qty` column sets counted stock (opening stock / stock take). All test data to be wiped with a one-time reset before real stock is entered. |
 | 20/10/2026 | Purchases: admin can edit a recorded purchase (stock and cost follow). DB migration `0009_purchases_edit` pending in Lovable. |
 | 18/10/2026 | PRD created from the current codebase (state as of GitHub `main`, last push 17/10/2026). |
