@@ -63,7 +63,7 @@ const EMPTY = {
   lead_time_days: "0",
   min_stock: "0",
   is_roll: false,
-  /** LED strip cut on site: cut step and reel length live in cut_step_cm / max_piece_m (no roll settings) */
+  /** LED strip cut on site: only a cut step (cut_step_cm), no roll settings */
   is_led_strip: false,
   roll_length_m: "",
   roll_family: "",
@@ -636,9 +636,9 @@ function formToRow(f: Form): TablesInsert<"skus"> {
     roll_length_m: f.is_roll ? toNumber(f.roll_length_m) : null,
     // roll settings only apply to roll products
     roll_family: f.is_roll ? f.roll_family.trim() || null : null,
-    // cut step / longest piece: Neon flex rolls and LED strips
+    // cut step: Neon flex rolls and LED strips; longest piece: Neon flex only
     cut_step_cm: f.is_roll || f.is_led_strip ? toNumber(f.cut_step_cm) : null,
-    max_piece_m: f.is_roll || f.is_led_strip ? toNumber(f.max_piece_m) : null,
+    max_piece_m: f.is_roll ? toNumber(f.max_piece_m) : null,
     notes: writeTags(f.notes, {
       ...attrsForCategory(f.category, f.attrs),
       หมวด: f.category || null,
@@ -775,7 +775,7 @@ function SkuForm({
           }
         />
         <label htmlFor="is_led_strip" className="text-sm">
-          LED เส้น (ตัดได้ทุกระยะ)
+          LED เส้น
         </label>
       </div>
       {/* roll-only settings: shown only for roll products */}
@@ -807,14 +807,6 @@ function SkuForm({
               value={f.cut_step_cm}
               placeholder="เช่น 5 หรือ 2.5"
               onChange={set("cut_step_cm")}
-            />
-          </Field>
-          <Field label="ความยาวต่อม้วน / ชิ้นยาวสุด (ม.)">
-            <Input
-              inputMode="decimal"
-              value={f.max_piece_m}
-              placeholder="เช่น 5"
-              onChange={set("max_piece_m")}
             />
           </Field>
         </>
