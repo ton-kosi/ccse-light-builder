@@ -48,6 +48,7 @@ export function woStatusLabel(status: string): string {
 }
 
 export const WO_TYPES: { value: string; label: string }[] = [
+  { value: "survey", label: "วัดหน้างาน" },
   { value: "production", label: "ผลิต" },
   { value: "installation", label: "ติดตั้ง" },
   { value: "service", label: "บริการ/ซ่อม" },

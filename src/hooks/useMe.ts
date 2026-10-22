@@ -46,6 +46,8 @@ export function useMe() {
     canManagePayments: has("admin", "accounting"),
     canEditSales: has("admin", "sales"),
     canEditProduction: has("admin", "sales", "estimator", "stock", "production"),
+    /** plan field work: job type, dates, who is assigned */
+    canPlanWork: has("admin", "sales", "production"),
     canEditMaster: has("admin", "estimator", "stock"),
     canViewMaster: roles.some((r) => r !== "technician"),
     hasNoRole: query.isSuccess && roles.length === 0,

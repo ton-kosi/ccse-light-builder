@@ -71,6 +71,13 @@
       "when": 1792469759230,
       "tag": "0009_purchases_edit",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792657086383,
+      "tag": "0010_field_work_handover",
+      "breakpoints": true
     }
   ]
 }

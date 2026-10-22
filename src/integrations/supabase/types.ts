@@ -375,6 +375,117 @@ export type Database = {
         }
         Relationships: []
       }
+      handovers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          handover_date: string
+          id: string
+          note: string | null
+          project_id: string
+          receiver_name: string
+          receiver_position: string | null
+          signature_path: string | null
+          updated_at: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          handover_date?: string
+          id?: string
+          note?: string | null
+          project_id: string
+          receiver_name: string
+          receiver_position?: string | null
+          signature_path?: string | null
+          updated_at?: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          handover_date?: string
+          id?: string
+          note?: string | null
+          project_id?: string
+          receiver_name?: string
+          receiver_position?: string | null
+          signature_path?: string | null
+          updated_at?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handovers_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handovers_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: true
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_files: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          mime: string | null
+          name: string
+          path: string
+          project_id: string
+          size_bytes: number | null
+          uploaded_by: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          mime?: string | null
+          name: string
+          path: string
+          project_id: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          mime?: string | null
+          name?: string
+          path?: string
+          project_id?: string
+          size_bytes?: number | null
+          uploaded_by?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_files_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       line_recipes: {
         Row: {
           created_at: string
@@ -1652,6 +1763,32 @@ export type Database = {
         }
         Relationships: []
       }
+      work_order_assignees: {
+        Row: {
+          created_at: string
+          user_id: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_assignees_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_order_items: {
         Row: {
           created_at: string
@@ -1715,6 +1852,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           doc_no: string
+          end_date: string | null
           id: string
           instructions: string | null
           project_id: string
@@ -1730,6 +1868,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           doc_no: string
+          end_date?: string | null
           id?: string
           instructions?: string | null
           project_id: string
@@ -1745,6 +1884,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           doc_no?: string
+          end_date?: string | null
           id?: string
           instructions?: string | null
           project_id?: string

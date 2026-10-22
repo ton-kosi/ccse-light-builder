@@ -10,6 +10,7 @@ import { QuotationSection } from "@/components/boq/QuotationSection";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { WorkSheet } from "@/components/work/WorkSheet";
 import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
+import { JobFiles } from "@/components/work/JobFiles";
 import { adjustmentsOf, computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,7 +112,7 @@ function ProjectDetail() {
           {canManagePayments ? <TabsTrigger value="payment">งวดเงิน</TabsTrigger> : null}
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-6">
           <OverviewTab
             project={project}
             lines={lines}
@@ -122,6 +123,16 @@ function ProjectDetail() {
             isAdmin={isAdmin}
             onUpdate={(p) => updateProject.mutate(p)}
           />
+          <section className="space-y-6 rounded-lg border border-border bg-card p-4">
+            <JobFiles
+              projectId={project.id}
+              workOrderId={null}
+              kind="drawing"
+              title="แบบ / drawing ของโปรเจกต์"
+              hint="ช่างและฝ่ายผลิตเห็นแบบนี้ในทุกใบสั่งงานของโปรเจกต์"
+            />
+            <JobFiles projectId={project.id} workOrderId={null} kind="photo" title="รูปหน้างาน" />
+          </section>
         </TabsContent>
 
         <TabsContent value="boq" className="mt-4">
@@ -511,7 +522,7 @@ function WorkOrderSection({
   canEdit: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ title: "", wo_type: "production", scheduled_date: "" });
+  const [form, setForm] = useState({ title: "", wo_type: "production", scheduled_date: "", end_date: "" });
 
   const { data: workOrders } = useQuery({
     queryKey: ["work_orders", projectId],
@@ -534,12 +545,16 @@ function WorkOrderSection({
         title: form.title,
         wo_type: form.wo_type,
         scheduled_date: form.scheduled_date || null,
+        // end_date column comes with docs/sql/field_work_handover.sql; only sent when used
+        ...(form.scheduled_date && form.end_date && form.end_date > form.scheduled_date
+          ? { end_date: form.end_date }
+          : {}),
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("สร้างใบสั่งงาน (ร่าง) แล้ว");
-      setForm({ title: "", wo_type: "production", scheduled_date: "" });
+      setForm({ title: "", wo_type: "production", scheduled_date: "", end_date: "" });
       queryClient.invalidateQueries({ queryKey: ["work_orders"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -627,13 +642,13 @@ function WorkOrderSection({
 
       {canEdit ? (
         <form
-          className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-4"
+          className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-3 lg:grid-cols-5"
           onSubmit={(e) => {
             e.preventDefault();
             create.mutate();
           }}
         >
-          <Field label="เรื่อง / งานที่ต้องทำ" className="md:col-span-2">
+          <Field label="เรื่อง / งานที่ต้องทำ" className="sm:col-span-3 lg:col-span-2">
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -659,7 +674,16 @@ function WorkOrderSection({
               onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })}
             />
           </Field>
-          <div className="md:col-span-4">
+          <Field label="ถึงวันที่ (ถ้าหลายวัน)">
+            <Input
+              type="date"
+              min={form.scheduled_date || undefined}
+              disabled={!form.scheduled_date}
+              value={form.end_date}
+              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+            />
+          </Field>
+          <div className="sm:col-span-3 lg:col-span-5">
             <Button size="sm" type="submit" disabled={create.isPending}>
               สร้างใบสั่งงาน (ร่าง)
             </Button>

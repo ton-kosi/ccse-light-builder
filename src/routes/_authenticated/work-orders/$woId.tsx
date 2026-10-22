@@ -13,6 +13,9 @@ import { useMe } from "@/hooks/useMe";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { RELEASE_MIN_STATUS, WO_STATUSES, statusLabel, woStatusLabel, woTypeLabel } from "@/lib/erp";
 import { formatDate, formatQty, toNumber } from "@/lib/format";
+import { WorkPlanSection } from "@/components/work/WorkPlanSection";
+import { JobFiles } from "@/components/work/JobFiles";
+import { HandoverSection } from "@/components/work/HandoverSection";
 
 export const Route = createFileRoute("/_authenticated/work-orders/$woId")({
   head: () => ({
@@ -30,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/work-orders/$woId")({
 
 function WorkOrderDetail() {
   const { woId } = Route.useParams();
-  const { canEditProduction, roles } = useMe();
+  const { canEditProduction, canPlanWork, roles } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
   const isTechnician = roles.includes("technician") && !canEditProduction;
@@ -174,9 +177,6 @@ function WorkOrderDetail() {
           {project?.site_address ? ` · ${project.site_address}` : ""}
         </InfoRow>
         <InfoRow label="สถานะโปรเจกต์">{statusLabel(project?.status ?? 1)}</InfoRow>
-        <InfoRow label="กำหนดวันที่">
-          {wo.scheduled_date ? formatDate(wo.scheduled_date) : "-"}
-        </InfoRow>
         <InfoRow label="ปล่อยงานเมื่อ">{wo.released_at ? formatDate(wo.released_at) : "-"}</InfoRow>
         <InfoRow label="สถานะใบสั่งงาน">
           <select
@@ -211,6 +211,31 @@ function WorkOrderDetail() {
           />
         </Field>
       </section>
+
+      <section className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-3 text-sm font-semibold">แผนงาน</h2>
+        <WorkPlanSection wo={wo} canPlan={canPlanWork} />
+      </section>
+
+      {project ? (
+        <section className="space-y-6 rounded-lg border border-border bg-card p-4">
+          <JobFiles
+            projectId={project.id}
+            workOrderId={wo.id}
+            kind="drawing"
+            title="แบบ / drawing"
+            hint="แบบของโปรเจกต์แสดงด้วย — เพิ่มแบบเฉพาะงานนี้ได้"
+            includeProjectFiles
+          />
+          <JobFiles
+            projectId={project.id}
+            workOrderId={wo.id}
+            kind="photo"
+            title="รูปหน้างาน"
+            hint="รูปก่อนเริ่ม ระหว่างทำ หรือจุดที่วัด"
+          />
+        </section>
+      ) : null}
 
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">รายการของที่ต้องเบิก</h2>
@@ -269,6 +294,13 @@ function WorkOrderDetail() {
           <AddWoItem skus={skus ?? []} onAdd={(p) => addItem.mutate(p)} pending={addItem.isPending} />
         ) : null}
       </section>
+
+      {project && wo.wo_type !== "production" ? (
+        <section className="rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-3 text-sm font-semibold">ส่งมอบงาน</h2>
+          <HandoverSection woId={wo.id} projectId={project.id} woStatus={wo.status} />
+        </section>
+      ) : null}
     </div>
   );
 }

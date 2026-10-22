@@ -12,6 +12,7 @@ import {
   Settings,
   Building2,
   ClipboardList,
+  CalendarDays,
   FileText,
   LogOut,
   type LucideIcon,
@@ -40,6 +41,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon; roles: AppRole[] |
 export const NAV: NavItem[] = [
   { to: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard, roles: "all" },
   { to: "/projects", label: "โปรเจกต์", icon: FolderKanban, roles: "all" },
+  { to: "/queue", label: "คิวงาน", icon: CalendarDays, roles: "all" },
   { to: "/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/clauses", label: "หมายเหตุและประกัน", icon: FileText, roles: ["admin", "sales", "estimator"] },
   { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "stock", "production", "accounting"] },
