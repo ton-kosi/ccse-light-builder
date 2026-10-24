@@ -1852,7 +1852,7 @@ export type Database = {
           reported_on?: string
           reporter?: string | null
           status?: string
-          ticket_no: string
+          ticket_no?: string
           updated_at?: string
           warranty_ends_on?: string | null
           work_order_id?: string | null
