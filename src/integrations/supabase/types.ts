@@ -650,6 +650,13 @@ export type Database = {
             foreignKeyName: "material_moves_sku_id_fkey"
             columns: ["sku_id"]
             isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "material_moves_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
             referencedRelation: "skus"
             referencedColumns: ["id"]
           },
@@ -1050,10 +1057,10 @@ export type Database = {
           po_date: string | null
           po_number: string | null
           released_by: string | null
-          selected_option: string | null
           schedule_note: string | null
-          site_contacts: string | null
+          selected_option: string | null
           site_address: string | null
+          site_contacts: string | null
           status: number
           updated_at: string
         }
@@ -1073,10 +1080,10 @@ export type Database = {
           po_date?: string | null
           po_number?: string | null
           released_by?: string | null
-          selected_option?: string | null
           schedule_note?: string | null
-          site_contacts?: string | null
+          selected_option?: string | null
           site_address?: string | null
+          site_contacts?: string | null
           status?: number
           updated_at?: string
         }
@@ -1096,10 +1103,10 @@ export type Database = {
           po_date?: string | null
           po_number?: string | null
           released_by?: string | null
-          selected_option?: string | null
           schedule_note?: string | null
-          site_contacts?: string | null
+          selected_option?: string | null
           site_address?: string | null
+          site_contacts?: string | null
           status?: number
           updated_at?: string
         }
@@ -1871,8 +1878,22 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "service_tickets_production_wo_id_fkey"
+            columns: ["production_wo_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "service_tickets_project_id_fkey"
             columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_tickets_quote_project_id_fkey"
+            columns: ["quote_project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
@@ -1882,20 +1903,6 @@ export type Database = {
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_tickets_production_wo_id_fkey"
-            columns: ["production_wo_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_tickets_quote_project_id_fkey"
-            columns: ["quote_project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

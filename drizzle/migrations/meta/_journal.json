@@ -141,6 +141,20 @@
       "when": 1792832820883,
       "tag": "0019_payment_followups",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792834881565,
+      "tag": "0020_apply_pending_crew_production_material_warranty_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792834939792,
+      "tag": "0021_service_ticket_trigger_default",
+      "breakpoints": true
     }
   ]
 }

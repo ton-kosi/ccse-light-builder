@@ -1,0 +1,4 @@
+-- Apply the already-journaled 0015_crew_schedule_wos.sql,
+-- 0016_production_settings.sql, 0017_material_moves.sql,
+-- 0018_warranty_repairs.sql and 0019_payment_followups.sql
+-- unchanged in their existing journal order, without duplicating their SQL.
