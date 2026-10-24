@@ -134,6 +134,13 @@
       "when": 1792832416834,
       "tag": "0018_warranty_repairs",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792832820883,
+      "tag": "0019_payment_followups",
+      "breakpoints": true
     }
   ]
 }

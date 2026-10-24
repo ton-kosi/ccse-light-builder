@@ -109,7 +109,7 @@ The owner's end-to-end workflow. Status: ✅ in the app · 🟡 partly · ⬜ mi
 | 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | ✅ Phase A: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
 | 8 | Handover: photos + delivery note signed by the customer | ✅ Phase A (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
 | 9 | Bill several times during the job (e.g. material on site before 100%) | ✅ triggers: deposit, before delivery, material on site, after delivery, substantial completion, progress | Auto-flag "ถึงเวลาวางบิล" from handover / material-on-site events | A |
-| 10 | Chase payment (ทวงเงิน) | 🟡 dashboard lists overdue terms by days | Follow-up log per bill (date, who, note, next follow-up), "ต้องทวงวันนี้" list, printable reminder letter | D |
+| 10 | Chase payment (ทวงเงิน) | 🟡 Phase D built: ทวงเงิน page, chase-today list, follow-up log with promise / next dates, reminder letter 1 / 2 / final | Follow-up log per bill (date, who, note, next follow-up), "ต้องทวงวันนี้" list, printable reminder letter | D |
 | 11 | Repairs: check warranty from the quotation; in warranty → repair ticket + technician/production queue; out of warranty → new quotation (step 3) | 🟡 Phase C built: warranty per product type from handover, repair tickets with automatic warranty check, service / production job or new quotation | Warranty months per quotation (and per line if needed); warranty end = handover date + months; **ใบแจ้งซ่อม** with automatic in/out-of-warranty check; in → service work order in the queue (+ production if needed); out → new quotation linked to the original project | C |
 
 ### Delivery phases (proposed order)
@@ -376,6 +376,19 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
   รับแจ้ง → ลงคิวช่างแล้ว → ซ่อมเสร็จ / เสนอราคาใหม่ → ปิดงาน / ยกเลิก. Tickets also
   listed on the project page.
 
+### 6.7d Collections — ทวงเงิน (Phase D) 🟡
+- **ทวงเงิน** page (`/collections`, admin / accounting): totals outstanding / overdue /
+  to chase today; **ต้องทวงวันนี้** = bills whose next follow-up date has come, whose
+  promised payment date has passed, that are overdue and never followed up, or overdue
+  with the last follow-up over 7 days ago and nothing planned; then every unpaid bill
+  with days overdue, last follow-up, promise and next date.
+- **Follow-up log per bill:** date, channel (โทร / LINE / อีเมล / เข้าพบ / จดหมาย),
+  contact, what was said, promised payment date, next follow-up date.
+- **ใบทวงถาม** (`/print/reminder/$billId`): letterhead, Thai date, เรื่อง / เรียน /
+  โครงการ, wording for ครั้งที่ 1 / ครั้งที่ 2 / ฉบับสุดท้าย (suggested from the letters
+  already logged), every unpaid bill of the project with due date and days overdue,
+  total in figures and Thai words, bank account, signer.
+
 ### 6.8 Settings (`/settings`) ✅
 - 🟡 **Warranty months per product type** (SKU category), admin.
 - 🟡 **Public holidays (วันหยุดนักขัตฤกษ์):** admin list by year; not working days
@@ -411,7 +424,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phase D — collections (section 5b).
+- ✅ Workflow phases A–D built (section 5b). Pending in Lovable: migrations 0015–0019.
+- 🟡 Phase D needs `drizzle/migrations/0019_payment_followups.sql`.
 - 🟡 Phase C needs `drizzle/migrations/0018_warranty_repairs.sql` (warranty rules are seeded by it).
 - 🟡 extra issue / return need `drizzle/migrations/0017_material_moves.sql` (the summary works without it).
 - 🟡 production sheet needs `drizzle/migrations/0016_production_settings.sql` (only the per-item choices; the sheet itself works without it).
@@ -422,6 +436,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | **Phase D — collections:** ทวงเงิน page with the chase-today list (next follow-up due, promise missed, overdue never chased, overdue stale > 7 days), follow-up log per bill, reminder letter ครั้งที่ 1 / 2 / ฉบับสุดท้าย. Migration `0019_payment_followups` pending in Lovable. |
 | 24/10/2026 | **Phase C — warranty & repairs:** warranty months per product type (Clipso 60 / LED 24 / PSU 12, editable), project warranty card from handover, ใบแจ้งซ่อม (SR69-0001) with automatic warranty check → service (+ production) work order, or a new quotation project when out of warranty. Migration `0018_warranty_repairs` pending in Lovable. |
 | 24/10/2026 | **Material issue rounds + returns** (ใบเบิกของ / ใบคืนของ): summary per SKU — WOS · site · round 1, 2, 3 … · issued · returned · used; store records extra issues and returns, stock follows. Tested with the Wynn numbers (WOS 88, site 143.17, issued 147, returned 3.83). Migration `0017_material_moves` pending in Lovable. |
 | 24/10/2026 | **Production sheet (ใบผลิต ตัดไฟ)** with the workbook rules (cut-step rounding shorter/longer, profile −0.4 cm, heat shrink +2 cm, clips, 6 m bars, amps, PSU suggestion) and **stickers per piece**; tested against the Wynn numbers (78 → 66.67, 163.6 → 150). Migration `0016_production_settings` pending in Lovable. |

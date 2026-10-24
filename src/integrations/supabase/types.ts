@@ -735,6 +735,63 @@ export type Database = {
           },
         ]
       }
+      payment_followups: {
+        Row: {
+          bill_id: string
+          channel: string
+          contact: string | null
+          created_at: string
+          created_by: string | null
+          followed_on: string
+          id: string
+          next_on: string | null
+          note: string | null
+          project_id: string
+          promised_on: string | null
+        }
+        Insert: {
+          bill_id: string
+          channel?: string
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          followed_on?: string
+          id?: string
+          next_on?: string | null
+          note?: string | null
+          project_id: string
+          promised_on?: string | null
+        }
+        Update: {
+          bill_id?: string
+          channel?: string
+          contact?: string | null
+          created_at?: string
+          created_by?: string | null
+          followed_on?: string
+          id?: string
+          next_on?: string | null
+          note?: string | null
+          project_id?: string
+          promised_on?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_followups_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "billing_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_followups_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_receipts: {
         Row: {
           amount: number
