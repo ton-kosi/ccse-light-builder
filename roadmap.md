@@ -1,7 +1,7 @@
 # Tasks
 - [x] Inspect synced migrations 0015–0019 and confirm they are pending; GitHub pulls are managed by Lovable sync.
-- [ ] Apply 0015–0019 in order — the two blockers are fixed in GitHub: 0015 `crew_members.user_id` is now a plain UUID (no FK to auth.users) and 0018 has no seed rows (the app uses default warranty months until they are saved in settings).
-- [ ] Verify schema, permissions and triggers, refresh generated types, update PRD applied status and run relevant existing tests — blocked by the pending migration corrections above.
+- [ ] Apply the corrected, synced 0015–0019 unchanged in journal order; both earlier blockers are resolved.
+- [ ] Verify schema, permissions and triggers, refresh generated types, update PRD applied status and run relevant existing tests.
 - [x] Confirm the synced `0012_cleanup_probe_and_files.sql` has no table drops; GitHub pulling is managed by Lovable sync.
 - [x] Apply `0012_cleanup_probe_and_files.sql` (only adds an admin delete policy on the payment-slips bucket).
 - [x] Apply `0013_measure_final_rev.sql` unchanged (additive), regenerate types, and verify the schema, build, and existing measurement/payment tests.
