@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CompaniesEditor } from "@/components/settings/CompaniesEditor";
+import { HolidaysEditor } from "@/components/settings/HolidaysEditor";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -82,6 +83,7 @@ function SettingsPage() {
           เศษที่สั้นกว่าค่านี้จะไม่ถูกบันทึกเป็นเศษม้วน
         </p>
       </div>
+      <HolidaysEditor />
       <CompaniesEditor />
     </div>
   );

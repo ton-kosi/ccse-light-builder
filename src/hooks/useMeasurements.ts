@@ -25,6 +25,7 @@ export type Measurement = {
   quote_line_id: string;
   measured_qty: number | null;
   cut_lengths: number[] | null;
+  cut_spec?: string | null;
   note: string | null;
   measured_at: string;
 };

@@ -69,7 +69,7 @@ function MeasureRow({
 }) {
   const qc = useQueryClient();
   const [f, setF] = useState({
-    cuts: m?.cut_lengths?.length ? m.cut_lengths.map((n) => Number(n)).join("+") : "",
+    cuts: m?.cut_spec ?? (m?.cut_lengths?.length ? m.cut_lengths.map((n) => Number(n)).join("+") : ""),
     qty: m?.measured_qty != null ? String(Number(m.measured_qty)) : "",
     note: m?.note ?? "",
   });
@@ -89,6 +89,7 @@ function MeasureRow({
           work_order_id: workOrderId,
           measured_qty: v.measured_qty,
           cut_lengths: v.cut_lengths,
+          cut_spec: v.cut_spec,
           note: f.note.trim() || null,
         },
         { onConflict: "quote_line_id" },
@@ -144,12 +145,12 @@ function MeasureRow({
       </div>
       <div className="mt-2 grid gap-2 sm:grid-cols-[2fr_1fr_2fr_auto] sm:items-start">
         <label className="text-xs">
-          <span className="text-muted-foreground">ความยาวที่วัด/ตัดจริง (ม.)</span>
+          <span className="text-muted-foreground">ความยาวที่วัด/ตัดจริง (ม.) · x = จำนวนชุด · [ ] = ต่อกัน</span>
           <Input
             className="mt-0.5 h-9"
             value={f.cuts}
             disabled={!canEdit}
-            placeholder="เช่น 1.5+2.25"
+            placeholder="เช่น 1.5+2.25 หรือ 0.682x2 + [3.015+3.515]x2"
             onChange={(e) => setF({ ...f, cuts: e.target.value })}
           />
         </label>

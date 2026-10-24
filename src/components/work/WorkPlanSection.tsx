@@ -1,35 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { Field } from "@/routes/_authenticated/customers";
 import { Input } from "@/components/ui/input";
-import { useStaff } from "@/hooks/useStaff";
-import { ROLE_LABELS, WO_TYPES, woTypeLabel } from "@/lib/erp";
+import { crewJobsKey, crewMigrationMsg, isCrewMigrationError, useCrew, useCrewJobs } from "@/hooks/useCrew";
+import { WO_TYPES, woTypeLabel } from "@/lib/erp";
 import { formatDate } from "@/lib/format";
 
-export const assigneesKey = ["work_order_assignees"];
-
-/** Assignees of every work order (small table; shared by the queue and work order pages). */
-export function useAssignees() {
-  return useQuery({
-    queryKey: assigneesKey,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("work_order_assignees").select("work_order_id, user_id");
-      if (error) {
-        // migration not applied yet: show jobs without people instead of failing the page
-        if (/does not exist|schema cache/i.test(error.message)) return new Map<string, string[]>();
-        throw error;
-      }
-      const map = new Map<string, string[]>();
-      for (const a of data) map.set(a.work_order_id, [...(map.get(a.work_order_id) ?? []), a.user_id]);
-      return map;
-    },
-  });
-}
-
-/** Type, start/end date and who does the job. Planners edit; everyone else reads. */
+/** Type, start/end date and the crew members on the job. Planners edit; everyone else reads. */
 export function WorkPlanSection({
   wo,
   canPlan,
@@ -38,15 +18,15 @@ export function WorkPlanSection({
   canPlan: boolean;
 }) {
   const qc = useQueryClient();
-  const { data: staff } = useStaff();
-  const { data: assignees } = useAssignees();
-  const mine = assignees?.get(wo.id) ?? [];
-  const nameOf = new Map((staff ?? []).map((s) => [s.id, s]));
+  const { data: crew } = useCrew();
+  const { data: jobs } = useCrewJobs();
+  const mine = jobs?.get(wo.id) ?? [];
+  const byId = new Map((crew ?? []).map((m) => [m.id, m]));
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["work_order", wo.id] });
     qc.invalidateQueries({ queryKey: ["work_orders"] });
-    qc.invalidateQueries({ queryKey: assigneesKey });
+    qc.invalidateQueries({ queryKey: crewJobsKey });
   };
 
   const update = useMutation({
@@ -62,14 +42,10 @@ export function WorkPlanSection({
   });
 
   const assign = useMutation({
-    mutationFn: async ({ userId, on }: { userId: string; on: boolean }) => {
+    mutationFn: async ({ memberId, on }: { memberId: string; on: boolean }) => {
       const { error } = on
-        ? await supabase.from("work_order_assignees").insert({ work_order_id: wo.id, user_id: userId })
-        : await supabase
-            .from("work_order_assignees")
-            .delete()
-            .eq("work_order_id", wo.id)
-            .eq("user_id", userId);
+        ? await supabase.from("work_order_crew").insert({ work_order_id: wo.id, member_id: memberId })
+        : await supabase.from("work_order_crew").delete().eq("work_order_id", wo.id).eq("member_id", memberId);
       if (error) throw error;
     },
     onSuccess: refresh,
@@ -77,17 +53,13 @@ export function WorkPlanSection({
   });
 
   const sel = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
-  const free = (staff ?? []).filter((s) => !mine.includes(s.id));
+  const free = (crew ?? []).filter((m) => m.active && !mine.includes(m.id));
 
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <Field label="ประเภทงาน">
         {canPlan ? (
-          <select
-            className={sel}
-            value={wo.wo_type}
-            onChange={(e) => update.mutate({ wo_type: e.target.value })}
-          >
+          <select className={sel} value={wo.wo_type} onChange={(e) => update.mutate({ wo_type: e.target.value })}>
             {WO_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
@@ -138,7 +110,7 @@ export function WorkPlanSection({
           <div className="text-sm">{wo.end_date ? formatDate(wo.end_date) : "-"}</div>
         )}
       </Field>
-      <Field label="ผู้รับผิดชอบ (ช่าง / ฝ่ายผลิต)" className="md:col-span-4">
+      <Field label="ช่าง / ฝ่ายผลิตที่รับงาน" className="md:col-span-4">
         <div className="flex flex-wrap items-center gap-2">
           {mine.length ? (
             mine.map((id) => (
@@ -146,13 +118,14 @@ export function WorkPlanSection({
                 key={id}
                 className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2.5 py-1 text-xs"
               >
-                {nameOf.get(id)?.name ?? "ผู้ใช้"}
+                {byId.get(id)?.display_name ?? "—"}
+                {byId.get(id)?.crew ? <span className="text-muted-foreground">· {byId.get(id)!.crew}</span> : null}
                 {canPlan ? (
                   <button
                     type="button"
                     title="เอาออก"
                     className="text-muted-foreground hover:text-destructive"
-                    onClick={() => assign.mutate({ userId: id, on: false })}
+                    onClick={() => assign.mutate({ memberId: id, on: false })}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -166,15 +139,19 @@ export function WorkPlanSection({
             <select
               className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               value=""
-              onChange={(e) => e.target.value && assign.mutate({ userId: e.target.value, on: true })}
+              onChange={(e) => e.target.value && assign.mutate({ memberId: e.target.value, on: true })}
             >
-              <option value="">+ เพิ่มคน</option>
-              {free.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} · {s.roles.map((r) => ROLE_LABELS[r]).join(", ")}
+              <option value="">+ เพิ่มช่าง</option>
+              {free.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.display_name}
+                  {m.crew ? ` · ${m.crew}` : ""}
                 </option>
               ))}
             </select>
+          ) : null}
+          {canPlan && !crew?.length ? (
+            <span className="text-xs text-muted-foreground">เพิ่มรายชื่อช่างได้ที่หน้า “คิวงาน” → จัดการทีมช่าง</span>
           ) : null}
         </div>
       </Field>
@@ -183,8 +160,7 @@ export function WorkPlanSection({
 }
 
 function friendly(msg: string) {
-  if (/end_date|work_order_assignees|schema cache|does not exist/i.test(msg))
-    return "ยังบันทึกไม่ได้ — ให้ Lovable รันไฟล์ docs/sql/field_work_handover.sql ก่อน";
+  if (isCrewMigrationError(msg) || /end_date/i.test(msg)) return crewMigrationMsg;
   if (/work_orders_dates_chk/.test(msg)) return "วันสิ้นสุดต้องไม่ก่อนวันเริ่ม";
   return msg;
 }

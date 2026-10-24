@@ -184,7 +184,7 @@ function HiddenMoney() {
 
 /* ---------------- Overview ---------------- */
 
-type ProjTextKey = "name" | "attn" | "po_number" | "site_address";
+type ProjTextKey = "name" | "attn" | "po_number" | "site_address" | "site_contacts" | "schedule_note";
 type ProjNumKey = "install_days_min" | "install_days_max" | "install_days_actual";
 
 function OverviewTab({
@@ -397,6 +397,8 @@ function OverviewTab({
         {textField("เรียน (Attn)", "attn")}
         {textField("เลข PO", "po_number")}
         {textField("สถานที่ติดตั้ง", "site_address", "md:col-span-3")}
+        {textField("ติดต่อหน้างาน (ชื่อ : เบอร์)", "site_contacts", "md:col-span-2")}
+        {textField("กำหนดการ (ประกอบ / ติดตั้ง / ส่ง)", "schedule_note")}
         {numField("วันติดตั้งต่ำสุด", "install_days_min")}
         {numField("วันติดตั้งสูงสุด", "install_days_max")}
         {canManagePayments ? (
@@ -424,7 +426,7 @@ function OverviewTab({
             }}
           />
         </Field>
-        {numField("วันติดตั้งจริง", "install_days_actual")}
+        {numField("วันติดตั้งจริง (วันทำงาน)", "install_days_actual")}
         <div className="flex items-end text-xs text-muted-foreground">
           ปล่อยใบ Work ได้เมื่อสถานะถึงขั้น {RELEASE_MIN_STATUS}
         </div>

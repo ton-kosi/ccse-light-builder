@@ -1,4 +1,5 @@
 /** Site measurement (วัดหน้างาน) → final Rev helpers. Pure functions, unit tested. */
+import { formatCutSpec, parseCutSpec } from "./cutSpec";
 
 /** Lines a technician can measure: real work lines, not headings, notes or customer-supplied items. */
 export function isMeasurable(kind: string | null | undefined): boolean {
@@ -14,18 +15,25 @@ export function isLengthUnit(unit: string | null | undefined): boolean {
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
- * What to save from the measurement inputs. Cut lengths are typed like the BOQ ("1.5+2.25" or
- * "1.5, 2.25"); for a length unit the quantity defaults to their sum when left empty.
+ * What to save from the measurement inputs. Lengths are typed in the WOS notation
+ * ("0.682x2 + [3.015+3.515]x2", or a plain "1.5+2.25"); for a length unit the quantity
+ * defaults to their sum when left empty.
  */
-export function measurementFromInput(
-  input: { qty: string; cuts: string; unit: string | null },
-): { measured_qty: number | null; cut_lengths: number[] | null } | { error: string } {
+export function measurementFromInput(input: {
+  qty: string;
+  cuts: string;
+  unit: string | null;
+}):
+  | { measured_qty: number | null; cut_lengths: number[] | null; cut_spec: string | null }
+  | { error: string } {
   const cutsText = input.cuts.trim();
   let cut_lengths: number[] | null = null;
+  let cut_spec: string | null = null;
   if (cutsText) {
-    const parts = cutsText.split(/[+,\s]+/).filter(Boolean).map((x) => Number(x));
-    if (parts.some((n) => !Number.isFinite(n) || n <= 0)) return { error: "ความยาวตัดต้องเป็นตัวเลขมากกว่า 0" };
-    cut_lengths = parts.map(round3);
+    const spec = parseCutSpec(cutsText);
+    if ("error" in spec) return { error: spec.error };
+    cut_lengths = spec.pieces;
+    cut_spec = formatCutSpec(spec.runs);
   }
   const qtyText = input.qty.trim().replace(/,/g, "");
   let measured_qty: number | null = null;
@@ -37,7 +45,7 @@ export function measurementFromInput(
     measured_qty = round3(cut_lengths.reduce((s, n) => s + n, 0));
   }
   if (measured_qty === null && !cut_lengths) return { error: "ใส่จำนวนที่วัด หรือความยาวที่ตัด" };
-  return { measured_qty, cut_lengths };
+  return { measured_qty, cut_lengths, cut_spec };
 }
 
 export type CompareRow = {

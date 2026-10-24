@@ -151,7 +151,7 @@ export function FinalRevPanel({
                   <td className="py-1 pr-2">
                     {l.customer_text?.split("\n")[0] || l.sales_components?.name || "—"}
                     {m.cut_lengths?.length ? (
-                      <div className="text-muted-foreground">ตัด {formatCutLengths(m.cut_lengths)}</div>
+                      <div className="text-muted-foreground">ตัด {m.cut_spec || formatCutLengths(m.cut_lengths)}</div>
                     ) : null}
                     {m.note ? <div className="text-muted-foreground">{m.note}</div> : null}
                     {!counted ? <div className="text-muted-foreground">(ไม่นับในยอด)</div> : null}

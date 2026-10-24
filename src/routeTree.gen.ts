@@ -31,6 +31,7 @@ import { Route as PrintBillingDocIdRouteImport } from './routes/print.billing.$d
 import { Route as PrintHandoverWoIdRouteImport } from './routes/print.handover.$woId'
 import { Route as PrintQuotationQuotationIdRouteImport } from './routes/print.quotation.$quotationId'
 import { Route as PrintWorkProjectIdRouteImport } from './routes/print.work.$projectId'
+import { Route as PrintWosProjectIdRouteImport } from './routes/print.wos.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -147,6 +148,11 @@ const PrintWorkProjectIdRoute = PrintWorkProjectIdRouteImport.update({
   path: '/print/work/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrintWosProjectIdRoute = PrintWosProjectIdRouteImport.update({
+  id: '/print/wos/$projectId',
+  path: '/print/wos/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
+  '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
   '/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
+  '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
   '/work-orders': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
+  '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
   '/_authenticated/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/print/handover/$woId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
+    | '/print/wos/$projectId'
     | '/projects/'
     | '/work-orders/'
   fileRoutesByTo: FileRoutesByTo
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/print/handover/$woId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
+    | '/print/wos/$projectId'
     | '/projects'
     | '/work-orders'
   id:
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/print/handover/$woId'
     | '/print/quotation/$quotationId'
     | '/print/work/$projectId'
+    | '/print/wos/$projectId'
     | '/_authenticated/projects/'
     | '/_authenticated/work-orders/'
   fileRoutesById: FileRoutesById
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   PrintHandoverWoIdRoute: typeof PrintHandoverWoIdRoute
   PrintQuotationQuotationIdRoute: typeof PrintQuotationQuotationIdRoute
   PrintWorkProjectIdRoute: typeof PrintWorkProjectIdRoute
+  PrintWosProjectIdRoute: typeof PrintWosProjectIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrintWorkProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/print/wos/$projectId': {
+      id: '/print/wos/$projectId'
+      path: '/print/wos/$projectId'
+      fullPath: '/print/wos/$projectId'
+      preLoaderRoute: typeof PrintWosProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -508,6 +528,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrintHandoverWoIdRoute: PrintHandoverWoIdRoute,
   PrintQuotationQuotationIdRoute: PrintQuotationQuotationIdRoute,
   PrintWorkProjectIdRoute: PrintWorkProjectIdRoute,
+  PrintWosProjectIdRoute: PrintWosProjectIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

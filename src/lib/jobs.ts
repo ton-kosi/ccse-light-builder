@@ -63,11 +63,25 @@ export function groupByDay<T extends QueueJob>(jobs: T[], days: string[]) {
   return { byDay, unscheduled };
 }
 
-/** Calendar days from install start to handover, both counted (same rule as the database). */
-export function installDays(startIso: string | null, handoverIso: string): number | null {
+/** Monday–Friday that is not a public holiday (quotations: not holidays or Saturday–Sunday). */
+export function isWorkingDay(iso: string, holidays: ReadonlySet<string> = new Set()): boolean {
+  const dow = new Date(iso + "T00:00:00").getDay();
+  return dow !== 0 && dow !== 6 && !holidays.has(iso);
+}
+
+/**
+ * Working days from install start to handover, both counted — the same rule as the database
+ * (private.working_days), so the overrun charge matches the quotation's "WORKING DAYS".
+ */
+export function installDays(
+  startIso: string | null,
+  handoverIso: string,
+  holidays: ReadonlySet<string> = new Set(),
+): number | null {
   if (!startIso || handoverIso < startIso) return null;
-  const ms = new Date(handoverIso + "T00:00:00").getTime() - new Date(startIso + "T00:00:00").getTime();
-  return Math.round(ms / 86_400_000) + 1;
+  let n = 0;
+  for (let d = startIso; d <= handoverIso; d = addDaysIso(d, 1)) if (isWorkingDay(d, holidays)) n++;
+  return n;
 }
 
 /** Storage path for a job file: project / work order (or "project") / random id + safe file name. */

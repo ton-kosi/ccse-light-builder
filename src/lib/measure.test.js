@@ -20,6 +20,17 @@ describe("site measurement input", () => {
     expect(measurementFromInput({ qty: "", cuts: "1.5+2.25, 3", unit: "ม." })).toEqual({
       measured_qty: 6.75,
       cut_lengths: [1.5, 2.25, 3],
+      cut_spec: "1.5 + 2.25 + 3",
+    });
+  });
+
+  it("expands length × sets and keeps the notation", () => {
+    expect(
+      measurementFromInput({ qty: "", cuts: "(0.682M x 2SETS) + ([3.015M + 3.515M] x 2SETS)", unit: "ม." }),
+    ).toEqual({
+      measured_qty: 14.424,
+      cut_lengths: [0.682, 0.682, 3.015, 3.515, 3.015, 3.515],
+      cut_spec: "0.682x2 + [3.015+3.515]x2",
     });
   });
 
@@ -27,10 +38,12 @@ describe("site measurement input", () => {
     expect(measurementFromInput({ qty: "1,200", cuts: "", unit: "ม." })).toEqual({
       measured_qty: 1200,
       cut_lengths: null,
+      cut_spec: null,
     });
     expect(measurementFromInput({ qty: "7", cuts: "3+3", unit: "ม." })).toEqual({
       measured_qty: 7,
       cut_lengths: [3, 3],
+      cut_spec: "3 + 3",
     });
   });
 
@@ -38,6 +51,7 @@ describe("site measurement input", () => {
     expect(measurementFromInput({ qty: "", cuts: "2+2", unit: "ชุด" })).toEqual({
       measured_qty: null,
       cut_lengths: [2, 2],
+      cut_spec: "2 + 2",
     });
   });
 

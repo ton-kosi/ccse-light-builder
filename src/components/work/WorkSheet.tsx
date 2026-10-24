@@ -156,8 +156,13 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
       {!print ? (
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Button asChild variant="outline" size="sm">
+            <Link to="/print/wos/$projectId" params={{ projectId }} target="_blank">
+              พิมพ์ใบ Work (WOS)
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
             <Link to="/print/work/$projectId" params={{ projectId }} target="_blank">
-              พิมพ์ใบ Work (A4)
+              พิมพ์ใบผลิต / เบิกของ
             </Link>
           </Button>
           {has("stock", "admin") ? (
@@ -238,7 +243,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                       <td className={td}>
                         {measured?.get(l.id)?.cut_lengths?.length ? (
                           <>
-                            <b>{formatCutLengths(measured.get(l.id)!.cut_lengths)}</b>
+                            <b>{measured.get(l.id)!.cut_spec || formatCutLengths(measured.get(l.id)!.cut_lengths)}</b>
                             <span className="ml-1 text-[10px] font-semibold text-primary">วัดจริง</span>
                           </>
                         ) : (

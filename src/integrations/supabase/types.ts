@@ -330,6 +330,36 @@ export type Database = {
           },
         ]
       }
+      crew_members: {
+        Row: {
+          active: boolean
+          created_at: string
+          crew: string | null
+          display_name: string
+          id: string
+          sort_order: number
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          crew?: string | null
+          display_name: string
+          id?: string
+          sort_order?: number
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          crew?: string | null
+          display_name?: string
+          id?: string
+          sort_order?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -872,6 +902,8 @@ export type Database = {
           po_number: string | null
           released_by: string | null
           selected_option: string | null
+          schedule_note: string | null
+          site_contacts: string | null
           site_address: string | null
           status: number
           updated_at: string
@@ -893,6 +925,8 @@ export type Database = {
           po_number?: string | null
           released_by?: string | null
           selected_option?: string | null
+          schedule_note?: string | null
+          site_contacts?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
@@ -914,6 +948,8 @@ export type Database = {
           po_number?: string | null
           released_by?: string | null
           selected_option?: string | null
+          schedule_note?: string | null
+          site_contacts?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
@@ -927,6 +963,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      public_holidays: {
+        Row: {
+          created_at: string
+          day: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          name?: string
+        }
+        Relationships: []
       }
       purchase_requests: {
         Row: {
@@ -1567,6 +1621,47 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_from: string
+          date_to: string
+          id: string
+          kind: string
+          member_id: string
+          note: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_from: string
+          date_to: string
+          id?: string
+          kind: string
+          member_id: string
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_from?: string
+          date_to?: string
+          id?: string
+          kind?: string
+          member_id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_entries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           bank_account_name: string | null
@@ -1603,6 +1698,7 @@ export type Database = {
       site_measurements: {
         Row: {
           cut_lengths: number[] | null
+          cut_spec: string | null
           id: string
           measured_at: string
           measured_by: string | null
@@ -1614,6 +1710,7 @@ export type Database = {
         }
         Insert: {
           cut_lengths?: number[] | null
+          cut_spec?: string | null
           id?: string
           measured_at?: string
           measured_by?: string | null
@@ -1625,6 +1722,7 @@ export type Database = {
         }
         Update: {
           cut_lengths?: number[] | null
+          cut_spec?: string | null
           id?: string
           measured_at?: string
           measured_by?: string | null
@@ -1843,6 +1941,39 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "work_order_assignees_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_order_crew: {
+        Row: {
+          created_at: string
+          member_id: string
+          work_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          member_id: string
+          work_order_id: string
+        }
+        Update: {
+          created_at?: string
+          member_id?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_order_crew_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_order_crew_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"

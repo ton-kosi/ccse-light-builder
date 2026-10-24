@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { groupByDay, installDays, jobFilePath, runsOn, weekDays, weekStart } from "./jobs.ts";
+import { groupByDay, installDays, isWorkingDay, jobFilePath, runsOn, weekDays, weekStart } from "./jobs.ts";
 
 describe("job queue", () => {
   it("starts the week on Monday", () => {
@@ -40,12 +40,20 @@ describe("job queue", () => {
 });
 
 describe("handover", () => {
-  it("counts install days including both ends", () => {
-    expect(installDays("2026-10-20", "2026-10-20")).toBe(1);
-    expect(installDays("2026-10-20", "2026-10-24")).toBe(5);
-    expect(installDays("2026-10-30", "2026-11-02")).toBe(4);
+  it("counts working days (Mon–Fri) including both ends", () => {
+    expect(installDays("2026-10-20", "2026-10-20")).toBe(1); // Tue
+    expect(installDays("2026-10-20", "2026-10-24")).toBe(4); // Tue → Sat: Sat not counted
+    expect(installDays("2026-10-30", "2026-11-02")).toBe(2); // Fri → Mon: weekend skipped
     expect(installDays(null, "2026-10-24")).toBe(null);
     expect(installDays("2026-10-24", "2026-10-20")).toBe(null);
+  });
+
+  it("skips public holidays", () => {
+    const holidays = new Set(["2026-10-23"]); // วันปิยมหาราช
+    expect(installDays("2026-10-20", "2026-10-24", holidays)).toBe(3);
+    expect(isWorkingDay("2026-10-23", holidays)).toBe(false);
+    expect(isWorkingDay("2026-10-22", holidays)).toBe(true);
+    expect(isWorkingDay("2026-10-25")).toBe(false); // Sunday
   });
 
   it("builds a safe storage path", () => {

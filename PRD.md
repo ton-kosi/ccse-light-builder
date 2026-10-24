@@ -125,6 +125,55 @@ Open questions for the owner:
 - Final Rev: always bill the measured quantity, or only when it differs from the contract by more than a set %?
 - Install overrun: count calendar days or working days? Who approves the extra charge?
 
+## 5c. How CCSE works today (from real project files, 24/10/2026)
+
+Studied: TARA 69-047 (Clipso + lighting), FAIRMONT 68-013/1 (fibre optic +
+canoe), WYNN 69-037/1 (LED strip / Jedi flex, export) — quotation, WOS, the
+production workbook (FORM WPS) — and the weekly technician schedule (ตารางงานช่าง).
+
+**Quotation (QC26-55-207, R.05…)**
+- Customer sees one SET / LOT price per item; underneath, internal lines are
+  priced from list price with a discount chain (e.g. 30% · 10% · 10%).
+- Warranty differs per product: Clipso 5 years, LED 2 years, power supply 1 year.
+- Installation in **working days** ("8-10 WORKING DAYS"), overrun charged per day
+  ("EXCEEDING 10 DAYS … 6,000 BAHT/DAY").
+- Typical terms: 50% deposit / 30% material on site / 20% after substantial completion.
+
+**Work order sheet (WOS)**
+- Header: P/J NO (69-047, 68-013/1), quotation ref, ATTN, **contacts with phone
+  numbers**, schedule note ("ประกอบ 17/9/69 ติดตั้ง สิ้นด.9").
+- Same items as the BOQ but no prices, with the **actual model** (PENTA WIDE
+  4000K, ELG-100-C700AB), layout ("7 โมดูล × 5 แถว") and **dated field notes**
+  ("6/10/69 : พี่แขกวัดหลุมจริง") with old → new sizes / quantities.
+- LED runs written as `L = (0.682M x 2SETS) + ([3.015M + 3.515M] x 2SETS)`
+  (piece length × sets; [ ] = pieces joined into one run), per circuit (CKT. NO.).
+- Bottom: material request (store / production sign) and finance approval
+  (มี PO / ไม่มี PO / รับมัดจำแล้ว, or special case) + field officer signature.
+
+**Production workbook (ใบผลิต)** — one row per run:
+- item, fixture type code (LX-473.022.1), circuit, watt, dots, K, product
+  (Strip, Slim Flex, Jedi V1/V2, Canoe, Flex…), profile colour / diffuser /
+  mount / cable exit, cable type + length.
+- Site length (cm) → pieces (max ~300 cm each) → **LED cut = site length rounded
+  to the strip's cut step** (both the shorter and the longer option are shown with
+  the difference), **profile cut = LED cut − 0.4 cm**, final length.
+- Derived: heat-shrink = LED + 2 cm per piece; aluminium bars of 6 m; clips ≈ every
+  40 cm (+ screws); load A = W/m × m ÷ 24 V for the power supply; assembly method
+  (พับ LED / เฉลี่ยกลาง).
+- LED catalogue (Data sheet): cut step per watt + dots, e.g. 4.8W/60 → 10 cm,
+  7.2W/30 Nichia → 16.67 cm, 14.4W/180 → 3.33 cm, Flex 0612 → 5 cm.
+- Summaries: totals per watt/dots/K; per item **WOS vs site (หน้างาน) vs
+  difference**; Canoe pieces in standard sizes (0.2/0.3/0.4/0.5 m).
+- **Material issue (ใบเบิกของ)** in up to 5 rounds + **returns (ใบคืนของ)** + extra
+  issue, compared with WOS and site quantities.
+- **Stickers** per piece: item, type, circuit, "7W 24V 2700K", length, circuit total.
+
+**Weekly technician schedule (ตารางงานช่าง)**
+- Rows = technicians in crews (colour groups), columns = Mon–Sat with dates.
+- A cell = project + task ("TARA สำเพ็ง (ติดไฟ + Wiring + ขึ้นผ้า)"), spanning days
+  and people; also non-project entries: "CCSE (ชั้น4)" workshop, "พัก" (off),
+  public holiday column; red "**" = priority / note.
+
 ## 6. Features
 
 Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
@@ -143,6 +192,8 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 - Technicians see customer names only, never contact details.
 
 ### 6.4 Projects (`/projects`, `/projects/$projectId`) ✅
+- 🟡 **Project fields for the WOS:** site contacts (ติดต่อหน้างาน) and schedule note
+  (กำหนดการ ประกอบ / ติดตั้ง / ส่ง).
 - ✅ **Delete project** (admin, only if no bill was ever issued — bills are
   financial records; close the project at status 11 instead): type the project code to confirm; removes
   quotations, work orders, payments and bills (database cascade) and then its
@@ -187,8 +238,9 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 #### Work tab (ใบ Work)
 - ✅ Work sheet without prices; roll/cutting plan for roll products.
 - ✅ **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
-  every work line of the current quotation gets the measured cut lengths
-  ("4.2+6.5", metres), the measured quantity (summed from the cut lengths for
+  every work line of the current quotation gets the measured cut lengths in the
+  WOS notation ("0.682x2 + [3.015+3.515]x2": x = sets, [ ] = joined pieces;
+  plain "4.2+6.5" works too; the text is kept for the WOS, pieces are expanded), the measured quantity (summed from the cut lengths for
   metre units) and a note. No prices; all staff can enter it. A new Rev carries
   the measurements over.
 - ✅ The production list shows the **measured** cut lengths / quantity in bold
@@ -253,14 +305,32 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   released: photos of the finished work (required), receiver name and
   position, date, note, and the customer's signature on screen **or** a photo
   of the signed paper. Saving closes the job (done). For the last open
-  installation job it also sets actual install days (handover − install
-  start + 1, calendar days) and moves the project from 6–8 to **9 ส่งมอบ**,
+  installation job it also sets actual install days (**working days**:
+  Monday–Friday from install start to handover, minus public holidays — as the
+  quotations say) and moves the project from 6–8 to **9 ส่งมอบ**,
   which makes "งานแล้วเสร็จ" payment terms due.
+- 🟡 **ใบ Work (WOS) print** (`/print/wos/$projectId`) in the CCSE layout: DATE /
+  SUBJ: WORK ORDER SHEET / PROJ / ATTN, P/J NO + ref, contacts (ติดต่อ) and schedule
+  note from the project, items without prices with "- L = (0.682M x 2SETS) + …",
+  measured quantity next to the crossed-out contract quantity, dated field notes
+  ("24/10/69 : วัดหน้างานจริง — …"), material request table and the finance /
+  special-case / field officer approvals (☑ มี PO / ไม่มี PO / รับมัดจำแล้ว / CEO
+  อนุมัติ ticked from the project).
 - ✅ **ใบส่งมอบงาน / DELIVERY NOTE** (`/print/handover/$woId`): letterhead,
   customer, project, site, job, items, up to 6 photos, customer signature and
   crew; print or PDF. No prices.
 
 ### 6.7b Job queue (`/queue`, คิวงาน) ✅
+- 🟡 **ตามคน (people × days)** — default view, like the paper ตารางงานช่าง: rows =
+  crew members grouped by crew (colour band), columns Mon–Sat (Sunday optional),
+  public holidays highlighted with their name. A cell shows the person's jobs that
+  run that day plus non-project entries (CCSE โรงงาน / พัก-ลา / อื่นๆ with a note).
+  Planners click a cell to put the person on a job (a job without a date starts that
+  day) or add an entry for one or more days.
+- 🟡 **Crews (จัดการทีมช่าง):** technicians are crew members with a name, crew, order
+  and an optional login link ("งานของฉัน"); they do not need an account to be
+  scheduled. Work orders are assigned to crew members.
+- ตามวัน (by day) view as before.
 - Week view (Mon–Sun) of all jobs that are not cancelled; multi-day jobs show
   on every day; jobs without a date are listed separately.
 - Filter by job type and person, or "งานของฉัน" (my jobs); technicians and
@@ -271,6 +341,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - Release blocked until project status ≥ 6. No prices anywhere.
 
 ### 6.8 Settings (`/settings`) ✅
+- 🟡 **Public holidays (วันหยุดนักขัตฤกษ์):** admin list by year; not working days
+  and shown on the technician schedule.
 - Issuing companies: letterhead, tax ID, bank, bill signer, default
   withholding tax, logo.
 
@@ -302,13 +374,18 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases C–D (section 5b).
+- ⬜ Workflow phases C–D (section 5b). Next from 5c: production sheet per run
+  (cut-step rounding, profile −0.4 cm, heat shrink, bars, clips, amps), stickers,
+  material issue rounds + returns.
+- 🟡 = built 24/10/2026, needs Lovable to apply `drizzle/migrations/0015_crew_schedule_wos.sql`.
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | Fixes from the real files: install days in **working days** (Mon–Fri minus public holidays, holiday list in settings); **people × days** technician schedule with crews (no login needed), workshop / off entries; **WOS print** in the CCSE layout with contacts, schedule note, measured vs contract, dated notes and approvals; measurements typed as **length × sets** ("0.682x2 + [3.015+3.515]x2"). Migration `0015_crew_schedule_wos` pending in Lovable. |
+| 24/10/2026 | Added section 5c: how CCSE works today, from the TARA / FAIRMONT / WYNN files (quotation, WOS, production workbook) and the weekly technician schedule. |
 | 24/10/2026 | Phase B tested end to end (measure 10 → 10.7 m, final Rev B, balance bill 3,049.50 so total billed = final total 5,724.50). Fixes: terms editor shows billed amounts; delete project refuses when bills exist; role lookup retries after a page load so menus don't come up empty. |
 | 24/10/2026 | Applied the existing migrations `0012_cleanup_probe_and_files` and `0013_measure_final_rev` in journal order without changing their SQL or app logic; verified the storage delete policy, measurement table/RLS, balance flag/index, revision functions, regenerated types, build, and 14 existing measurement/payment tests. |
 | 24/10/2026 | **Phase B — measure → final Rev → final bill:** site measurements per BOQ line (survey job + ใบ Work tab), production list shows measured lengths, final Rev from measurements with contract vs measured, balance payment term. Migration `0013_measure_final_rev` applied; full UI flow not yet verified. |

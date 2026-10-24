@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { DocFooter, DocHeader } from "@/components/print/DocHeader";
 import { useHandover } from "@/components/work/HandoverSection";
 import { useJobFiles } from "@/components/work/JobFiles";
-import { useAssignees } from "@/components/work/WorkPlanSection";
 import { useCustomerNames } from "@/hooks/useCustomerNames";
-import { useStaff } from "@/hooks/useStaff";
+import { useCrew, useCrewJobs } from "@/hooks/useCrew";
 import { companyOf, useCompanies } from "@/lib/companies";
 import { woTypeLabel } from "@/lib/erp";
 import { formatDate, formatQty } from "@/lib/format";
@@ -35,8 +34,8 @@ function PrintHandover() {
   const { woId } = Route.useParams();
   const companies = useCompanies();
   const custName = useCustomerNames();
-  const { data: staff } = useStaff();
-  const { data: assignees } = useAssignees();
+  const { data: crewList } = useCrew();
+  const { data: crewJobs } = useCrewJobs();
   const { data: handover, isLoading: hLoading } = useHandover(woId);
 
   const { data, isLoading } = useQuery({
@@ -80,8 +79,8 @@ function PrintHandover() {
   const photos = (files ?? []).filter(
     (f) => f.work_order_id === woId && f.kind === "handover_photo" && isImage(f.mime, f.name) && f.url,
   );
-  const crew = (assignees?.get(woId) ?? [])
-    .map((id) => staff?.find((s) => s.id === id)?.name)
+  const crew = (crewJobs?.get(woId) ?? [])
+    .map((id) => crewList?.find((m) => m.id === id)?.display_name)
     .filter(Boolean)
     .join(", ");
   const row = "grid grid-cols-[34mm_1fr] gap-2";
