@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 22/10/2026
+> Last updated: 24/10/2026
 
 ## 1. Overview
 
@@ -104,10 +104,10 @@ The owner's end-to-end workflow. Status: ✅ in the app · 🟡 partly · ⬜ mi
 | 2 | Stock / buy in | ✅ purchase requests, purchases (receive + cost), stock count CSV, remnants | — | — |
 | 3 | BOQ quotation | ✅ builders (linear, neon, FO, Clipso, film), options, Rev, clauses, print/PDF | Warranty period as a number (see 11) | C |
 | 4 | Request payment; PO → reserve stock/purchase; deposit → lock + ใบ Work for เบิกของ | ✅ payment terms + ใบเบิกเงิน; stock **จอง** at status 4–5, **ล็อก** at 6; deposit fully received → status 6 → work orders released, pick list, material issue | — | — |
-| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A built: survey job type, people, dates, queue. Missing: measured lengths (Phase B) | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
+| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅: survey job type, people, dates, queue. Missing: measured lengths (Phase B) | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
 | 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | 🟡 new Rev copies lines; terms copy too | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
-| 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | 🟡 Phase A built: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
-| 8 | Handover: photos + delivery note signed by the customer | 🟡 Phase A built (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
+| 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | ✅ Phase A: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
+| 8 | Handover: photos + delivery note signed by the customer | ✅ Phase A (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
 | 9 | Bill several times during the job (e.g. material on site before 100%) | ✅ triggers: deposit, before delivery, material on site, after delivery, substantial completion, progress | Auto-flag "ถึงเวลาวางบิล" from handover / material-on-site events | A |
 | 10 | Chase payment (ทวงเงิน) | 🟡 dashboard lists overdue terms by days | Follow-up log per bill (date, who, note, next follow-up), "ต้องทวงวันนี้" list, printable reminder letter | D |
 | 11 | Repairs: check warranty from the quotation; in warranty → repair ticket + technician/production queue; out of warranty → new quotation (step 3) | 🟡 work-order type บริการ/ซ่อม exists; warranty is free text only | Warranty months per quotation (and per line if needed); warranty end = handover date + months; **ใบแจ้งซ่อม** with automatic in/out-of-warranty check; in → service work order in the queue (+ production if needed); out → new quotation linked to the original project | C |
@@ -213,39 +213,39 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Purchase requests** (`/purchase-requests`) — from material demand.
 - ✅ **Purchases** (`/purchases`) — each purchase receives stock and updates
   the SKU cost to the latest purchase cost (price + extra cost ÷ qty).
-- 🟡 **Edit a purchase** (admin only): fix qty, price, extra cost, date,
+- ✅ **Edit a purchase** (admin only): fix qty, price, extra cost, date,
   supplier, bill no., project, note or SKU. The stock difference is posted as
   an adjustment and the SKU cost is recalculated. A purchase received from a
-  purchase request keeps its SKU. Needs `docs/sql/purchases_edit.sql` applied.
+  purchase request keeps its SKU.
 - ✅ Delete a purchase (admin only): stock taken back out, cost recalculated.
 
 ### 6.7 Work orders (`/work-orders`) ✅
 - Types: **วัดหน้างาน (survey)**, production, installation, service. Statuses:
   draft → released → in progress → done / cancelled.
-- 🟡 **Plan** (admin, sales, production): start date, end date for multi-day
+- ✅ **Plan** (admin, sales, production): start date, end date for multi-day
   jobs, and the people assigned (technicians / production).
-- 🟡 **Files:** drawings (แบบ) on the project — shown on every work order —
+- ✅ **Files:** drawings (แบบ) on the project — shown on every work order —
   or on one job; site photos. Private storage, images and PDF up to 20 MB;
   upload from a phone camera. Uploader or admin can delete.
-- 🟡 **Handover (ส่งมอบงาน)** on survey / installation / service jobs once
+- ✅ **Handover (ส่งมอบงาน)** on survey / installation / service jobs once
   released: photos of the finished work (required), receiver name and
   position, date, note, and the customer's signature on screen **or** a photo
   of the signed paper. Saving closes the job (done). For the last open
   installation job it also sets actual install days (handover − install
   start + 1, calendar days) and moves the project from 6–8 to **9 ส่งมอบ**,
   which makes "งานแล้วเสร็จ" payment terms due.
-- 🟡 **ใบส่งมอบงาน / DELIVERY NOTE** (`/print/handover/$woId`): letterhead,
+- ✅ **ใบส่งมอบงาน / DELIVERY NOTE** (`/print/handover/$woId`): letterhead,
   customer, project, site, job, items, up to 6 photos, customer signature and
   crew; print or PDF. No prices.
 
-### 6.7b Job queue (`/queue`, คิวงาน) 🟡
+### 6.7b Job queue (`/queue`, คิวงาน) ✅
 - Week view (Mon–Sun) of all jobs that are not cancelled; multi-day jobs show
   on every day; jobs without a date are listed separately.
 - Filter by job type and person, or "งานของฉัน" (my jobs); technicians and
   production staff open on their own jobs. Done jobs hidden unless ticked.
 - Each card: type colour, job no., project, site address, people, status.
 
-🟡 = built; needs Lovable to apply `drizzle/migrations/0010_field_work_handover.sql`.
+Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature, project 6 → 9, actual install days, delivery note print/PDF).
 - Release blocked until project status ≥ 6. No prices anywhere.
 
 ### 6.8 Settings (`/settings`) ✅
@@ -280,12 +280,18 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases A–D (section 5b).
+- ⬜ Workflow phases B–D (section 5b).
+- ⬜ Deleting a project removes its `job_files` rows but not the files in the
+  `job-files` bucket — add a cleanup (trigger or delete button that removes files).
+- ⬜ Lovable left two empty probe tables `public.__probe_dup` and
+  `public.__probe_dup2` (migration `0011_probe_double_exec`) without RLS — drop them
+  (owner to approve).
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | Migrations 0009 + 0010 applied by Lovable; Phase A and purchase edit tested end to end. Thumbnails retry once after a failed first load; signature blends into the delivery note. |
 | 22/10/2026 | **Phase A — field work & handover:** survey job type, multi-day jobs, assigned people, job queue (คิวงาน), drawings/photos on projects and jobs, handover with photos + signature, printed ใบส่งมอบงาน; handover closes the job, sets actual install days and moves the project to 9. Migration `0010_field_work_handover` pending in Lovable. |
 | 22/10/2026 | Added the owner's 11-step target workflow with a gap analysis and delivery phases A–D (section 5b); technician queue moved into scope. |
 | 20/10/2026 | SKU: new **LED เส้น** option with cut step (ซม.) only (reel length removed at owner request); "เป็นสินค้าม้วน" renamed **LED neon flex**. |

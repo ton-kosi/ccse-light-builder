@@ -198,6 +198,13 @@ export function JobFiles({
                     alt={f.name}
                     loading="lazy"
                     className="aspect-square w-full rounded-t-md object-cover"
+                    // a just-uploaded file can fail its first load; try once more
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (img.dataset["retried"]) return;
+                      img.dataset["retried"] = "1";
+                      setTimeout(() => (img.src = img.src + "&retry=1"), 1000);
+                    }}
                   />
                 ) : (
                   <div className="flex aspect-square w-full items-center justify-center rounded-t-md bg-muted">

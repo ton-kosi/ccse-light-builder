@@ -206,7 +206,7 @@ function PrintHandover() {
                   src={handover.signatureUrl}
                   alt="ลายเซ็นลูกค้า"
                   crossOrigin="anonymous"
-                  className="max-h-24 object-contain"
+                  className="max-h-24 object-contain mix-blend-multiply"
                 />
               ) : null}
             </div>
