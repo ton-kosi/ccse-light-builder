@@ -330,36 +330,6 @@ export type Database = {
           },
         ]
       }
-      crew_members: {
-        Row: {
-          active: boolean
-          created_at: string
-          crew: string | null
-          display_name: string
-          id: string
-          sort_order: number
-          user_id: string | null
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          crew?: string | null
-          display_name: string
-          id?: string
-          sort_order?: number
-          user_id?: string | null
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          crew?: string | null
-          display_name?: string
-          id?: string
-          sort_order?: number
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       customers: {
         Row: {
           address: string | null
@@ -604,57 +574,6 @@ export type Database = {
           },
         ]
       }
-      material_moves: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          kind: string
-          note: string | null
-          project_id: string
-          qty: number
-          round_no: number | null
-          sku_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          kind: string
-          note?: string | null
-          project_id: string
-          qty: number
-          round_no?: number | null
-          sku_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          kind?: string
-          note?: string | null
-          project_id?: string
-          qty?: number
-          round_no?: number | null
-          sku_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "material_moves_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "material_moves_sku_id_fkey"
-            columns: ["sku_id"]
-            isOneToOne: false
-            referencedRelation: "skus"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payment_audit_log: {
         Row: {
           action: string
@@ -731,63 +650,6 @@ export type Database = {
             columns: ["term_id"]
             isOneToOne: true
             referencedRelation: "payment_terms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_followups: {
-        Row: {
-          bill_id: string
-          channel: string
-          contact: string | null
-          created_at: string
-          created_by: string | null
-          followed_on: string
-          id: string
-          next_on: string | null
-          note: string | null
-          project_id: string
-          promised_on: string | null
-        }
-        Insert: {
-          bill_id: string
-          channel?: string
-          contact?: string | null
-          created_at?: string
-          created_by?: string | null
-          followed_on?: string
-          id?: string
-          next_on?: string | null
-          note?: string | null
-          project_id: string
-          promised_on?: string | null
-        }
-        Update: {
-          bill_id?: string
-          channel?: string
-          contact?: string | null
-          created_at?: string
-          created_by?: string | null
-          followed_on?: string
-          id?: string
-          next_on?: string | null
-          note?: string | null
-          project_id?: string
-          promised_on?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_followups_bill_id_fkey"
-            columns: ["bill_id"]
-            isOneToOne: false
-            referencedRelation: "billing_docs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_followups_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -910,47 +772,6 @@ export type Database = {
           },
         ]
       }
-      production_line_settings: {
-        Row: {
-          assembly: string | null
-          item_no: string
-          notified_on: string | null
-          project_id: string
-          remark: string | null
-          rounding: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          assembly?: string | null
-          item_no: string
-          notified_on?: string | null
-          project_id: string
-          remark?: string | null
-          rounding?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          assembly?: string | null
-          item_no?: string
-          notified_on?: string | null
-          project_id?: string
-          remark?: string | null
-          rounding?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "production_line_settings_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string
@@ -1051,8 +872,6 @@ export type Database = {
           po_number: string | null
           released_by: string | null
           selected_option: string | null
-          schedule_note: string | null
-          site_contacts: string | null
           site_address: string | null
           status: number
           updated_at: string
@@ -1074,8 +893,6 @@ export type Database = {
           po_number?: string | null
           released_by?: string | null
           selected_option?: string | null
-          schedule_note?: string | null
-          site_contacts?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
@@ -1097,8 +914,6 @@ export type Database = {
           po_number?: string | null
           released_by?: string | null
           selected_option?: string | null
-          schedule_note?: string | null
-          site_contacts?: string | null
           site_address?: string | null
           status?: number
           updated_at?: string
@@ -1112,24 +927,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      public_holidays: {
-        Row: {
-          created_at: string
-          day: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          day: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          day?: string
-          name?: string
-        }
-        Relationships: []
       }
       purchase_requests: {
         Row: {
@@ -1770,136 +1567,6 @@ export type Database = {
         }
         Relationships: []
       }
-      schedule_entries: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          date_from: string
-          date_to: string
-          id: string
-          kind: string
-          member_id: string
-          note: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          date_from: string
-          date_to: string
-          id?: string
-          kind: string
-          member_id: string
-          note?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          date_from?: string
-          date_to?: string
-          id?: string
-          kind?: string
-          member_id?: string
-          note?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "schedule_entries_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      service_tickets: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          in_warranty: boolean | null
-          note: string | null
-          part_category: string | null
-          problem: string
-          production_wo_id: string | null
-          project_id: string
-          quote_project_id: string | null
-          reported_on: string
-          reporter: string | null
-          status: string
-          ticket_no: string
-          updated_at: string
-          warranty_ends_on: string | null
-          work_order_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          in_warranty?: boolean | null
-          note?: string | null
-          part_category?: string | null
-          problem: string
-          production_wo_id?: string | null
-          project_id: string
-          quote_project_id?: string | null
-          reported_on?: string
-          reporter?: string | null
-          status?: string
-          ticket_no?: string
-          updated_at?: string
-          warranty_ends_on?: string | null
-          work_order_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          in_warranty?: boolean | null
-          note?: string | null
-          part_category?: string | null
-          problem?: string
-          production_wo_id?: string | null
-          project_id?: string
-          quote_project_id?: string | null
-          reported_on?: string
-          reporter?: string | null
-          status?: string
-          ticket_no?: string
-          updated_at?: string
-          warranty_ends_on?: string | null
-          work_order_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_tickets_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_tickets_work_order_id_fkey"
-            columns: ["work_order_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_tickets_production_wo_id_fkey"
-            columns: ["production_wo_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_tickets_quote_project_id_fkey"
-            columns: ["quote_project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       settings: {
         Row: {
           bank_account_name: string | null
@@ -1936,7 +1603,6 @@ export type Database = {
       site_measurements: {
         Row: {
           cut_lengths: number[] | null
-          cut_spec: string | null
           id: string
           measured_at: string
           measured_by: string | null
@@ -1948,7 +1614,6 @@ export type Database = {
         }
         Insert: {
           cut_lengths?: number[] | null
-          cut_spec?: string | null
           id?: string
           measured_at?: string
           measured_by?: string | null
@@ -1960,7 +1625,6 @@ export type Database = {
         }
         Update: {
           cut_lengths?: number[] | null
-          cut_spec?: string | null
           id?: string
           measured_at?: string
           measured_by?: string | null
@@ -2160,27 +1824,6 @@ export type Database = {
         }
         Relationships: []
       }
-      warranty_rules: {
-        Row: {
-          category: string
-          months: number
-          note: string | null
-          updated_at: string
-        }
-        Insert: {
-          category: string
-          months: number
-          note?: string | null
-          updated_at?: string
-        }
-        Update: {
-          category?: string
-          months?: number
-          note?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       work_order_assignees: {
         Row: {
           created_at: string
@@ -2200,39 +1843,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "work_order_assignees_work_order_id_fkey"
-            columns: ["work_order_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      work_order_crew: {
-        Row: {
-          created_at: string
-          member_id: string
-          work_order_id: string
-        }
-        Insert: {
-          created_at?: string
-          member_id: string
-          work_order_id: string
-        }
-        Update: {
-          created_at?: string
-          member_id?: string
-          work_order_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "work_order_crew_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "work_order_crew_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
