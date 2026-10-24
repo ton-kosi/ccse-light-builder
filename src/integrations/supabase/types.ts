@@ -718,7 +718,6 @@ export type Database = {
           created_at: string
           fixed_amount: number | null
           id: string
-          is_balance: boolean
           name: string
           note: string | null
           percent: number
@@ -734,7 +733,6 @@ export type Database = {
           created_at?: string
           fixed_amount?: number | null
           id?: string
-          is_balance?: boolean
           name: string
           note?: string | null
           percent?: number
@@ -750,7 +748,6 @@ export type Database = {
           created_at?: string
           fixed_amount?: number | null
           id?: string
-          is_balance?: boolean
           name?: string
           note?: string | null
           percent?: number
@@ -1600,64 +1597,6 @@ export type Database = {
         }
         Relationships: []
       }
-      site_measurements: {
-        Row: {
-          cut_lengths: number[] | null
-          id: string
-          measured_at: string
-          measured_by: string | null
-          measured_qty: number | null
-          note: string | null
-          project_id: string
-          quote_line_id: string
-          work_order_id: string | null
-        }
-        Insert: {
-          cut_lengths?: number[] | null
-          id?: string
-          measured_at?: string
-          measured_by?: string | null
-          measured_qty?: number | null
-          note?: string | null
-          project_id: string
-          quote_line_id: string
-          work_order_id?: string | null
-        }
-        Update: {
-          cut_lengths?: number[] | null
-          id?: string
-          measured_at?: string
-          measured_by?: string | null
-          measured_qty?: number | null
-          note?: string | null
-          project_id?: string
-          quote_line_id?: string
-          work_order_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "site_measurements_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "site_measurements_quote_line_id_fkey"
-            columns: ["quote_line_id"]
-            isOneToOne: true
-            referencedRelation: "quote_lines"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "site_measurements_work_order_id_fkey"
-            columns: ["work_order_id"]
-            isOneToOne: false
-            referencedRelation: "work_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       sku_costs: {
         Row: {
           sku_id: string
@@ -1985,10 +1924,6 @@ export type Database = {
       confirm_material_issue: {
         Args: { _project_id: string }
         Returns: undefined
-      }
-      create_final_revision: {
-        Args: { _project_id: string }
-        Returns: string
       }
       create_quotation_revision: {
         Args: { _project_id: string }
