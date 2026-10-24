@@ -1,4 +1,7 @@
 # Tasks
+- [ ] Inspect synced migrations 0015–0019 and apply them in order; GitHub pulls are managed by Lovable sync.
+- [ ] Verify crew scheduling, production settings, material moves, warranty/repairs and payment follow-up schema, permissions and triggers; refresh generated types.
+- [ ] Update PRD migration status and run relevant existing tests without changing app features.
 - [x] Confirm the synced `0012_cleanup_probe_and_files.sql` has no table drops; GitHub pulling is managed by Lovable sync.
 - [x] Apply `0012_cleanup_probe_and_files.sql` (only adds an admin delete policy on the payment-slips bucket).
 - [x] Apply `0013_measure_final_rev.sql` unchanged (additive), regenerate types, and verify the schema, build, and existing measurement/payment tests.
