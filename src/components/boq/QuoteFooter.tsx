@@ -573,6 +573,22 @@ function TermsEditor({
       return data;
     },
   });
+  // billed terms owe what their bill says (RLS returns nothing to roles that cannot see bills)
+  const { data: billed } = useQuery({
+    queryKey: ["payment_terms", "billed", quotationId, (terms ?? []).map((t) => t.id).join(",")],
+    enabled: !!terms?.length,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("billing_docs")
+        .select("term_id, grand_total")
+        .in(
+          "term_id",
+          (terms ?? []).map((t) => t.id),
+        )
+        .is("cancelled_at", null);
+      return new Map((data ?? []).map((b) => [b.term_id, Number(b.grand_total)]));
+    },
+  });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["payment_terms"] });
     qc.invalidateQueries({ queryKey: ["payment_schedule"] });
@@ -680,11 +696,13 @@ function TermsEditor({
         {list.map((t) => {
           const def = defaultPrintLabel(t);
           const own = (x: (typeof list)[number]) =>
-            x.fixed_amount !== null ? Number(x.fixed_amount) : (net * Number(x.percent)) / 100;
+            billed?.get(x.id) ??
+            (x.fixed_amount !== null ? Number(x.fixed_amount) : (net * Number(x.percent)) / 100);
           // balance term: whatever the other terms leave of the total (final bill after re-measure)
-          const amount = t.is_balance
-            ? Math.max(0, net - list.filter((x) => x.id !== t.id).reduce((s, x) => s + own(x), 0))
-            : own(t);
+          const amount =
+            t.is_balance && !billed?.has(t.id)
+              ? Math.max(0, net - list.filter((x) => x.id !== t.id).reduce((s, x) => s + own(x), 0))
+              : own(t);
           return (
             <li key={t.id + t.updated_at} className="rounded border border-border p-2">
               <Input
@@ -751,7 +769,7 @@ function TermsEditor({
                   ยอดคงเหลือ
                 </label>
                 <span className="ml-auto tabular-nums text-muted-foreground">
-                  {formatTHB(amount)} บาท
+                  {formatTHB(amount)} บาท{billed?.has(t.id) ? " (วางบิลแล้ว)" : ""}
                 </span>
                 {canEdit ? (
                   <Button

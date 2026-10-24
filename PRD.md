@@ -104,8 +104,8 @@ The owner's end-to-end workflow. Status: ✅ in the app · 🟡 partly · ⬜ mi
 | 2 | Stock / buy in | ✅ purchase requests, purchases (receive + cost), stock count CSV, remnants | — | — |
 | 3 | BOQ quotation | ✅ builders (linear, neon, FO, Clipso, film), options, Rev, clauses, print/PDF | Warranty period as a number (see 11) | C |
 | 4 | Request payment; PO → reserve stock/purchase; deposit → lock + ใบ Work for เบิกของ | ✅ payment terms + ใบเบิกเงิน; stock **จอง** at status 4–5, **ล็อก** at 6; deposit fully received → status 6 → work orders released, pick list, material issue | — | — |
-| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅ (queue, survey jobs) + Phase B built: measured lengths per line, production list uses them. Not yet: LED strip cut-step rounding | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
-| 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | 🟡 Phase B built: final Rev from measurements, contract vs measured, balance term | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
+| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅ + Phase B ✅: measured lengths per line, production list uses them. Not yet: LED strip cut-step rounding | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
+| 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | ✅ Phase B: final Rev from measurements, contract vs measured, balance term | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
 | 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | ✅ Phase A: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
 | 8 | Handover: photos + delivery note signed by the customer | ✅ Phase A (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
 | 9 | Bill several times during the job (e.g. material on site before 100%) | ✅ triggers: deposit, before delivery, material on site, after delivery, substantial completion, progress | Auto-flag "ถึงเวลาวางบิล" from handover / material-on-site events | A |
@@ -143,7 +143,8 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 - Technicians see customer names only, never contact details.
 
 ### 6.4 Projects (`/projects`, `/projects/$projectId`) ✅
-- ✅ **Delete project** (admin): type the project code to confirm; removes
+- ✅ **Delete project** (admin, only if no bill was ever issued — bills are
+  financial records; close the project at status 11 instead): type the project code to confirm; removes
   quotations, work orders, payments and bills (database cascade) and then its
   stored files — drawings, photos, signatures, payment slips, bill PDFs.
 Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **งวดเงิน** (payments).
@@ -158,7 +159,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ Revisions (Rev): first revision "A" is hidden on print; later ones show.
   Creating a Rev copies lines, clauses, payment terms, billings, receipts and
   site measurements.
-- 🟡 **Final Rev from measurements** (BOQ tab, quote editors): contract vs
+- ✅ **Final Rev from measurements** (BOQ tab, quote editors): contract vs
   measured per line with the +/- money before and after VAT; one button creates
   a new Rev whose quantities and cut lengths are the measured ones, and marks the
   last payment term as the balance.
@@ -185,21 +186,22 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 #### Work tab (ใบ Work)
 - ✅ Work sheet without prices; roll/cutting plan for roll products.
-- 🟡 **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
+- ✅ **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
   every work line of the current quotation gets the measured cut lengths
   ("4.2+6.5", metres), the measured quantity (summed from the cut lengths for
   metre units) and a note. No prices; all staff can enter it. A new Rev carries
   the measurements over.
-- 🟡 The production list shows the **measured** cut lengths / quantity in bold
+- ✅ The production list shows the **measured** cut lengths / quantity in bold
   with "วัดจริง" (and the contract quantity when it differs) until the final
   Rev takes them in.
 
 #### Payments tab (งวดเงิน) — admin and accounting only
 - ✅ Payment terms (%, fixed amount, trigger condition, printed text).
-- 🟡 **Balance term (ยอดคงเหลือ):** one term per quotation can bill "total −
+- ✅ **Balance term (ยอดคงเหลือ):** one term per quotation can bill "total −
   every other term" (billed terms count at their billed amount), so the final
   bill after a re-measure closes the job exactly. The bill text says
-  "(BALANCE)".
+  "(BALANCE)". The terms editor shows billed terms at their billed amount
+  ("วางบิลแล้ว").
 - ✅ Issue billing document ("ออกใบเบิกเงิน") → A4 "INVOICE PAYMENT" with RC
   number, summary of earlier bills, ex-VAT → VAT → withholding tax → THIS TIME
   PAYMENT, amount in Thai words, bank account.
@@ -300,13 +302,14 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases C–D (section 5b). Phase B migration `0013_measure_final_rev` is applied; the measurement → final Rev → balance-billing UI flow still needs end-to-end verification.
+- ⬜ Workflow phases C–D (section 5b).
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | Phase B tested end to end (measure 10 → 10.7 m, final Rev B, balance bill 3,049.50 so total billed = final total 5,724.50). Fixes: terms editor shows billed amounts; delete project refuses when bills exist; role lookup retries after a page load so menus don't come up empty. |
 | 24/10/2026 | Applied the existing migrations `0012_cleanup_probe_and_files` and `0013_measure_final_rev` in journal order without changing their SQL or app logic; verified the storage delete policy, measurement table/RLS, balance flag/index, revision functions, regenerated types, build, and 14 existing measurement/payment tests. |
 | 24/10/2026 | **Phase B — measure → final Rev → final bill:** site measurements per BOQ line (survey job + ใบ Work tab), production list shows measured lengths, final Rev from measurements with contract vs measured, balance payment term. Migration `0013_measure_final_rev` applied; full UI flow not yet verified. |
 | 24/10/2026 | Admin **delete project** removes its stored files too. Migration `0012_cleanup_probe_and_files` lets admin delete payment slips / bill PDFs (Lovable's probe tables were already gone, so the drop was removed — Lovable blocks dropping tables). |

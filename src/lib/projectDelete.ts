@@ -34,6 +34,16 @@ export async function projectFilePaths(projectId: string) {
  * Returns how many files were removed and how many could not be.
  */
 export async function deleteProjectWithFiles(projectId: string) {
+  // issued bills (even cancelled ones) are financial records: the database keeps the project
+  const { count: bills, error: billErr } = await supabase
+    .from("billing_docs")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", projectId);
+  if (billErr) throw billErr;
+  if (bills)
+    throw new Error(
+      `ลบไม่ได้ — โปรเจกต์นี้ออกใบเบิกเงินแล้ว ${bills} ใบ (เอกสารการเงินต้องเก็บไว้) ให้เปลี่ยนสถานะเป็น "11 ปิดงาน" แทน`,
+    );
   const paths = await projectFilePaths(projectId);
   const { data, error } = await supabase.from("projects").delete().eq("id", projectId).select("id");
   if (error) throw error;

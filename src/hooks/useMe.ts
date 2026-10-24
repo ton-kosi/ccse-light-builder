@@ -32,7 +32,15 @@ export async function fetchMe(): Promise<Me> {
 }
 
 export function useMe() {
-  const query = useQuery({ queryKey: meQueryKey(), queryFn: fetchMe, staleTime: 30_000 });
+  const query = useQuery({
+    queryKey: meQueryKey(),
+    queryFn: fetchMe,
+    staleTime: 30_000,
+    // Right after a page load the role lookup can run before the session token is attached and
+    // come back empty; look again a few times before showing "no role" (menus depend on it).
+    refetchInterval: (q) =>
+      q.state.data && q.state.data.roles.length === 0 && q.state.dataUpdateCount < 6 ? 2_000 : false,
+  });
   const roles = query.data?.roles ?? [];
   const has = (...r: AppRole[]) => r.some((x) => roles.includes(x));
   return {

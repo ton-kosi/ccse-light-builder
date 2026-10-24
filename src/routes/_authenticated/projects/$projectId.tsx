@@ -539,7 +539,7 @@ function DeleteProject({ id, code }: { id: string; code: string }) {
     <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
       <h2 className="text-sm font-semibold text-destructive">ลบโปรเจกต์ (ผู้ดูแลระบบ)</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        ลบใบเสนอราคา ใบสั่งงาน งวดเงิน ใบเบิกเงิน รูป แบบ และลายเซ็นของโปรเจกต์นี้ทั้งหมด — กู้คืนไม่ได้
+        ลบใบเสนอราคา ใบสั่งงาน งวดเงิน รูป แบบ และลายเซ็นของโปรเจกต์นี้ทั้งหมด — กู้คืนไม่ได้ (โปรเจกต์ที่ออกใบเบิกเงินแล้วลบไม่ได้)
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Input
