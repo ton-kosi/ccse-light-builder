@@ -1,7 +1,8 @@
 # Tasks
 - [x] Inspect synced migrations 0015–0019 and confirm they are pending; GitHub pulls are managed by Lovable sync.
-- [ ] Apply the corrected, synced 0015–0019 unchanged in journal order; both earlier blockers are resolved.
-- [ ] Verify schema, permissions and triggers, refresh generated types, update PRD applied status and run relevant existing tests.
+- [x] Apply the corrected, synced 0015–0019 unchanged in journal order; verify applied hashes against the source files.
+- [x] Verify nine tables, RLS/grants, columns and triggers; refresh generated types, update PRD applied status and pass 34 existing tests.
+- [x] Resolve the trigger-managed repair ticket number insert-type error with a column default, without changing app code.
 - [x] Confirm the synced `0012_cleanup_probe_and_files.sql` has no table drops; GitHub pulling is managed by Lovable sync.
 - [x] Apply `0012_cleanup_probe_and_files.sql` (only adds an admin delete policy on the payment-slips bucket).
 - [x] Apply `0013_measure_final_rev.sql` unchanged (additive), regenerate types, and verify the schema, build, and existing measurement/payment tests.
