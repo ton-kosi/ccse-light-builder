@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import { WorkSheet } from "@/components/work/WorkSheet";
 import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
 import { JobFiles } from "@/components/work/JobFiles";
+import { deleteProjectWithFiles } from "@/lib/projectDelete";
 import { adjustmentsOf, computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +134,7 @@ function ProjectDetail() {
             />
             <JobFiles projectId={project.id} workOrderId={null} kind="photo" title="รูปหน้างาน" />
           </section>
+          {isAdmin ? <DeleteProject id={project.id} code={project.code} /> : null}
         </TabsContent>
 
         <TabsContent value="boq" className="mt-4">
@@ -505,6 +507,50 @@ function StatusLog({ projectId }: { projectId: string }) {
             ) : null}
           </tbody>
         </table>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- Delete (admin) ---------------- */
+
+/** Removes the project with everything in it (quotations, work orders, bills, files). */
+function DeleteProject({ id, code }: { id: string; code: string }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [typed, setTyped] = useState("");
+  const remove = useMutation({
+    mutationFn: () => deleteProjectWithFiles(id),
+    onSuccess: ({ left }) => {
+      toast.success(left ? `ลบโปรเจกต์ ${code} แล้ว (ไฟล์ ${left} ไฟล์ลบไม่สำเร็จ)` : `ลบโปรเจกต์ ${code} และไฟล์ทั้งหมดแล้ว`);
+      queryClient.removeQueries({ queryKey: ["project", id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["work_orders"] });
+      navigate({ to: "/projects", replace: true });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <section className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+      <h2 className="text-sm font-semibold text-destructive">ลบโปรเจกต์ (ผู้ดูแลระบบ)</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        ลบใบเสนอราคา ใบสั่งงาน งวดเงิน ใบเบิกเงิน รูป แบบ และลายเซ็นของโปรเจกต์นี้ทั้งหมด — กู้คืนไม่ได้
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Input
+          className="max-w-xs"
+          value={typed}
+          placeholder={`พิมพ์ ${code} เพื่อยืนยัน`}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={typed.trim() !== code || remove.isPending}
+          onClick={() => remove.mutate()}
+        >
+          {remove.isPending ? "กำลังลบ…" : "ลบโปรเจกต์นี้"}
+        </Button>
       </div>
     </section>
   );

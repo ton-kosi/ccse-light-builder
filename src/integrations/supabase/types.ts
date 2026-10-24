@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      __probe_dup: {
-        Row: {
-          id: number | null
-        }
-        Insert: {
-          id?: number | null
-        }
-        Update: {
-          id?: number | null
-        }
-        Relationships: []
-      }
-      __probe_dup2: {
-        Row: {
-          id: number | null
-        }
-        Insert: {
-          id?: number | null
-        }
-        Update: {
-          id?: number | null
-        }
-        Relationships: []
-      }
       billing_counters: {
         Row: {
           last_no: number
