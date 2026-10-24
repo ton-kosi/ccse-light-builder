@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BoqGrid, type GridLine } from "@/components/boq/BoqGrid";
 import { QuoteFooter } from "@/components/boq/QuoteFooter";
+import { FinalRevPanel } from "@/components/boq/FinalRevPanel";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
 import {
@@ -198,6 +199,15 @@ export function QuotationSection({
           ) : null}
         </div>
       </div>
+
+      <FinalRevPanel
+        projectId={projectId}
+        lines={lines}
+        selectedOption={selectedOption}
+        vatPercent={vatPct}
+        canEdit={canEdit}
+        canSeeMoney
+      />
 
       {termPct !== null && termPct !== undefined && Math.abs(termPct - 100) > 0.001 ? (
         <p className="mt-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">

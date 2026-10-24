@@ -16,6 +16,7 @@ import { formatDate, formatQty, toNumber } from "@/lib/format";
 import { WorkPlanSection } from "@/components/work/WorkPlanSection";
 import { JobFiles } from "@/components/work/JobFiles";
 import { HandoverSection } from "@/components/work/HandoverSection";
+import { MeasureSection } from "@/components/work/MeasureSection";
 
 export const Route = createFileRoute("/_authenticated/work-orders/$woId")({
   head: () => ({
@@ -234,6 +235,13 @@ function WorkOrderDetail() {
             title="รูปหน้างาน"
             hint="รูปก่อนเริ่ม ระหว่างทำ หรือจุดที่วัด"
           />
+        </section>
+      ) : null}
+
+      {project && wo.wo_type === "survey" ? (
+        <section className="rounded-lg border border-border bg-card p-4">
+          <h2 className="mb-1 text-sm font-semibold">วัดหน้างาน</h2>
+          <MeasureSection projectId={project.id} workOrderId={wo.id} canEdit={roles.length > 0} />
         </section>
       ) : null}
 

@@ -104,8 +104,8 @@ The owner's end-to-end workflow. Status: ✅ in the app · 🟡 partly · ⬜ mi
 | 2 | Stock / buy in | ✅ purchase requests, purchases (receive + cost), stock count CSV, remnants | — | — |
 | 3 | BOQ quotation | ✅ builders (linear, neon, FO, Clipso, film), options, Rev, clauses, print/PDF | Warranty period as a number (see 11) | C |
 | 4 | Request payment; PO → reserve stock/purchase; deposit → lock + ใบ Work for เบิกของ | ✅ payment terms + ใบเบิกเงิน; stock **จอง** at status 4–5, **ล็อก** at 6; deposit fully received → status 6 → work orders released, pick list, material issue | — | — |
-| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅: survey job type, people, dates, queue. Missing: measured lengths (Phase B) | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
-| 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | 🟡 new Rev copies lines; terms copy too | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
+| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅ (queue, survey jobs) + Phase B built: measured lengths per line, production list uses them. Not yet: LED strip cut-step rounding | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
+| 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | 🟡 Phase B built: final Rev from measurements, contract vs measured, balance term | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
 | 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | ✅ Phase A: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
 | 8 | Handover: photos + delivery note signed by the customer | ✅ Phase A (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
 | 9 | Bill several times during the job (e.g. material on site before 100%) | ✅ triggers: deposit, before delivery, material on site, after delivery, substantial completion, progress | Auto-flag "ถึงเวลาวางบิล" from handover / material-on-site events | A |
@@ -156,7 +156,12 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   no price, not in material demand).
 - ✅ Options; totals shown per option.
 - ✅ Revisions (Rev): first revision "A" is hidden on print; later ones show.
-  Creating a Rev copies lines, clauses, payment terms, billings and receipts.
+  Creating a Rev copies lines, clauses, payment terms, billings, receipts and
+  site measurements.
+- 🟡 **Final Rev from measurements** (BOQ tab, quote editors): contract vs
+  measured per line with the +/- money before and after VAT; one button creates
+  a new Rev whose quantities and cut lengths are the measured ones, and marks the
+  last payment term as the balance.
 - ✅ Totals: subtotal → special discount → contract adjustments (% on the
   running total, fixed amount, or note) → VAT. `vat_mode` only changes how VAT
   is printed (show / "EXCLUDING VAT x%" / none).
@@ -180,9 +185,21 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 #### Work tab (ใบ Work)
 - ✅ Work sheet without prices; roll/cutting plan for roll products.
+- 🟡 **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
+  every work line of the current quotation gets the measured cut lengths
+  ("4.2+6.5", metres), the measured quantity (summed from the cut lengths for
+  metre units) and a note. No prices; all staff can enter it. A new Rev carries
+  the measurements over.
+- 🟡 The production list shows the **measured** cut lengths / quantity in bold
+  with "วัดจริง" (and the contract quantity when it differs) until the final
+  Rev takes them in.
 
 #### Payments tab (งวดเงิน) — admin and accounting only
 - ✅ Payment terms (%, fixed amount, trigger condition, printed text).
+- 🟡 **Balance term (ยอดคงเหลือ):** one term per quotation can bill "total −
+  every other term" (billed terms count at their billed amount), so the final
+  bill after a re-measure closes the job exactly. The bill text says
+  "(BALANCE)".
 - ✅ Issue billing document ("ออกใบเบิกเงิน") → A4 "INVOICE PAYMENT" with RC
   number, summary of earlier bills, ex-VAT → VAT → withholding tax → THIS TIME
   PAYMENT, amount in Thai words, bank account.
@@ -283,12 +300,14 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases B–D (section 5b).
+- ⬜ Workflow phases C–D (section 5b). Phase B needs `drizzle/migrations/0013_measure_final_rev.sql` applied by Lovable.
+- ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | **Phase B — measure → final Rev → final bill:** site measurements per BOQ line (survey job + ใบ Work tab), production list shows measured lengths, final Rev from measurements with contract vs measured, balance payment term. Migration `0013_measure_final_rev` pending in Lovable. |
 | 24/10/2026 | Admin **delete project** removes its stored files too. Migration `0012_cleanup_probe_and_files`: drops Lovable's probe tables (owner approved) and lets admin delete payment slips / bill PDFs. |
 | 24/10/2026 | Migrations 0009 + 0010 applied by Lovable; Phase A and purchase edit tested end to end. Thumbnails retry once after a failed first load; signature blends into the delivery note. |
 | 22/10/2026 | **Phase A — field work & handover:** survey job type, multi-day jobs, assigned people, job queue (คิวงาน), drawings/photos on projects and jobs, handover with photos + signature, printed ใบส่งมอบงาน; handover closes the job, sets actual install days and moves the project to 9. Migration `0010_field_work_handover` pending in Lovable. |

@@ -10,6 +10,7 @@ import { RollPlanSection } from "@/components/work/RollPlanSection";
 import { formatCutLengths } from "@/lib/boq";
 import { RELEASE_MIN_STATUS, statusLabel } from "@/lib/erp";
 import { formatDate, formatQty } from "@/lib/format";
+import { useMeasurements } from "@/hooks/useMeasurements";
 
 /** Price-free work sheet. Reads only from wo_* database functions (no price columns). */
 export function useWorkSheet(projectId: string) {
@@ -65,6 +66,8 @@ type WoLine = ReturnType<typeof useWorkSheet>["lines"][number];
 export function WorkSheet({ projectId, print = false }: { projectId: string; print?: boolean }) {
   const custName = useCustomerNames();
   const { project, header, lines, pick, isLoading } = useWorkSheet(projectId);
+  // measured on site (วัดหน้างาน) wins over the contract lengths until the final Rev takes them in
+  const { data: measured } = useMeasurements(projectId);
   const { has } = useMe();
   const qc = useQueryClient();
 
@@ -232,9 +235,29 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                         ) : null}
                       </td>
                       <td className={td}>{l.circuit_note}</td>
-                      <td className={td}>{formatCutLengths(l.cut_lengths)}</td>
+                      <td className={td}>
+                        {measured?.get(l.id)?.cut_lengths?.length ? (
+                          <>
+                            <b>{formatCutLengths(measured.get(l.id)!.cut_lengths)}</b>
+                            <span className="ml-1 text-[10px] font-semibold text-primary">วัดจริง</span>
+                          </>
+                        ) : (
+                          formatCutLengths(l.cut_lengths)
+                        )}
+                      </td>
                       <td className={td + " text-right tabular-nums"}>
-                        {formatQty(Number(l.qty ?? 0))}
+                        {measured?.get(l.id)?.measured_qty != null ? (
+                          <>
+                            <b>{formatQty(Number(measured.get(l.id)!.measured_qty))}</b>
+                            {Number(measured.get(l.id)!.measured_qty) !== Number(l.qty ?? 0) ? (
+                              <div className="text-[10px] text-muted-foreground">
+                                สัญญา {formatQty(Number(l.qty ?? 0))}
+                              </div>
+                            ) : null}
+                          </>
+                        ) : (
+                          formatQty(Number(l.qty ?? 0))
+                        )}
                       </td>
                       <td className={td}>{l.unit}</td>
                     </tr>

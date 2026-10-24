@@ -596,6 +596,32 @@ function TermsEditor({
       refresh();
     },
   });
+  // one balance term per quotation: clear the old one first, then mark the new one
+  const setBalance = useMutation({
+    mutationFn: async ({ id, on }: { id: string; on: boolean }) => {
+      if (on) {
+        const { error } = await supabase
+          .from("payment_terms")
+          .update({ is_balance: false })
+          .eq("quotation_id", quotationId)
+          .eq("is_balance", true)
+          .neq("id", id);
+        if (error) throw error;
+      }
+      const { data, error } = await supabase
+        .from("payment_terms")
+        .update({ is_balance: on })
+        .eq("id", id)
+        .select("id");
+      if (error) throw error;
+      if (!data?.length) throw new Error(LOCKED);
+    },
+    onSuccess: refresh,
+    onError: (e: Error) => {
+      onError(e);
+      refresh();
+    },
+  });
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { data, error } = await supabase
@@ -653,8 +679,12 @@ function TermsEditor({
       <ul className="mt-1 space-y-2">
         {list.map((t) => {
           const def = defaultPrintLabel(t);
-          const amount =
-            t.fixed_amount !== null ? Number(t.fixed_amount) : (net * Number(t.percent)) / 100;
+          const own = (x: (typeof list)[number]) =>
+            x.fixed_amount !== null ? Number(x.fixed_amount) : (net * Number(x.percent)) / 100;
+          // balance term: whatever the other terms leave of the total (final bill after re-measure)
+          const amount = t.is_balance
+            ? Math.max(0, net - list.filter((x) => x.id !== t.id).reduce((s, x) => s + own(x), 0))
+            : own(t);
           return (
             <li key={t.id + t.updated_at} className="rounded border border-border p-2">
               <Input
@@ -708,6 +738,18 @@ function TermsEditor({
                     </option>
                   ))}
                 </select>
+                <label
+                  className="flex items-center gap-1"
+                  title="งวดนี้เบิกยอดที่เหลือทั้งหมด (ยอดรวม − งวดอื่น) ใช้กับงวดสุดท้ายหลังวัดหน้างาน"
+                >
+                  <input
+                    type="checkbox"
+                    checked={t.is_balance}
+                    disabled={!canEdit}
+                    onChange={(e) => setBalance.mutate({ id: t.id, on: e.target.checked })}
+                  />
+                  ยอดคงเหลือ
+                </label>
                 <span className="ml-auto tabular-nums text-muted-foreground">
                   {formatTHB(amount)} บาท
                 </span>
