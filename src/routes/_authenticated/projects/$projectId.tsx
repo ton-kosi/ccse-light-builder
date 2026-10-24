@@ -13,6 +13,7 @@ import { PaymentTermsSection } from "@/components/payments/PaymentTermsSection";
 import { JobFiles } from "@/components/work/JobFiles";
 import { MeasureSection } from "@/components/work/MeasureSection";
 import { ProductionSheet } from "@/components/work/ProductionSheet";
+import { MaterialSection } from "@/components/work/MaterialSection";
 import { deleteProjectWithFiles } from "@/lib/projectDelete";
 import { adjustmentsOf, computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,10 @@ function ProjectDetail() {
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">ใบผลิต (ตัดไฟ)</h2>
             <ProductionSheet projectId={projectId} canEdit={canEditProduction} />
+          </section>
+          <section className="rounded-lg border border-border bg-card p-4">
+            <h2 className="mb-1 text-sm font-semibold">เบิกของ / คืนของ</h2>
+            <MaterialSection projectId={projectId} />
           </section>
           <WorkOrderSection
             projectId={projectId}

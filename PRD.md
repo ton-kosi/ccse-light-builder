@@ -248,6 +248,13 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   project + item no., survives a new Rev): round down / up, assembly (พับ LED /
   เฉลี่ยกลาง), notified date (วันแจ้งผลิต), remark. On the ใบ Work tab and on
   production work orders; print `/print/production/$projectId` (A4 landscape).
+- 🟡 **เบิกของ / คืนของ (material issue rounds + returns)** on the ใบ Work tab: per SKU
+  ใบงาน (WOS need) · หน้างาน (actual LED / profile metres from the production sheet) ·
+  เบิกครั้งที่ 1 (the first "ยืนยันเบิกของ") · 2, 3 … (extra issues) · เบิกรวม · คืนของ ·
+  ใช้จริง (highlighted when more than the WOS). The store (admin / stock) records an
+  extra issue in a chosen round or a return; each one moves stock (issue / receive) and
+  a return can never exceed what is out on the project. Print `/print/materials/$projectId`
+  (ใบเบิกของ + ใบคืนของ with store / production sign-off columns).
 - 🟡 **Stickers** (`/print/stickers/$projectId`): one label per cut piece — item,
   fixture code, circuit, "7W 24V 2700K", length (m) and [circuit total]; 1–3 copies.
 - ✅ **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
@@ -387,7 +394,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases C–D (section 5b). Next from 5c: material issue rounds + returns.
+- ⬜ Workflow phases C–D (section 5b).
+- 🟡 extra issue / return need `drizzle/migrations/0017_material_moves.sql` (the summary works without it).
 - 🟡 production sheet needs `drizzle/migrations/0016_production_settings.sql` (only the per-item choices; the sheet itself works without it).
 - 🟡 = built 24/10/2026, needs Lovable to apply `drizzle/migrations/0015_crew_schedule_wos.sql`.
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
@@ -396,6 +404,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | **Material issue rounds + returns** (ใบเบิกของ / ใบคืนของ): summary per SKU — WOS · site · round 1, 2, 3 … · issued · returned · used; store records extra issues and returns, stock follows. Tested with the Wynn numbers (WOS 88, site 143.17, issued 147, returned 3.83). Migration `0017_material_moves` pending in Lovable. |
 | 24/10/2026 | **Production sheet (ใบผลิต ตัดไฟ)** with the workbook rules (cut-step rounding shorter/longer, profile −0.4 cm, heat shrink +2 cm, clips, 6 m bars, amps, PSU suggestion) and **stickers per piece**; tested against the Wynn numbers (78 → 66.67, 163.6 → 150). Migration `0016_production_settings` pending in Lovable. |
 | 24/10/2026 | Fixes from the real files: install days in **working days** (Mon–Fri minus public holidays, holiday list in settings); **people × days** technician schedule with crews (no login needed), workshop / off entries; **WOS print** in the CCSE layout with contacts, schedule note, measured vs contract, dated notes and approvals; measurements typed as **length × sets** ("0.682x2 + [3.015+3.515]x2"). Migration `0015_crew_schedule_wos` pending in Lovable. |
 | 24/10/2026 | Added section 5c: how CCSE works today, from the TARA / FAIRMONT / WYNN files (quotation, WOS, production workbook) and the weekly technician schedule. |

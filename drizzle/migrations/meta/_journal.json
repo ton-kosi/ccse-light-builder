@@ -120,6 +120,13 @@
       "when": 1792830321883,
       "tag": "0016_production_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792831999456,
+      "tag": "0017_material_moves",
+      "breakpoints": true
     }
   ]
 }

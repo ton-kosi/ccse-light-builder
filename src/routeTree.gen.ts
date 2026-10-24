@@ -29,6 +29,7 @@ import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedWorkOrdersWoIdRouteImport } from './routes/_authenticated/work-orders/$woId'
 import { Route as PrintBillingDocIdRouteImport } from './routes/print.billing.$docId'
 import { Route as PrintHandoverWoIdRouteImport } from './routes/print.handover.$woId'
+import { Route as PrintMaterialsProjectIdRouteImport } from './routes/print.materials.$projectId'
 import { Route as PrintProductionProjectIdRouteImport } from './routes/print.production.$projectId'
 import { Route as PrintQuotationQuotationIdRouteImport } from './routes/print.quotation.$quotationId'
 import { Route as PrintStickersProjectIdRouteImport } from './routes/print.stickers.$projectId'
@@ -139,6 +140,11 @@ const PrintHandoverWoIdRoute = PrintHandoverWoIdRouteImport.update({
   path: '/print/handover/$woId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrintMaterialsProjectIdRoute = PrintMaterialsProjectIdRouteImport.update({
+  id: '/print/materials/$projectId',
+  path: '/print/materials/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrintProductionProjectIdRoute =
   PrintProductionProjectIdRouteImport.update({
     id: '/print/production/$projectId',
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
+  '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/stickers/$projectId': typeof PrintStickersProjectIdRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
+  '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/stickers/$projectId': typeof PrintStickersProjectIdRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
+  '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/stickers/$projectId': typeof PrintStickersProjectIdRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
+    | '/print/materials/$projectId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/stickers/$projectId'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
+    | '/print/materials/$projectId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/stickers/$projectId'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/_authenticated/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
+    | '/print/materials/$projectId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/stickers/$projectId'
@@ -335,6 +347,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PrintBillingDocIdRoute: typeof PrintBillingDocIdRoute
   PrintHandoverWoIdRoute: typeof PrintHandoverWoIdRoute
+  PrintMaterialsProjectIdRoute: typeof PrintMaterialsProjectIdRoute
   PrintProductionProjectIdRoute: typeof PrintProductionProjectIdRoute
   PrintQuotationQuotationIdRoute: typeof PrintQuotationQuotationIdRoute
   PrintStickersProjectIdRoute: typeof PrintStickersProjectIdRoute
@@ -484,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrintHandoverWoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/print/materials/$projectId': {
+      id: '/print/materials/$projectId'
+      path: '/print/materials/$projectId'
+      fullPath: '/print/materials/$projectId'
+      preLoaderRoute: typeof PrintMaterialsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/print/production/$projectId': {
       id: '/print/production/$projectId'
       path: '/print/production/$projectId'
@@ -567,6 +587,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PrintBillingDocIdRoute: PrintBillingDocIdRoute,
   PrintHandoverWoIdRoute: PrintHandoverWoIdRoute,
+  PrintMaterialsProjectIdRoute: PrintMaterialsProjectIdRoute,
   PrintProductionProjectIdRoute: PrintProductionProjectIdRoute,
   PrintQuotationQuotationIdRoute: PrintQuotationQuotationIdRoute,
   PrintStickersProjectIdRoute: PrintStickersProjectIdRoute,

@@ -604,6 +604,57 @@ export type Database = {
           },
         ]
       }
+      material_moves: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          note: string | null
+          project_id: string
+          qty: number
+          round_no: number | null
+          sku_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          project_id: string
+          qty: number
+          round_no?: number | null
+          sku_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          project_id?: string
+          qty?: number
+          round_no?: number | null
+          sku_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_moves_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_moves_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_audit_log: {
         Row: {
           action: string
