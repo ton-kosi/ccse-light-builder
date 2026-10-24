@@ -19,6 +19,7 @@ import { Route as AuthenticatedPurchaseRequestsRouteImport } from './routes/_aut
 import { Route as AuthenticatedPurchasesRouteImport } from './routes/_authenticated/purchases'
 import { Route as AuthenticatedQueueRouteImport } from './routes/_authenticated/queue'
 import { Route as AuthenticatedRemnantsRouteImport } from './routes/_authenticated/remnants'
+import { Route as AuthenticatedRepairsRouteImport } from './routes/_authenticated/repairs'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
@@ -84,6 +85,11 @@ const AuthenticatedQueueRoute = AuthenticatedQueueRouteImport.update({
 const AuthenticatedRemnantsRoute = AuthenticatedRemnantsRouteImport.update({
   id: '/remnants',
   path: '/remnants',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRepairsRoute = AuthenticatedRepairsRouteImport.update({
+  id: '/repairs',
+  path: '/repairs',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/purchases': typeof AuthenticatedPurchasesRoute
   '/queue': typeof AuthenticatedQueueRoute
   '/remnants': typeof AuthenticatedRemnantsRoute
+  '/repairs': typeof AuthenticatedRepairsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/purchases': typeof AuthenticatedPurchasesRoute
   '/queue': typeof AuthenticatedQueueRoute
   '/remnants': typeof AuthenticatedRemnantsRoute
+  '/repairs': typeof AuthenticatedRepairsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/_authenticated/purchases': typeof AuthenticatedPurchasesRoute
   '/_authenticated/queue': typeof AuthenticatedQueueRoute
   '/_authenticated/remnants': typeof AuthenticatedRemnantsRoute
+  '/_authenticated/repairs': typeof AuthenticatedRepairsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
@@ -268,6 +277,7 @@ export interface FileRouteTypes {
     | '/purchases'
     | '/queue'
     | '/remnants'
+    | '/repairs'
     | '/settings'
     | '/skus'
     | '/stock'
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/purchases'
     | '/queue'
     | '/remnants'
+    | '/repairs'
     | '/settings'
     | '/skus'
     | '/stock'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/purchases'
     | '/_authenticated/queue'
     | '/_authenticated/remnants'
+    | '/_authenticated/repairs'
     | '/_authenticated/settings'
     | '/_authenticated/skus'
     | '/_authenticated/stock'
@@ -425,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/remnants'
       fullPath: '/remnants'
       preLoaderRoute: typeof AuthenticatedRemnantsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/repairs': {
+      id: '/_authenticated/repairs'
+      path: '/repairs'
+      fullPath: '/repairs'
+      preLoaderRoute: typeof AuthenticatedRepairsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -550,6 +569,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchasesRoute: typeof AuthenticatedPurchasesRoute
   AuthenticatedQueueRoute: typeof AuthenticatedQueueRoute
   AuthenticatedRemnantsRoute: typeof AuthenticatedRemnantsRoute
+  AuthenticatedRepairsRoute: typeof AuthenticatedRepairsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
   AuthenticatedStockRoute: typeof AuthenticatedStockRoute
@@ -568,6 +588,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPurchasesRoute: AuthenticatedPurchasesRoute,
   AuthenticatedQueueRoute: AuthenticatedQueueRoute,
   AuthenticatedRemnantsRoute: AuthenticatedRemnantsRoute,
+  AuthenticatedRepairsRoute: AuthenticatedRepairsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
   AuthenticatedStockRoute: AuthenticatedStockRoute,

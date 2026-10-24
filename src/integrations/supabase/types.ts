@@ -1754,6 +1754,95 @@ export type Database = {
           },
         ]
       }
+      service_tickets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          in_warranty: boolean | null
+          note: string | null
+          part_category: string | null
+          problem: string
+          production_wo_id: string | null
+          project_id: string
+          quote_project_id: string | null
+          reported_on: string
+          reporter: string | null
+          status: string
+          ticket_no: string
+          updated_at: string
+          warranty_ends_on: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          in_warranty?: boolean | null
+          note?: string | null
+          part_category?: string | null
+          problem: string
+          production_wo_id?: string | null
+          project_id: string
+          quote_project_id?: string | null
+          reported_on?: string
+          reporter?: string | null
+          status?: string
+          ticket_no?: string
+          updated_at?: string
+          warranty_ends_on?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          in_warranty?: boolean | null
+          note?: string | null
+          part_category?: string | null
+          problem?: string
+          production_wo_id?: string | null
+          project_id?: string
+          quote_project_id?: string | null
+          reported_on?: string
+          reporter?: string | null
+          status?: string
+          ticket_no?: string
+          updated_at?: string
+          warranty_ends_on?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_tickets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_tickets_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_tickets_production_wo_id_fkey"
+            columns: ["production_wo_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_tickets_quote_project_id_fkey"
+            columns: ["quote_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           bank_account_name: string | null
@@ -2011,6 +2100,27 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      warranty_rules: {
+        Row: {
+          category: string
+          months: number
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          months: number
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          months?: number
+          note?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

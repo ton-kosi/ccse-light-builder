@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CompaniesEditor } from "@/components/settings/CompaniesEditor";
 import { HolidaysEditor } from "@/components/settings/HolidaysEditor";
+import { WarrantyRulesEditor } from "@/components/settings/WarrantyRulesEditor";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -84,6 +85,7 @@ function SettingsPage() {
         </p>
       </div>
       <HolidaysEditor />
+      <WarrantyRulesEditor />
       <CompaniesEditor />
     </div>
   );

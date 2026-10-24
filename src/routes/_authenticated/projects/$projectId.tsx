@@ -15,6 +15,7 @@ import { MeasureSection } from "@/components/work/MeasureSection";
 import { ProductionSheet } from "@/components/work/ProductionSheet";
 import { MaterialSection } from "@/components/work/MaterialSection";
 import { deleteProjectWithFiles } from "@/lib/projectDelete";
+import { TicketRow, useTickets, WarrantyCard } from "@/components/repairs/Repairs";
 import { adjustmentsOf, computeTotals, optionNames, quotationRevisionSuffix } from "@/lib/boq";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,6 +138,8 @@ function ProjectDetail() {
             />
             <JobFiles projectId={project.id} workOrderId={null} kind="photo" title="รูปหน้างาน" />
           </section>
+          <WarrantyCard projectId={project.id} />
+          <ProjectTickets projectId={project.id} />
           {isAdmin ? <DeleteProject id={project.id} code={project.code} /> : null}
         </TabsContent>
 
@@ -525,6 +528,23 @@ function StatusLog({ projectId }: { projectId: string }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/* ---------------- Repair tickets of this project ---------------- */
+
+function ProjectTickets({ projectId }: { projectId: string }) {
+  const { data: tickets } = useTickets(projectId);
+  if (!tickets?.length) return null;
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <h2 className="mb-2 text-sm font-semibold">ใบแจ้งซ่อมของงานนี้</h2>
+      <ul className="space-y-2">
+        {tickets.map((t) => (
+          <TicketRow key={t.id} t={t} />
+        ))}
+      </ul>
     </section>
   );
 }

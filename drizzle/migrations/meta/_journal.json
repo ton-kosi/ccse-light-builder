@@ -127,6 +127,13 @@
       "when": 1792831999456,
       "tag": "0017_material_moves",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792832416834,
+      "tag": "0018_warranty_repairs",
+      "breakpoints": true
     }
   ]
 }
