@@ -1,6 +1,6 @@
 -- Phase C: warranty per product type + repair tickets (workflow step 11).
 -- Warranty starts at handover; months per SKU category (quotation: CLIPSO 5 ปี, LED 2 ปี,
--- POWER SUPPLY 1 ปี). Additive only.
+-- POWER SUPPLY 1 ปี). Additive only, schema only (no data rows).
 
 -- 1. Warranty months per SKU category -------------------------------------------------
 CREATE TABLE public.warranty_rules (
@@ -19,14 +19,8 @@ CREATE POLICY "warranty rules write" ON public.warranty_rules FOR ALL TO authent
 CREATE TRIGGER trg_warranty_rules_updated BEFORE UPDATE ON public.warranty_rules
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-INSERT INTO public.warranty_rules (category, months, note) VALUES
-  ('Clipso fabric', 60, 'CLIPSO = 5 ปี'),
-  ('Clipso track', 60, 'CLIPSO = 5 ปี'),
-  ('LED ribbon', 24, 'LED = 2 ปี'),
-  ('LED module', 24, 'LED = 2 ปี'),
-  ('Neon flex', 24, 'LED = 2 ปี'),
-  ('Power supply', 12, 'POWER SUPPLY = 1 ปี')
-ON CONFLICT (category) DO NOTHING;
+-- Default months (Clipso 60 / LED 24 / PSU 12) are not seeded here: the app uses them while
+-- the table is empty, and the settings page can save them ("เติมค่าตั้งต้น").
 
 -- 2. Repair tickets (ใบแจ้งซ่อม) -------------------------------------------------------
 CREATE TABLE public.service_tickets (

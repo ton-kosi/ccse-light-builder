@@ -4,15 +4,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { useWarrantyRules, warrantyRulesKey } from "@/hooks/useWarranty";
 import { SKU_CATEGORIES } from "@/lib/skuCategory";
+import { DEFAULT_WARRANTY_RULES } from "@/lib/warranty";
+import { Button } from "@/components/ui/button";
 
 /** Warranty months per product type (SKU category), counted from handover. Admin only. */
 export function WarrantyRulesEditor() {
   const qc = useQueryClient();
-  const { data: rules } = useWarrantyRules();
-  const byCat = new Map((rules ?? []).map((r) => [r.category, r]));
+  const { data } = useWarrantyRules();
+  const saved = data?.saved ?? false;
+  const byCat = new Map((data?.rules ?? []).map((r) => [r.category, r]));
 
   const save = useMutation({
     mutationFn: async ({ category, months }: { category: string; months: number | null }) => {
+      // the first edit saves the defaults too, so the other product types keep their months
+      if (!saved) {
+        const { error: e0 } = await supabase.from("warranty_rules").upsert(DEFAULT_WARRANTY_RULES, { onConflict: "category" });
+        if (e0) throw e0;
+      }
+      if (!category) return;
       const { error } =
         months === null
           ? await supabase.from("warranty_rules").delete().eq("category", category)
@@ -38,6 +47,14 @@ export function WarrantyRulesEditor() {
       <p className="text-xs text-muted-foreground">
         นับจากวันส่งมอบงาน · ว่าง = ไม่มีประกัน / ยังไม่กำหนด (เช่น CLIPSO 60 · LED 24 · POWER SUPPLY 12 เดือน)
       </p>
+      {!saved ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs">
+          ตอนนี้ใช้ค่าตั้งต้นจากใบเสนอราคา (ยังไม่ได้บันทึก)
+          <Button size="sm" variant="outline" className="h-7" onClick={() => save.mutate({ category: "", months: null })}>
+            บันทึกค่าตั้งต้น
+          </Button>
+        </div>
+      ) : null}
       <div className="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {SKU_CATEGORIES.map((c) => {
           const r = byCat.get(c);

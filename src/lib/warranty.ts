@@ -36,6 +36,16 @@ export function warrantyStart(installHandovers: string[], reachedHandover: strin
   return dates.length ? dates[dates.length - 1]! : reachedHandover ? reachedHandover.slice(0, 10) : null;
 }
 
+/** Months from the CCSE quotations; used while no rules are saved yet. */
+export const DEFAULT_WARRANTY_RULES: { category: string; months: number; note: string }[] = [
+  { category: "Clipso fabric", months: 60, note: "CLIPSO = 5 ปี" },
+  { category: "Clipso track", months: 60, note: "CLIPSO = 5 ปี" },
+  { category: "LED ribbon", months: 24, note: "LED = 2 ปี" },
+  { category: "LED module", months: 24, note: "LED = 2 ปี" },
+  { category: "Neon flex", months: 24, note: "LED = 2 ปี" },
+  { category: "Power supply", months: 12, note: "POWER SUPPLY = 1 ปี" },
+];
+
 export type WarrantyItem = { category: string; months: number | null; endsOn: string | null; active: boolean };
 
 /** One line per product type in the project, longest warranty first; null months = no rule. */

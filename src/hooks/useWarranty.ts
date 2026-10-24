@@ -2,23 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { categoryOf } from "@/lib/skuCategory";
 import { isoDate } from "@/lib/jobs";
-import { projectWarranty, warrantyStart } from "@/lib/warranty";
+import { DEFAULT_WARRANTY_RULES, projectWarranty, warrantyStart } from "@/lib/warranty";
 
 export const warrantyRulesKey = ["warranty_rules"];
 const missing = (msg: string) => /does not exist|schema cache/i.test(msg);
 
-/** Warranty months per SKU category (empty until the migration is applied). */
+type Rule = { category: string; months: number; note: string | null };
+
+/**
+ * Warranty months per SKU category. While nothing is saved (or before the migration), the
+ * defaults from the quotations apply; `saved` tells whether these rows exist in the table.
+ */
 export function useWarrantyRules() {
   return useQuery({
     queryKey: warrantyRulesKey,
     staleTime: 10 * 60_000,
-    queryFn: async () => {
+    queryFn: async (): Promise<{ rules: Rule[]; saved: boolean }> => {
       const { data, error } = await supabase.from("warranty_rules").select("category, months, note").order("category");
-      if (error) {
-        if (missing(error.message)) return [] as { category: string; months: number; note: string | null }[];
-        throw error;
-      }
-      return data;
+      if (error && !missing(error.message)) throw error;
+      const rows = error ? [] : (data ?? []);
+      return rows.length ? { rules: rows, saved: true } : { rules: DEFAULT_WARRANTY_RULES, saved: false };
     },
   });
 }
@@ -51,7 +54,7 @@ export function useProjectWarranty(projectId: string) {
       return { categories, start: warrantyStart(installs, log.data?.[0]?.changed_at ?? null) };
     },
   });
-  const ruleMap = new Map((rules ?? []).map((r) => [r.category, r.months]));
+  const ruleMap = new Map((rules?.rules ?? []).map((r) => [r.category, r.months]));
   const items = q.data ? projectWarranty(q.data.categories, ruleMap, q.data.start, isoDate(new Date())) : [];
   return { start: q.data?.start ?? null, items, isLoading: q.isLoading };
 }

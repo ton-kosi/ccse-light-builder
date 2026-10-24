@@ -114,7 +114,7 @@ CREATE TABLE public.crew_members (
   display_name text NOT NULL CHECK (trim(display_name) <> ''),   -- "K.แขก"
   crew text,                                                     -- colour group on the schedule
   sort_order integer NOT NULL DEFAULT 0,
-  user_id uuid UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,  -- optional login
+  user_id uuid UNIQUE,                                           -- optional login (the user's id; no FK to auth)
   active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now()
 );

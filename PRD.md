@@ -362,9 +362,10 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 ### 6.7c Warranty & repairs (Phase C) 🟡
 - **Warranty per product type**, counted from handover (last installation handover, else
-  the day the project reached 9 ส่งมอบ); months per SKU category, editable in settings,
-  seeded from the quotations: Clipso fabric / track 60, LED ribbon / module / Neon flex
-  24, Power supply 12. A warranty runs to the day before the anniversary.
+  the day the project reached 9 ส่งมอบ); months per SKU category, editable in settings.
+  Until rules are saved the app uses the defaults from the quotations (Clipso fabric /
+  track 60, LED ribbon / module / Neon flex 24, Power supply 12); "บันทึกค่าตั้งต้น"
+  saves them (the migration carries no data rows, as Lovable requires). A warranty runs to the day before the anniversary.
 - **Project overview → การรับประกัน:** start date and each product type in the current
   quotation with its end date (active / expired); "แจ้งซ่อม" button.
 - **งานซ่อม** (`/repairs`, menu): ใบแจ้งซ่อม SR69-0001 (numbered per Buddhist year) with
@@ -436,6 +437,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | Lovable blocked 0015 / 0018: crew login link is now a plain UUID (no FK to `auth.users`), and 0018 no longer seeds warranty rows — the app falls back to the quotation defaults and settings can save them. |
 | 24/10/2026 | **Phase D — collections:** ทวงเงิน page with the chase-today list (next follow-up due, promise missed, overdue never chased, overdue stale > 7 days), follow-up log per bill, reminder letter ครั้งที่ 1 / 2 / ฉบับสุดท้าย. Migration `0019_payment_followups` pending in Lovable. |
 | 24/10/2026 | **Phase C — warranty & repairs:** warranty months per product type (Clipso 60 / LED 24 / PSU 12, editable), project warranty card from handover, ใบแจ้งซ่อม (SR69-0001) with automatic warranty check → service (+ production) work order, or a new quotation project when out of warranty. Migration `0018_warranty_repairs` pending in Lovable. |
 | 24/10/2026 | **Material issue rounds + returns** (ใบเบิกของ / ใบคืนของ): summary per SKU — WOS · site · round 1, 2, 3 … · issued · returned · used; store records extra issues and returns, stock follows. Tested with the Wynn numbers (WOS 88, site 143.17, issued 147, returned 3.83). Migration `0017_material_moves` pending in Lovable. |
