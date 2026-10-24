@@ -237,6 +237,19 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 #### Work tab (ใบ Work)
 - ✅ Work sheet without prices; roll/cutting plan for roll products.
+- 🟡 **ใบผลิต (ตัดไฟ) — production sheet** for every line made with a cut-to-length
+  LED strip (SKU "LED เส้น" via the line's or component's recipe; Neon flex rolls keep
+  the roll plan): per piece × sets the site length, **LED cut rounded to the strip's cut
+  step** (shorter / longer both shown, difference highlighted when large; rounded steps
+  such as 16.67 = 50/3 cm are treated exactly so long runs do not drift), **profile cut =
+  LED − 0.4 cm**, heat shrink (LED + 2 cm per piece), clips (every 40 cm), load
+  (W/m × m ÷ 24 V); per line totals with 6 m aluminium bars and a 24 V power-supply
+  suggestion at ≤ 80 % load (over 18.8 A → split the circuit). Per item (kept by
+  project + item no., survives a new Rev): round down / up, assembly (พับ LED /
+  เฉลี่ยกลาง), notified date (วันแจ้งผลิต), remark. On the ใบ Work tab and on
+  production work orders; print `/print/production/$projectId` (A4 landscape).
+- 🟡 **Stickers** (`/print/stickers/$projectId`): one label per cut piece — item,
+  fixture code, circuit, "7W 24V 2700K", length (m) and [circuit total]; 1–3 copies.
 - ✅ **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
   every work line of the current quotation gets the measured cut lengths in the
   WOS notation ("0.682x2 + [3.015+3.515]x2": x = sets, [ ] = joined pieces;
@@ -374,9 +387,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases C–D (section 5b). Next from 5c: production sheet per run
-  (cut-step rounding, profile −0.4 cm, heat shrink, bars, clips, amps), stickers,
-  material issue rounds + returns.
+- ⬜ Workflow phases C–D (section 5b). Next from 5c: material issue rounds + returns.
+- 🟡 production sheet needs `drizzle/migrations/0016_production_settings.sql` (only the per-item choices; the sheet itself works without it).
 - 🟡 = built 24/10/2026, needs Lovable to apply `drizzle/migrations/0015_crew_schedule_wos.sql`.
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
 
@@ -384,6 +396,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 24/10/2026 | **Production sheet (ใบผลิต ตัดไฟ)** with the workbook rules (cut-step rounding shorter/longer, profile −0.4 cm, heat shrink +2 cm, clips, 6 m bars, amps, PSU suggestion) and **stickers per piece**; tested against the Wynn numbers (78 → 66.67, 163.6 → 150). Migration `0016_production_settings` pending in Lovable. |
 | 24/10/2026 | Fixes from the real files: install days in **working days** (Mon–Fri minus public holidays, holiday list in settings); **people × days** technician schedule with crews (no login needed), workshop / off entries; **WOS print** in the CCSE layout with contacts, schedule note, measured vs contract, dated notes and approvals; measurements typed as **length × sets** ("0.682x2 + [3.015+3.515]x2"). Migration `0015_crew_schedule_wos` pending in Lovable. |
 | 24/10/2026 | Added section 5c: how CCSE works today, from the TARA / FAIRMONT / WYNN files (quotation, WOS, production workbook) and the weekly technician schedule. |
 | 24/10/2026 | Phase B tested end to end (measure 10 → 10.7 m, final Rev B, balance bill 3,049.50 so total billed = final total 5,724.50). Fixes: terms editor shows billed amounts; delete project refuses when bills exist; role lookup retries after a page load so menus don't come up empty. |

@@ -802,6 +802,47 @@ export type Database = {
           },
         ]
       }
+      production_line_settings: {
+        Row: {
+          assembly: string | null
+          item_no: string
+          notified_on: string | null
+          project_id: string
+          remark: string | null
+          rounding: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assembly?: string | null
+          item_no: string
+          notified_on?: string | null
+          project_id: string
+          remark?: string | null
+          rounding?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assembly?: string | null
+          item_no?: string
+          notified_on?: string | null
+          project_id?: string
+          remark?: string | null
+          rounding?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_line_settings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
