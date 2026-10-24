@@ -300,14 +300,15 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
   or VAT-inclusive.
 - ⬜ FlowAccount integration (post-v0).
-- ⬜ Workflow phases C–D (section 5b). Phase B needs `drizzle/migrations/0013_measure_final_rev.sql` applied by Lovable.
+- ⬜ Workflow phases C–D (section 5b). Phase B migration `0013_measure_final_rev` is applied; the measurement → final Rev → balance-billing UI flow still needs end-to-end verification.
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
-| 24/10/2026 | **Phase B — measure → final Rev → final bill:** site measurements per BOQ line (survey job + ใบ Work tab), production list shows measured lengths, final Rev from measurements with contract vs measured, balance payment term. Migration `0013_measure_final_rev` pending in Lovable. |
+| 24/10/2026 | Applied the existing migrations `0012_cleanup_probe_and_files` and `0013_measure_final_rev` in journal order without changing their SQL or app logic; verified the storage delete policy, measurement table/RLS, balance flag/index, revision functions, regenerated types, build, and 14 existing measurement/payment tests. |
+| 24/10/2026 | **Phase B — measure → final Rev → final bill:** site measurements per BOQ line (survey job + ใบ Work tab), production list shows measured lengths, final Rev from measurements with contract vs measured, balance payment term. Migration `0013_measure_final_rev` applied; full UI flow not yet verified. |
 | 24/10/2026 | Admin **delete project** removes its stored files too. Migration `0012_cleanup_probe_and_files` lets admin delete payment slips / bill PDFs (Lovable's probe tables were already gone, so the drop was removed — Lovable blocks dropping tables). |
 | 24/10/2026 | Migrations 0009 + 0010 applied by Lovable; Phase A and purchase edit tested end to end. Thumbnails retry once after a failed first load; signature blends into the delivery note. |
 | 22/10/2026 | **Phase A — field work & handover:** survey job type, multi-day jobs, assigned people, job queue (คิวงาน), drawings/photos on projects and jobs, handover with photos + signature, printed ใบส่งมอบงาน; handover closes the job, sets actual install days and moves the project to 9. Migration `0010_field_work_handover` pending in Lovable. |

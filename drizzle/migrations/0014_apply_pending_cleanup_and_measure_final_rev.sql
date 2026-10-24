@@ -1,0 +1,2 @@
+-- Apply the already-journaled 0012_cleanup_probe_and_files.sql and
+-- 0013_measure_final_rev.sql in their existing order without duplicating their SQL.

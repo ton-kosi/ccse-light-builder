@@ -1986,10 +1986,7 @@ export type Database = {
         Args: { _project_id: string }
         Returns: undefined
       }
-      create_final_revision: {
-        Args: { _project_id: string }
-        Returns: string
-      }
+      create_final_revision: { Args: { _project_id: string }; Returns: string }
       create_quotation_revision: {
         Args: { _project_id: string }
         Returns: string

@@ -1,6 +1,7 @@
 # Tasks
-- [ ] Apply `0012_cleanup_probe_and_files.sql` (updated: no DROP TABLE any more — only adds an admin delete policy on the payment-slips bucket).
-- [ ] Then apply `0013_measure_final_rev.sql` unchanged (additive) and regenerate types.
+- [x] Confirm the synced `0012_cleanup_probe_and_files.sql` has no table drops; GitHub pulling is managed by Lovable sync.
+- [x] Apply `0012_cleanup_probe_and_files.sql` (only adds an admin delete policy on the payment-slips bucket).
+- [x] Apply `0013_measure_final_rev.sql` unchanged (additive), regenerate types, and verify the schema, build, and existing measurement/payment tests.
 - [x] Fit every BOQ column to its longest visible line and verify live expansion/contraction.
 - [x] Adjust BOQ column widths and verify longest-line resizing while typing.
 - [x] Enlarge BOQ fields, reorder circuit/cut columns, and fix dynamic component dropdown visibility.
