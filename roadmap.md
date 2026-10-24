@@ -1,4 +1,6 @@
 # Tasks
+- [ ] Apply `0012_cleanup_probe_and_files.sql` unchanged — blocked by Cloud permission for backward-incompatible migrations; its probe tables are already absent.
+- [ ] Apply `0013_measure_final_rev.sql` unchanged and verify schema/types — blocked by the pending `0012` migration and its permission requirement.
 - [x] Fit every BOQ column to its longest visible line and verify live expansion/contraction.
 - [x] Adjust BOQ column widths and verify longest-line resizing while typing.
 - [x] Enlarge BOQ fields, reorder circuit/cut columns, and fix dynamic component dropdown visibility.
