@@ -104,13 +104,13 @@ The owner's end-to-end workflow. Status: ✅ in the app · 🟡 partly · ⬜ mi
 | 2 | Stock / buy in | ✅ purchase requests, purchases (receive + cost), stock count CSV, remnants | — | — |
 | 3 | BOQ quotation | ✅ builders (linear, neon, FO, Clipso, film), options, Rev, clauses, print/PDF | Warranty period as a number (see 11) | C |
 | 4 | Request payment; PO → reserve stock/purchase; deposit → lock + ใบ Work for เบิกของ | ✅ payment terms + ใบเบิกเงิน; stock **จอง** at status 4–5, **ล็อก** at 6; deposit fully received → status 6 → work orders released, pick list, material issue | — | — |
-| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | 🟡 Phase A ✅ + Phase B ✅: measured lengths per line, production list uses them. Not yet: LED strip cut-step rounding | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
+| 5 | Queue technicians to **measure on site**; production writes **cut / assembly lengths** on the production sheet | ✅ Phase A + B + production sheet: measured lengths per line (length × sets), cut-step rounding, stickers, issue rounds / returns | Site-survey job type; assign technicians; queue view; record **measured length per BOQ line**; production sheet uses measured lengths + LED strip cut step + neon roll plan | A, B |
 | 6 | **Revise BOQ** from measured / actually produced lengths → final billing term | ✅ Phase B: final Rev from measurements, contract vs measured, balance term | "Final Rev from measurements" (pre-filled from measured lengths, shows +/- vs. contract); last term = final total − already billed | B |
 | 7 | Installation info for technicians: install queue, production queue, drawings; install days must not exceed the quotation, otherwise charge extra | ✅ Phase A: queue, drawings/photos on jobs, actual days set at handover → overrun × rate | Install and production **calendar/queue**; attach **drawings (แบบ)** and files to project/work order; actual days counted from install start → handover; overrun shown as a billable extra | A |
 | 8 | Handover: photos + delivery note signed by the customer | ✅ Phase A (handover + printed ใบส่งมอบงาน) | Handover record per work order: photos, printable **ใบส่งมอบงาน**, customer signature (on screen or signed scan), handover date → status 9 | A |
 | 9 | Bill several times during the job (e.g. material on site before 100%) | ✅ triggers: deposit, before delivery, material on site, after delivery, substantial completion, progress | Auto-flag "ถึงเวลาวางบิล" from handover / material-on-site events | A |
 | 10 | Chase payment (ทวงเงิน) | 🟡 Phase D built: ทวงเงิน page, chase-today list, follow-up log with promise / next dates, reminder letter 1 / 2 / final | Follow-up log per bill (date, who, note, next follow-up), "ต้องทวงวันนี้" list, printable reminder letter | D |
-| 11 | Repairs: check warranty from the quotation; in warranty → repair ticket + technician/production queue; out of warranty → new quotation (step 3) | 🟡 Phase C built: warranty per product type from handover, repair tickets with automatic warranty check, service / production job or new quotation | Warranty months per quotation (and per line if needed); warranty end = handover date + months; **ใบแจ้งซ่อม** with automatic in/out-of-warranty check; in → service work order in the queue (+ production if needed); out → new quotation linked to the original project | C |
+| 11 | Repairs: check warranty from the quotation; in warranty → repair ticket + technician/production queue; out of warranty → new quotation (step 3) | ✅ Phase C: warranty per product type from handover, repair tickets with automatic warranty check, service / production job or new quotation | Warranty months per quotation (and per line if needed); warranty end = handover date + months; **ใบแจ้งซ่อม** with automatic in/out-of-warranty check; in → service work order in the queue (+ production if needed); out → new quotation linked to the original project | C |
 
 ### Delivery phases (proposed order)
 
@@ -192,7 +192,7 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 - Technicians see customer names only, never contact details.
 
 ### 6.4 Projects (`/projects`, `/projects/$projectId`) ✅
-- 🟡 **Project fields for the WOS:** site contacts (ติดต่อหน้างาน) and schedule note
+- ✅ **Project fields for the WOS:** site contacts (ติดต่อหน้างาน) and schedule note
   (กำหนดการ ประกอบ / ติดตั้ง / ส่ง).
 - ✅ **Delete project** (admin, only if no bill was ever issued — bills are
   financial records; close the project at status 11 instead): type the project code to confirm; removes
@@ -237,7 +237,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 
 #### Work tab (ใบ Work)
 - ✅ Work sheet without prices; roll/cutting plan for roll products.
-- 🟡 **ใบผลิต (ตัดไฟ) — production sheet** for every line made with a cut-to-length
+- ✅ **ใบผลิต (ตัดไฟ) — production sheet** for every line made with a cut-to-length
   LED strip (SKU "LED เส้น" via the line's or component's recipe; Neon flex rolls keep
   the roll plan): per piece × sets the site length, **LED cut rounded to the strip's cut
   step** (shorter / longer both shown, difference highlighted when large; rounded steps
@@ -248,14 +248,14 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   project + item no., survives a new Rev): round down / up, assembly (พับ LED /
   เฉลี่ยกลาง), notified date (วันแจ้งผลิต), remark. On the ใบ Work tab and on
   production work orders; print `/print/production/$projectId` (A4 landscape).
-- 🟡 **เบิกของ / คืนของ (material issue rounds + returns)** on the ใบ Work tab: per SKU
+- ✅ **เบิกของ / คืนของ (material issue rounds + returns)** on the ใบ Work tab: per SKU
   ใบงาน (WOS need) · หน้างาน (actual LED / profile metres from the production sheet) ·
   เบิกครั้งที่ 1 (the first "ยืนยันเบิกของ") · 2, 3 … (extra issues) · เบิกรวม · คืนของ ·
   ใช้จริง (highlighted when more than the WOS). The store (admin / stock) records an
   extra issue in a chosen round or a return; each one moves stock (issue / receive) and
   a return can never exceed what is out on the project. Print `/print/materials/$projectId`
   (ใบเบิกของ + ใบคืนของ with store / production sign-off columns).
-- 🟡 **Stickers** (`/print/stickers/$projectId`): one label per cut piece — item,
+- ✅ **Stickers** (`/print/stickers/$projectId`): one label per cut piece — item,
   fixture code, circuit, "7W 24V 2700K", length (m) and [circuit total]; 1–3 copies.
 - ✅ **วัดหน้างาน (site measurement):** on survey jobs and on the ใบ Work tab,
   every work line of the current quotation gets the measured cut lengths in the
@@ -329,7 +329,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   Monday–Friday from install start to handover, minus public holidays — as the
   quotations say) and moves the project from 6–8 to **9 ส่งมอบ**,
   which makes "งานแล้วเสร็จ" payment terms due.
-- 🟡 **ใบ Work (WOS) print** (`/print/wos/$projectId`) in the CCSE layout: DATE /
+- ✅ **ใบ Work (WOS) print** (`/print/wos/$projectId`) in the CCSE layout: DATE /
   SUBJ: WORK ORDER SHEET / PROJ / ATTN, P/J NO + ref, contacts (ติดต่อ) and schedule
   note from the project, items without prices with "- L = (0.682M x 2SETS) + …",
   measured quantity next to the crossed-out contract quantity, dated field notes
@@ -341,13 +341,13 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   crew; print or PDF. No prices.
 
 ### 6.7b Job queue (`/queue`, คิวงาน) ✅
-- 🟡 **ตามคน (people × days)** — default view, like the paper ตารางงานช่าง: rows =
+- ✅ **ตามคน (people × days)** — default view, like the paper ตารางงานช่าง: rows =
   crew members grouped by crew (colour band), columns Mon–Sat (Sunday optional),
   public holidays highlighted with their name. A cell shows the person's jobs that
   run that day plus non-project entries (CCSE โรงงาน / พัก-ลา / อื่นๆ with a note).
   Planners click a cell to put the person on a job (a job without a date starts that
   day) or add an entry for one or more days.
-- 🟡 **Crews (จัดการทีมช่าง):** technicians are crew members with a name, crew, order
+- ✅ **Crews (จัดการทีมช่าง):** technicians are crew members with a name, crew, order
   and an optional login link ("งานของฉัน"); they do not need an account to be
   scheduled. Work orders are assigned to crew members.
 - ตามวัน (by day) view as before.
@@ -360,7 +360,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature, project 6 → 9, actual install days, delivery note print/PDF).
 - Release blocked until project status ≥ 6. No prices anywhere.
 
-### 6.7c Warranty & repairs (Phase C) 🟡
+### 6.7c Warranty & repairs (Phase C) ✅
 - **Warranty per product type**, counted from handover (last installation handover, else
   the day the project reached 9 ส่งมอบ); months per SKU category, editable in settings.
   Until rules are saved the app uses the defaults from the quotations (Clipso fabric /
@@ -391,8 +391,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
   total in figures and Thai words, bank account, signer.
 
 ### 6.8 Settings (`/settings`) ✅
-- 🟡 **Warranty months per product type** (SKU category), admin.
-- 🟡 **Public holidays (วันหยุดนักขัตฤกษ์):** admin list by year; not working days
+- ✅ **Warranty months per product type** (SKU category), admin.
+- ✅ **Public holidays (วันหยุดนักขัตฤกษ์):** admin list by year; not working days
   and shown on the technician schedule.
 - Issuing companies: letterhead, tax ID, bank, bill signer, default
   withholding tax, logo.
@@ -427,7 +427,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - ⬜ FlowAccount integration (post-v0).
 - ✅ Workflow phases A–D built (section 5b); corrected migrations 0015–0019 applied unchanged in journal order on 24/10/2026.
 - ✅ Database support for crews/scheduling, production choices, extra issues/returns, warranty/repairs and payment follow-ups is applied: nine tables with RLS, authenticated/service-role grants, no anonymous table access, and their triggers verified.
-- 🟡 Full UI flows for these five additions still need end-to-end verification; schema verification and existing calculation tests do not establish that.
+- ✅ End-to-end tested in the app on 26/10/2026 (throwaway data, deleted afterwards): crews + people × days schedule + holiday column, cell dialog (assign job, พัก entry), measurement "0.78x2 + [3.015+3.515]x2" → 14.62 m, production choices (round up 78 → 83.33), WOS print with contacts / schedule note / joined run, round 1 + extra issue round 2 + return (over-return refused), handover → 4 working days across a weekend and a holiday → status 9, warranty card from defaults, SR69-0001 in warranty → service + production work orders, SR69-0002 → new quotation project.
+- 🟡 Collections (Phase D) not yet tested with real data: it needs an issued bill, which cannot be deleted afterwards — check it with the first real overdue bill.
 - Warranty rules start empty; the existing app uses its default warranty months until settings are saved. No warranty seed rows were inserted by migration 0018.
 - Repair ticket numbers remain generated by the BEFORE INSERT trigger; an empty column default lets generated client types accept new tickets without a caller-supplied number.
 - ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
@@ -436,6 +437,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 26/10/2026 | End-to-end test after Lovable applied 0015–0021: crews / schedule / holidays, measurement notation, production choices, WOS print, issue rounds + returns, working-day handover, warranty + repair tickets all work; test data removed. Collections waits for a real bill. |
 | 24/10/2026 | Applied corrected, synced migrations `0015_crew_schedule_wos` through `0019_payment_followups` unchanged in journal order; verified nine tables, RLS/grants, columns, triggers and migration hashes; refreshed generated types and passed 34 existing tests. Added a trigger-managed default for repair ticket numbers to resolve generated insert-type compatibility without changing app code. |
 | 24/10/2026 | Lovable blocked 0015 / 0018: crew login link is now a plain UUID (no FK to `auth.users`), and 0018 no longer seeds warranty rows — the app falls back to the quotation defaults and settings can save them. |
 | 24/10/2026 | **Phase D — collections:** ทวงเงิน page with the chase-today list (next follow-up due, promise missed, overdue never chased, overdue stale > 7 days), follow-up log per bill, reminder letter ครั้งที่ 1 / 2 / ฉบับสุดท้าย. Migration `0019_payment_followups` pending in Lovable. |
