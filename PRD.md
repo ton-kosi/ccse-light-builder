@@ -91,7 +91,7 @@ Example: we **sell** "LED JEDI 13.8W/M" but **issue** SKU "LED strip 14.4W/m".
 - The project moves to 6 automatically when **all deposit terms (มัดจำ) are
   fully received**, or when the CEO/admin approves manually. It moves to 7 when the
   store confirms the first material issue, to **8 when an installation job is set to
-  "กำลังทำ"** (so "ของถึงหน้างาน" / "หลังส่งของ" terms become due — migration 0022), and
+  "กำลังทำ"** (so "ของถึงหน้างาน" / "หลังส่งของ" terms become due — migration 0022 applied and verified on 26/10/2026; only moves 6–7 → 8), and
   to 9 at the last installation handover. Every status
   change is written to `project_status_log` with who and when.
 - If the customer picked an option that is not yet selected in the project,
@@ -443,7 +443,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
-| 26/10/2026 | Flow walkthrough fixes: dashboard "วันนี้ต้องทำอะไร" panel; handover only on installation / repair jobs (not on surveys); project moves to 8 ติดตั้ง automatically when an installation job starts, so step-8 payment terms become due (migration `0022_install_starts_status8`, pending in Lovable). |
+| 26/10/2026 | Applied `0022_install_starts_status8` unchanged in journal order via checkpoint migration 0023; verified its source hash, enabled installation-start trigger, 6–7 → 8 guard and restricted function permissions. No app logic changed. |
+| 26/10/2026 | Flow walkthrough fixes: dashboard "วันนี้ต้องทำอะไร" panel; handover only on installation / repair jobs (not on surveys); project moves to 8 ติดตั้ง automatically when an installation job starts, so step-8 payment terms become due (migration `0022_install_starts_status8`, applied in Lovable). |
 | 26/10/2026 | End-to-end test after Lovable applied 0015–0021: crews / schedule / holidays, measurement notation, production choices, WOS print, issue rounds + returns, working-day handover, warranty + repair tickets all work; test data removed. Collections waits for a real bill. |
 | 24/10/2026 | Applied corrected, synced migrations `0015_crew_schedule_wos` through `0019_payment_followups` unchanged in journal order; verified nine tables, RLS/grants, columns, triggers and migration hashes; refreshed generated types and passed 34 existing tests. Added a trigger-managed default for repair ticket numbers to resolve generated insert-type compatibility without changing app code. |
 | 24/10/2026 | Lovable blocked 0015 / 0018: crew login link is now a plain UUID (no FK to `auth.users`), and 0018 no longer seeds warranty rows — the app falls back to the quotation defaults and settings can save them. |
