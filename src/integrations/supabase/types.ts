@@ -963,25 +963,19 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
-          must_change_password: boolean
           updated_at: string
-          username: string | null
         }
         Insert: {
           created_at?: string
           full_name?: string
           id: string
-          must_change_password?: boolean
           updated_at?: string
-          username?: string | null
         }
         Update: {
           created_at?: string
           full_name?: string
           id?: string
-          must_change_password?: boolean
           updated_at?: string
-          username?: string | null
         }
         Relationships: []
       }
