@@ -75,9 +75,10 @@ function PurchasesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { has, isAdmin, isLoading: meLoading } = useMe();
-  const allowed = has("admin", "stock", "accounting");
-  /** the purchase team records purchases; the payment team only reads them */
-  const canRecord = has("admin", "stock");
+  // purchase team: local SKUs only (the database hides imported SKUs' purchases and costs)
+  const allowed = has("admin", "stock");
+  const canRecord = allowed;
+  const canBuy = (s: { source?: string | null } | undefined) => isAdmin || s?.source !== "import";
 
   const [head, setHead] = useState({ date: today(), supplier: "", doc_no: "", note: "" });
   const [lines, setLines] = useState<Line[]>([newLine()]);
@@ -219,7 +220,7 @@ function PurchasesPage() {
     return (
       <div>
         <PageHeader title="ซื้อของ" />
-        <p className="text-sm text-muted-foreground">หน้านี้สำหรับผู้ดูแลระบบ คลัง และบัญชี</p>
+        <p className="text-sm text-muted-foreground">หน้านี้สำหรับผู้ดูแลระบบและทีมจัดซื้อ</p>
       </div>
     );
 
@@ -319,7 +320,7 @@ function PurchasesPage() {
                         onChange={(e) => upd({ sku_id: e.target.value })}
                       >
                         <option value="">— เลือก SKU —</option>
-                        {(skus ?? []).map((k) => (
+                        {(skus ?? []).filter(canBuy).map((k) => (
                           <option key={k.id} value={k.id}>
                             {k.code} — {k.name}
                           </option>
@@ -403,9 +404,14 @@ function PurchasesPage() {
               {openPrs.map((p) => {
                 const s = skuById.get(p.sku_id);
                 return (
-                  <option key={p.id} value={p.id} disabled={lines.some((l) => l.purchase_request_id === p.id)}>
+                  <option
+                    key={p.id}
+                    value={p.id}
+                    disabled={!canBuy(s) || lines.some((l) => l.purchase_request_id === p.id)}
+                  >
                     {formatDate(p.date)} · {s?.code} — {formatQty(Number(p.qty))} {s?.unit}
                     {p.note ? ` · ${p.note}` : ""}
+                    {!canBuy(s) ? " · สินค้านำเข้า (ผู้ดูแลระบบ)" : ""}
                   </option>
                 );
               })}

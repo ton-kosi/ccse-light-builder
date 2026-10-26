@@ -481,7 +481,9 @@ function SkusPage() {
                     </Td>
                     {canSeeCost ? (
                         <Td className="whitespace-nowrap">
-                          {formatTHB(costs?.get(k.id) ?? 0)}
+                          {/* imported SKUs: cost is admin-only, the purchase team sees "-" */}
+                          {costs?.has(k.id) ? formatTHB(costs.get(k.id)!) : k.source === "import" && !canSeeMoney ? "-" : formatTHB(0)}
+                          {k.source === "import" && !canSeeMoney ? null : (
                           <Link
                             to="/purchases"
                             search={{ sku: k.id }}
@@ -490,6 +492,7 @@ function SkusPage() {
                           >
                             ประวัติ
                           </Link>
+                          )}
                         </Td>
                     ) : null}
                     {canViewQuote ? (
@@ -736,8 +739,8 @@ function SkuForm({
       <Field label="หน่วย">
         <Input value={f.unit} onChange={set("unit")} />
       </Field>
-      <Field label="แหล่งที่มา">
-        <select className={selectCls} value={f.source} onChange={set("source")}>
+      <Field label={canSeeMoney ? "แหล่งที่มา" : "แหล่งที่มา (เปลี่ยนได้เฉพาะผู้ดูแลระบบ)"}>
+        <select className={selectCls} value={f.source} disabled={!canSeeMoney} onChange={set("source")}>
           <option value="domestic">ในประเทศ</option>
           <option value="import">นำเข้า</option>
         </select>

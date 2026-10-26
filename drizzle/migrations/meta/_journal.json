@@ -176,6 +176,13 @@
       "when": 1792985600102,
       "tag": "0024_team_access",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792985660102,
+      "tag": "0025_cost_privacy",
+      "breakpoints": true
     }
   ]
 }

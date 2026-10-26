@@ -60,6 +60,7 @@ function ProjectDetail() {
     canEditProductionSheet,
     isAdmin,
     canManagePayments,
+    canViewPayments,
   } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
@@ -122,7 +123,7 @@ function ProjectDetail() {
           <TabsTrigger value="overview">ภาพรวม</TabsTrigger>
           <TabsTrigger value="boq">BOQ</TabsTrigger>
           <TabsTrigger value="work">ใบ Work</TabsTrigger>
-          {canManagePayments ? <TabsTrigger value="payment">งวดเงิน</TabsTrigger> : null}
+          {canViewPayments ? <TabsTrigger value="payment">งวดเงิน</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-6">
@@ -188,7 +189,7 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="payment" className="mt-4">
-          {canManagePayments ? <PaymentTermsSection projectId={projectId} /> : <HiddenMoney />}
+          {canViewPayments ? <PaymentTermsSection projectId={projectId} /> : <HiddenMoney />}
         </TabsContent>
       </Tabs>
     </div>

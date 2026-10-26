@@ -48,7 +48,7 @@ export const NAV: NavItem[] = [
   { to: "/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/clauses", label: "หมายเหตุและประกัน", icon: FileText, roles: ["admin", "sales", "estimator"] },
   { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
-  { to: "/purchases", label: "ซื้อของ / ประวัติซื้อ", icon: Receipt, roles: ["admin", "stock", "accounting"] },
+  { to: "/purchases", label: "ซื้อของ / ประวัติซื้อ", icon: Receipt, roles: ["admin", "stock"] },
   { to: "/remnants", label: "เศษม้วน", icon: Scissors, roles: ["admin", "sales", "estimator", "stock", "production"] },
   { to: "/collections", label: "ทวงเงิน", icon: HandCoins, roles: ["admin", "accounting"] },
   { to: "/customers", label: "ลูกค้า", icon: Building2, roles: ["admin", "sales", "estimator", "accounting"] },

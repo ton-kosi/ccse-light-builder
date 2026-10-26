@@ -59,7 +59,9 @@ export async function openSlip(path: string) {
 
 export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
-  const { isAdmin } = useMe();
+  const { isAdmin, canManagePayments } = useMe();
+  /** sale team: sees whether the customer has paid, cannot bill or record money */
+  const readOnly = !canManagePayments;
   const [billFor, setBillFor] = useState<Term | null>(null);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Term | null>(null);
@@ -214,10 +216,10 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                               }}>ยกเลิกใบ</Button>
                             ) : null}
                           </>
-                        ) : (
+                        ) : readOnly ? null : (
                           <Button size="sm" variant="outline" disabled={t.due_status === "paid"} onClick={() => setBillFor(term)}>ออกใบเบิกเงิน</Button>
                         )}
-                        <Button size="sm" onClick={() => setPayFor(term)}>บันทึกรับเงิน</Button>
+                        {readOnly ? null : <Button size="sm" onClick={() => setPayFor(term)}>บันทึกรับเงิน</Button>}
                         <Button size="sm" variant="ghost" onClick={() => setOpenId(openId === t.id ? null : t.id)}>
                           {openId === t.id ? "ซ่อน" : `รายละเอียด (${rs.filter((r) => !r.voided_at).length})`}
                         </Button>

@@ -52,13 +52,16 @@ export function useMe() {
     // Teams: sale = sales + estimator · purchase = stock · payment = accounting · production · technician
     /** BOQ cost / margin, and typing costs or selling prices by hand */
     canSeeMoney: has("admin"),
-    /** latest purchase cost + purchase history: admin, purchase team, payment team (never sale / production) */
-    canSeeCost: has("admin", "stock", "accounting"),
+    /** latest purchase cost + purchase history: admin, and the purchase team for local SKUs only
+     *  (imports stay with admin). Nobody else — next to selling prices it would show the margin. */
+    canSeeCost: has("admin", "stock"),
     /** sale team writes the BOQ */
     canEditQuote: has("admin", "sales", "estimator"),
     /** BOQ and selling prices: sale team, payment team read only (never purchase / production / technician) */
     canViewQuote: has("admin", "sales", "estimator", "accounting"),
     canManagePayments: has("admin", "accounting"),
+    /** payment status (terms, bills, money received), read only for the sale team */
+    canViewPayments: has("admin", "accounting", "sales", "estimator"),
     canEditSales: has("admin", "sales", "estimator"),
     /** project status, site measurements, work-order instructions and items */
     canEditProduction: has("admin", "sales", "estimator", "production"),
