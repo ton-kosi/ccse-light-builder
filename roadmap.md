@@ -1,4 +1,5 @@
 # Tasks
+- [x] Apply migration 0022_install_starts_status8 unchanged; verify its source hash, enabled trigger, 6–7 → 8 guard and permissions via checkpoint 0023.
 - [x] Inspect synced migrations 0015–0019 and confirm they are pending; GitHub pulls are managed by Lovable sync.
 - [x] Apply the corrected, synced 0015–0019 unchanged in journal order; verify applied hashes against the source files.
 - [x] Verify nine tables, RLS/grants, columns and triggers; refresh generated types, update PRD applied status and pass 34 existing tests.
