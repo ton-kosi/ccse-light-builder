@@ -1,5 +1,5 @@
 # Tasks
-- [ ] Apply synced migrations 0024_team_access, 0025_cost_privacy and 0026_finance_close_project unchanged in journal order; blocked before SQL by synced snapshots 0024–0026 sharing an ID and pointing to 0022 instead of forming a chain after 0023. Needs corrected synced metadata; SQL unchanged, database remains at 0023. Verification and relevant tests await application.
+- [ ] Apply synced migrations 0024_team_access → 0025_cost_privacy → 0026_finance_close_project unchanged in journal order; recheck corrected history, verify applied hashes, permissions and finance closing, then run relevant tests.
 - [x] Apply migration 0022_install_starts_status8 unchanged; verify its source hash, enabled trigger, 6–7 → 8 guard and permissions via checkpoint 0023.
 - [x] Inspect synced migrations 0015–0019 and confirm they are pending; GitHub pulls are managed by Lovable sync.
 - [x] Apply the corrected, synced 0015–0019 unchanged in journal order; verify applied hashes against the source files.
