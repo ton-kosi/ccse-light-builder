@@ -49,13 +49,23 @@ export function useMe() {
     roles,
     has,
     isAdmin: has("admin"),
+    // Teams: sale = sales + estimator · purchase = stock · payment = accounting · production · technician
+    /** BOQ cost / margin, and typing costs or selling prices by hand */
     canSeeMoney: has("admin"),
-    canEditQuote: has("admin", "sales"),
+    /** latest purchase cost + purchase history: admin, purchase team, payment team (never sale / production) */
+    canSeeCost: has("admin", "stock", "accounting"),
+    /** sale team writes the BOQ */
+    canEditQuote: has("admin", "sales", "estimator"),
+    /** BOQ and selling prices: sale team, payment team read only (never purchase / production / technician) */
+    canViewQuote: has("admin", "sales", "estimator", "accounting"),
     canManagePayments: has("admin", "accounting"),
-    canEditSales: has("admin", "sales"),
-    canEditProduction: has("admin", "sales", "estimator", "stock", "production"),
-    /** plan field work: job type, dates, who is assigned */
-    canPlanWork: has("admin", "sales", "production"),
+    canEditSales: has("admin", "sales", "estimator"),
+    /** project status, site measurements, work-order instructions and items */
+    canEditProduction: has("admin", "sales", "estimator", "production"),
+    /** production sheet (ใบผลิต) choices: production team */
+    canEditProductionSheet: has("admin", "production"),
+    /** plan field work: job type, dates, who is assigned, repair tickets */
+    canPlanWork: has("admin", "sales", "estimator", "production"),
     canEditMaster: has("admin", "estimator", "stock"),
     canViewMaster: roles.some((r) => r !== "technician"),
     hasNoRole: query.isSuccess && roles.length === 0,

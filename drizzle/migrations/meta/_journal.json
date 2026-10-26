@@ -169,6 +169,13 @@
       "when": 1792985540102,
       "tag": "0023_apply_pending_install_starts_status8",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792985600102,
+      "tag": "0024_team_access",
+      "breakpoints": true
     }
   ]
 }

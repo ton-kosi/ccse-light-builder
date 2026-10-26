@@ -42,17 +42,17 @@ type NavItem = { to: string; label: string; icon: LucideIcon; roles: AppRole[] |
 
 export const NAV: NavItem[] = [
   { to: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard, roles: "all" },
-  { to: "/projects", label: "โปรเจกต์", icon: FolderKanban, roles: "all" },
+  { to: "/projects", label: "โปรเจกต์", icon: FolderKanban, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/queue", label: "คิวงาน", icon: CalendarDays, roles: "all" },
   { to: "/repairs", label: "งานซ่อม", icon: Wrench, roles: "all" },
   { to: "/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/clauses", label: "หมายเหตุและประกัน", icon: FileText, roles: ["admin", "sales", "estimator"] },
-  { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "stock", "production", "accounting"] },
+  { to: "/purchase-requests", label: "ใบขอซื้อ", icon: ShoppingCart, roles: ["admin", "sales", "estimator", "stock", "production", "accounting"] },
   { to: "/purchases", label: "ซื้อของ / ประวัติซื้อ", icon: Receipt, roles: ["admin", "stock", "accounting"] },
-  { to: "/remnants", label: "เศษม้วน", icon: Scissors, roles: ["admin", "stock", "production"] },
+  { to: "/remnants", label: "เศษม้วน", icon: Scissors, roles: ["admin", "sales", "estimator", "stock", "production"] },
   { to: "/collections", label: "ทวงเงิน", icon: HandCoins, roles: ["admin", "accounting"] },
-  { to: "/customers", label: "ลูกค้า", icon: Building2, roles: ["admin", "sales", "accounting"] },
-  { to: "/work-orders", label: "ใบสั่งงาน", icon: ClipboardList, roles: ["admin", "production", "technician", "stock"] },
+  { to: "/customers", label: "ลูกค้า", icon: Building2, roles: ["admin", "sales", "estimator", "accounting"] },
+  { to: "/work-orders", label: "ใบสั่งงาน", icon: ClipboardList, roles: "all" },
   { to: "/users", label: "ผู้ใช้งาน", icon: Users, roles: ["admin"] },
   { to: "/settings", label: "ตั้งค่า", icon: Settings, roles: ["admin"] },
 ];

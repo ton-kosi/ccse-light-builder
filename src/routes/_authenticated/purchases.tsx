@@ -76,6 +76,8 @@ function PurchasesPage() {
   const qc = useQueryClient();
   const { has, isAdmin, isLoading: meLoading } = useMe();
   const allowed = has("admin", "stock", "accounting");
+  /** the purchase team records purchases; the payment team only reads them */
+  const canRecord = has("admin", "stock");
 
   const [head, setHead] = useState({ date: today(), supplier: "", doc_no: "", note: "" });
   const [lines, setLines] = useState<Line[]>([newLine()]);
@@ -250,6 +252,7 @@ function PurchasesPage() {
         </div>
       ) : null}
 
+      {canRecord ? (
       <form
         className="mb-6 rounded-lg border border-border bg-card p-4"
         onSubmit={(e) => {
@@ -418,6 +421,7 @@ function PurchasesPage() {
           </div>
         </div>
       </form>
+      ) : null}
 
       <h2 className="mb-2 text-base font-semibold">ประวัติการซื้อ</h2>
       <div className="mb-3 flex flex-wrap items-center gap-2">

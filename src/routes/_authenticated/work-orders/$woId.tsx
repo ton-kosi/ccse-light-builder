@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/work-orders/$woId")({
 
 function WorkOrderDetail() {
   const { woId } = Route.useParams();
-  const { canEditProduction, canPlanWork, roles } = useMe();
+  const { canEditProduction, canEditProductionSheet, canPlanWork, roles } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
   const isTechnician = roles.includes("technician") && !canEditProduction;
@@ -162,7 +162,7 @@ function WorkOrderDetail() {
 
       <section className="grid gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-3">
         <InfoRow label="งาน">
-          {project ? (
+          {project && !isTechnician ? (
             <Link
               to="/projects/$projectId"
               params={{ projectId: project.id }}
@@ -170,9 +170,21 @@ function WorkOrderDetail() {
             >
               {project.code} — {project.name}
             </Link>
+          ) : project ? (
+            `${project.code} — ${project.name}`
           ) : (
             "-"
           )}
+          {project ? (
+            <a
+              href={`/print/wos/${project.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-2 text-xs text-primary hover:underline"
+            >
+              เปิดใบ Work (WOS)
+            </a>
+          ) : null}
         </InfoRow>
         <InfoRow label="ลูกค้า / สถานที่">
           {custName(project?.customer_id, project?.customers) ?? "-"}
@@ -249,7 +261,7 @@ function WorkOrderDetail() {
       {project && wo.wo_type === "production" ? (
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-1 text-sm font-semibold">ใบผลิต (ตัดไฟ)</h2>
-          <ProductionSheet projectId={project.id} canEdit={canEditProduction} />
+          <ProductionSheet projectId={project.id} canEdit={canEditProductionSheet} />
         </section>
       ) : null}
 

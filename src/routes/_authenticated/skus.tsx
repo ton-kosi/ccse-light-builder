@@ -80,7 +80,7 @@ const EMPTY = {
 type Form = typeof EMPTY;
 
 function SkusPage() {
-  const { canEditMaster, canSeeMoney, me } = useMe();
+  const { canEditMaster, canSeeMoney, canSeeCost, canViewQuote, me } = useMe();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
@@ -106,14 +106,14 @@ function SkusPage() {
   });
   const { data: costs } = useQuery({
     queryKey: ["sku_costs"],
-    enabled: canSeeMoney,
+    enabled: canSeeCost,
     queryFn: async () => {
       const { data, error } = await supabase.from("sku_costs").select("*");
       if (error) throw error;
       return new Map(data.map((c) => [c.sku_id, Number(c.unit_cost)]));
     },
   });
-  const { data: prices } = useSkuPrices(canSeeMoney);
+  const { data: prices } = useSkuPrices(canViewQuote);
 
   const save = useMutation({
     mutationFn: async ({ id, form }: { id: string | null; form: Form }) => {
@@ -278,7 +278,7 @@ function SkusPage() {
     .filter(
       (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
     );
-  const cols = 10 + (canSeeMoney ? 3 : 0) + (canEditMaster ? 1 : 0);
+  const cols = 10 + (canSeeCost ? 1 : 0) + (canViewQuote ? 2 : 0) + (canEditMaster ? 1 : 0);
   // SKUs whose category or category fields can still be filled from their name
   const guessed = (skus ?? []).filter((k) => {
     if (!savedCategory(k.notes)) return true;
@@ -416,9 +416,10 @@ function SkusPage() {
               <Th>ตระกูลม้วน</Th>
               <Th>ขั้นต่ำ</Th>
               <Th>คงเหลือ</Th>
-              {canSeeMoney ? (
+              {/* cost: admin / purchase / payment team · selling price: admin / sale / payment team */}
+              {canSeeCost ? <Th>ต้นทุน/หน่วย</Th> : null}
+              {canViewQuote ? (
                 <>
-                  <Th>ต้นทุน/หน่วย</Th>
                   <Th>ราคาขาย/หน่วย</Th>
                   <Th>ลดได้สูงสุด</Th>
                 </>
@@ -478,8 +479,7 @@ function SkusPage() {
                         {formatQty(qty)}
                       </button>
                     </Td>
-                    {canSeeMoney ? (
-                      <>
+                    {canSeeCost ? (
                         <Td className="whitespace-nowrap">
                           {formatTHB(costs?.get(k.id) ?? 0)}
                           <Link
@@ -491,6 +491,9 @@ function SkusPage() {
                             ประวัติ
                           </Link>
                         </Td>
+                    ) : null}
+                    {canViewQuote ? (
+                      <>
                         <Td className={prices?.has(k.id) ? "" : "text-muted-foreground"}>
                           {prices?.has(k.id)
                             ? formatTHB(prices.get(k.id)!.unitPrice)

@@ -51,11 +51,19 @@ type QLine = Tables<"quote_lines">;
 
 function ProjectDetail() {
   const { projectId } = Route.useParams();
-  const { canSeeMoney, canEditQuote, canEditSales, canEditProduction, isAdmin, canManagePayments } =
-    useMe();
+  const {
+    canSeeMoney,
+    canEditQuote,
+    canViewQuote,
+    canEditSales,
+    canEditProduction,
+    canEditProductionSheet,
+    isAdmin,
+    canManagePayments,
+  } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
-  const { quotation, lines } = useCurrentQuotation(projectId, canEditQuote);
+  const { quotation, lines } = useCurrentQuotation(projectId, canViewQuote);
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
@@ -122,7 +130,7 @@ function ProjectDetail() {
             project={project}
             lines={lines}
             quotation={quotation}
-            canSeeMoney={canEditQuote}
+            canSeeMoney={canViewQuote}
             canEditSales={canEditSales}
             canEditStatus={canEditProduction}
             isAdmin={isAdmin}
@@ -144,7 +152,7 @@ function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="boq" className="mt-4">
-          {canEditQuote ? (
+          {canViewQuote ? (
             <QuotationSection
               projectId={projectId}
               projectCode={project.code}
@@ -166,7 +174,7 @@ function ProjectDetail() {
           </section>
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">ใบผลิต (ตัดไฟ)</h2>
-            <ProductionSheet projectId={projectId} canEdit={canEditProduction} />
+            <ProductionSheet projectId={projectId} canEdit={canEditProductionSheet} />
           </section>
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">เบิกของ / คืนของ</h2>

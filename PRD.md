@@ -48,15 +48,21 @@ production queue is now **in scope** (workflow step 5–7).
 
 ## 3. Users and roles
 
-| Role (`app_role`) | Thai label | Main jobs | Sees prices/costs |
-|---|---|---|---|
-| `admin` | ผู้ดูแลระบบ | Everything; users, settings, approvals | Yes |
-| `sales` | ฝ่ายขาย | Customers, projects, quotations | Quote prices |
-| `estimator` | ฝ่ายถอดแบบ/ประเมินราคา | BOQ, recipes, clauses, master data | Per policy |
-| `stock` | ฝ่ายคลังสินค้า | SKUs, stock, purchase requests, purchases, remnants | Purchase costs |
-| `production` | ฝ่ายผลิต | Work orders, cutting/roll plans | **No** |
-| `accounting` | ฝ่ายบัญชี | Payment terms, billing, receipts | Yes |
-| `technician` | ช่างติดตั้ง | Assigned work orders only | **No** |
+Teams (owner, 26/10/2026) map onto the roles:
+
+| Team | Role (`app_role`) | Main jobs | Selling prices (BOQ) | Costs / suppliers |
+|---|---|---|---|---|
+| Admin | `admin` | Everything; users, settings, approvals | Yes | Yes |
+| ทีมขาย (sale) | `sales`, `estimator` | Customers, projects, BOQ, payment terms in the quote, WOS, schedule / queue, repairs, site measurements | Yes (edit) | **No** — sees stock quantities only |
+| ทีมจัดซื้อ (purchase) | `stock` | SKUs, stock, purchase requests, purchases, remnants, material issue / return | **No** | Yes (latest cost, purchase history) |
+| ทีมการเงิน (payment) | `accounting` | Payment terms, bills, receipts, ทวงเงิน; reads BOQ and purchases | Yes (read only) | Yes (read only) |
+| ทีมผลิต (production) | `production` | Production sheet (ใบผลิต), production jobs, project status, stock / remnants view | **No** | **No** |
+| ช่าง | `technician` | Own schedule, work orders + WOS, repairs (view), measurements, handover, site photos | **No** | **No** |
+
+- BOQ cost / margin columns and typing costs or selling prices by hand: admin only.
+- Technicians have no project list, customer list, stock or purchase pages; a work order links
+  to its WOS instead of the project page.
+- Enforced in the database (RLS, migration `0024_team_access`) as well as in the menus.
 
 - A user can hold several roles. A signed-in user with no role sees almost
   nothing ("ยังไม่กำหนดสิทธิ์").
@@ -443,6 +449,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 26/10/2026 | **Team access:** sale (sales + estimator) / purchase (stock) / payment (accounting) / production / technician rules — sale sees selling prices and stock but no costs; purchase sees costs but no selling prices; payment reads the BOQ and purchases but no longer records purchases; production sheet edited by production only; technicians lose the project list and get a WOS link on the job. Migration `0024_team_access` pending in Lovable. |
 | 26/10/2026 | Applied `0022_install_starts_status8` unchanged in journal order via checkpoint migration 0023; verified its source hash, enabled installation-start trigger, 6–7 → 8 guard and restricted function permissions. No app logic changed. |
 | 26/10/2026 | Flow walkthrough fixes: dashboard "วันนี้ต้องทำอะไร" panel; handover only on installation / repair jobs (not on surveys); project moves to 8 ติดตั้ง automatically when an installation job starts, so step-8 payment terms become due (migration `0022_install_starts_status8`, applied in Lovable). |
 | 26/10/2026 | End-to-end test after Lovable applied 0015–0021: crews / schedule / holidays, measurement notation, production choices, WOS print, issue rounds + returns, working-day handover, warranty + repair tickets all work; test data removed. Collections waits for a real bill. |
