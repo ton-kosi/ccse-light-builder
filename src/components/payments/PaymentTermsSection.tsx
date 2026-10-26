@@ -106,6 +106,20 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
     },
   });
 
+  const setStatus = useMutation({
+    mutationFn: async (status: number) => {
+      const { error } = await supabase.rpc("finance_set_project_status", { _project_id: projectId, _status: status });
+      if (error) throw error;
+    },
+    onSuccess: (_d, status) => {
+      toast.success(status === 11 ? "ปิดงานแล้ว" : "เปลี่ยนเป็นขั้น 10 วางบิลแล้ว");
+      refresh();
+      qc.invalidateQueries({ queryKey: ["project", projectId] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["status_log", projectId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["payment_schedule"] });
     qc.invalidateQueries({ queryKey: ["payment_receipts"] });
@@ -157,10 +171,34 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const totalRec = list.reduce((s, t) => s + Number(t.received_total ?? 0) + Number(t.wht_total ?? 0), 0);
   const totalOut = list.reduce((s, t) => s + Number(t.outstanding ?? 0), 0);
   const pctWrong = list.length > 0 && Math.abs(totalPct - 100) > 0.001;
+  // payment team moves a handed-over project to 10 วางบิล, and closes it (11) once nothing is owed
+  const projectStatus = list[0]?.project_status ?? 0;
+  const canBillStep = !readOnly && projectStatus === 9;
+  const canClose = !readOnly && (projectStatus === 9 || projectStatus === 10) && totalOut <= 0.005;
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <h2 className="text-sm font-semibold">งวดเงิน — {quote.ref_no} Rev {quote.rev}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">งวดเงิน — {quote.ref_no} Rev {quote.rev}</h2>
+        <div className="flex gap-2">
+          {canBillStep ? (
+            <Button size="sm" variant="outline" disabled={setStatus.isPending} onClick={() => setStatus.mutate(10)}>
+              เปลี่ยนเป็นขั้น 10 วางบิล
+            </Button>
+          ) : null}
+          {canClose ? (
+            <Button
+              size="sm"
+              disabled={setStatus.isPending}
+              onClick={() => {
+                if (window.confirm("รับเงินครบทุกงวดแล้ว — ปิดงาน (ขั้น 11)?")) setStatus.mutate(11);
+              }}
+            >
+              ปิดงาน (ขั้น 11)
+            </Button>
+          ) : null}
+        </div>
+      </div>
       <div className="mt-1 flex flex-wrap gap-x-6 text-sm">
         <span className="text-muted-foreground">ยอดสุทธิใบเสนอราคา {formatTHB(net)} บาท</span>
         <span>รับแล้ว (รวมภาษีหัก) {formatTHB(totalRec)} บาท</span>

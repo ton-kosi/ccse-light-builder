@@ -183,6 +183,13 @@
       "when": 1792985660102,
       "tag": "0025_cost_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792985720102,
+      "tag": "0026_finance_close_project",
+      "breakpoints": true
     }
   ]
 }
