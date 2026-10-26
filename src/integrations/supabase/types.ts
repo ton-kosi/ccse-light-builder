@@ -2383,10 +2383,6 @@ export type Database = {
         Args: { _project_id: string }
         Returns: undefined
       }
-      finance_set_project_status: {
-        Args: { _project_id: string; _status: number }
-        Returns: undefined
-      }
       create_final_revision: { Args: { _project_id: string }; Returns: string }
       create_quotation_revision: {
         Args: { _project_id: string }
@@ -2398,6 +2394,10 @@ export type Database = {
           id: string
           name: string
         }[]
+      }
+      finance_set_project_status: {
+        Args: { _project_id: string; _status: number }
+        Returns: undefined
       }
       issue_billing_doc: {
         Args: {

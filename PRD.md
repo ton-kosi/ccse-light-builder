@@ -65,7 +65,7 @@ Teams (owner, 26/10/2026) map onto the roles:
 - SKU **แหล่งที่มา (ในประเทศ / นำเข้า)** decides who sees its cost; only admin can change it.
 - Technicians have no project list, customer list, stock or purchase pages; a work order links
   to its WOS instead of the project page.
-- Enforced in the database (RLS, migrations `0024_team_access` and `0025_cost_privacy`) as well as in the menus.
+- ✅ Enforced in the database (RLS, migrations `0024_team_access` and `0025_cost_privacy`, applied unchanged in journal order on 26/10/2026) as well as in the menus.
 
 - A user can hold several roles. A signed-in user with no role sees almost
   nothing ("ยังไม่กำหนดสิทธิ์").
@@ -104,7 +104,7 @@ Example: we **sell** "LED JEDI 13.8W/M" but **issue** SKU "LED strip 14.4W/m".
   to 9 at the last installation handover. Every status
   change is written to `project_status_log` with who and when.
 - The payment team (accounting) can move a project 9 → **10 วางบิล** and 9 / 10 → **11 ปิดงาน**
-  from the งวดเงิน tab; closing needs nothing left to collect (migration 0026). They cannot
+  from the งวดเงิน tab; closing needs nothing left to collect (migration 0026 applied on 26/10/2026). They cannot
   change any other project field.
 - If the customer picked an option that is not yet selected in the project,
   the auto-move is blocked and the user is warned.
@@ -285,7 +285,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   with "วัดจริง" (and the contract quantity when it differs) until the final
   Rev takes them in.
 
-#### Payments tab (งวดเงิน) — admin and accounting only
+#### Payments tab (งวดเงิน) — admin/accounting manage; sales/estimator read only
 - ✅ Payment terms (%, fixed amount, trigger condition, printed text).
 - ✅ **Balance term (ยอดคงเหลือ):** one term per quotation can bill "total −
   every other term" (billed terms count at their billed amount), so the final
@@ -302,6 +302,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ Cancel a bill or void a receipt: admin only, reason required, kept on
   record.
 - ✅ Audit log of every billing / receipt action.
+- ✅ Database support for accounting to move 9 → 10 and close 9 / 10 → 11 only when outstanding is ≤ 0.005 baht; general project-update permissions remain unchanged. Migration 0026 is applied. Full closing flow awaits a project with payment terms; there are currently no projects to test without creating data.
 
 ### 6.5 Stock and master data
 - ✅ **SKUs** (`/skus`) — categories and per-category attributes (LED W/m, chip,
@@ -455,6 +456,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 26/10/2026 | Applied corrected synced migrations `0024_team_access` → `0025_cost_privacy` → `0026_finance_close_project` unchanged in journal order via checkpoint 0027. Verified all three source hashes against database history, RLS/grants, final local/import cost policies, enabled source guard, payment-reader helpers and restricted finance-close functions; generated types refreshed and 28 existing tests passed. Signed-in projects page works; full closing flow remains unverified because no projects exist. No app logic or original migration SQL changed. |
 | 26/10/2026 | Attempt to apply existing migrations `0024_team_access`, `0025_cost_privacy` and `0026_finance_close_project` was blocked before SQL execution by conflicting synced snapshot IDs / parent links. All three remain pending; database history is still at 0023 and the new cost-privacy / finance-close functions are absent. No app code or migration SQL changed. |
 | 26/10/2026 | Payment team can set 10 วางบิล and close the project (11) from the งวดเงิน tab once everything is received. Migration `0026_finance_close_project` pending in Lovable. |
 | 26/10/2026 | **Cost privacy:** purchase team sees costs and purchases of local SKUs only (imports: admin); payment team no longer sees costs or purchases; only admin changes a SKU's local / import source; sale team sees the งวดเงิน tab read only (bills, money received). Migration `0025_cost_privacy` pending in Lovable. |
