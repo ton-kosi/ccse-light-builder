@@ -1,11 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "@/lib/erp";
+import { isPlaceholderEmail } from "@/lib/accounts";
 
 export type Me = {
   userId: string | null;
   email: string | null;
   fullName: string;
+  /** login User ID (null for accounts that sign in by email only) */
+  username: string | null;
+  /** admin created / reset the password: the user must set their own first */
+  mustChangePassword: boolean;
   roles: AppRole[];
 };
 
@@ -16,17 +21,23 @@ export function meQueryKey() {
 export async function fetchMe(): Promise<Me> {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
-  if (!user) return { userId: null, email: null, fullName: "", roles: [] };
+  if (!user) return { userId: null, email: null, fullName: "", username: null, mustChangePassword: false, roles: [] };
 
-  const [{ data: profile }, { data: roles }] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+  const [{ data: profile, error: pErr }, { data: roles }] = await Promise.all([
+    supabase.from("profiles").select("full_name, username, must_change_password").eq("id", user.id).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", user.id),
   ]);
+  // before the account columns exist (migration not applied yet) fall back to the name only
+  const fallback = pErr
+    ? (await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle()).data
+    : null;
 
   return {
     userId: user.id,
-    email: user.email ?? null,
-    fullName: profile?.full_name ?? "",
+    email: isPlaceholderEmail(user.email) ? null : (user.email ?? null),
+    fullName: profile?.full_name ?? fallback?.full_name ?? "",
+    username: profile?.username ?? null,
+    mustChangePassword: !!profile?.must_change_password,
     roles: (roles ?? []).map((r) => r.role as AppRole),
   };
 }

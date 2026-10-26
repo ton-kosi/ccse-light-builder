@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmPasswordDialog } from "@/components/ConfirmPasswordDialog";
 import { COMPANIES_KEY, useCompanies, type Company } from "@/lib/companies";
 import { toNumber } from "@/lib/format";
 
@@ -53,6 +54,8 @@ function CompanyForm({ company }: { company: Company }) {
   const qc = useQueryClient();
   const [f, setF] = useState(company);
   const [busy, setBusy] = useState(false);
+  /** letterhead, tax ID and bank account print on every bill: confirm with the password first */
+  const [pending, setPending] = useState<Partial<Company> | null>(null);
   useEffect(() => setF(company), [company]);
   const str = (k: Key) => (f[k] === null || f[k] === undefined ? "" : String(f[k]));
 
@@ -75,7 +78,7 @@ function CompanyForm({ company }: { company: Company }) {
   async function pickLogo(file: File | undefined) {
     if (!file) return;
     try {
-      save({ logo_data: await shrink(file) });
+      setPending({ logo_data: await shrink(file) });
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -90,7 +93,7 @@ function CompanyForm({ company }: { company: Company }) {
         for (const { key } of FIELDS)
           (patch as Record<string, unknown>)[key] = str(key).trim() || null;
         patch.default_wht_percent = toNumber(str("default_wht_percent")) ?? 0;
-        save({ ...patch, updated_at: new Date().toISOString() });
+        setPending({ ...patch, updated_at: new Date().toISOString() });
       }}
     >
       <div className="flex items-center gap-3">
@@ -158,6 +161,17 @@ function CompanyForm({ company }: { company: Company }) {
       <Button type="submit" disabled={busy}>
         บันทึก {company.short_en}
       </Button>
+      {pending ? (
+        <ConfirmPasswordDialog
+          title={`บันทึกข้อมูลบริษัท ${company.short_en}`}
+          confirmLabel="บันทึก"
+          checkInBrowser
+          onClose={() => setPending(null)}
+          onConfirm={() => save(pending)}
+        >
+          ข้อมูลนี้พิมพ์บนใบเสนอราคาและใบเบิกเงินทุกใบ (ชื่อบริษัท เลขผู้เสียภาษี บัญชีธนาคาร)
+        </ConfirmPasswordDialog>
+      ) : null}
     </form>
   );
 }

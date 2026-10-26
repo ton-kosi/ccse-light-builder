@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 26/10/2026
+> Last updated: 27/10/2026
 
 ## 1. Overview
 
@@ -69,7 +69,8 @@ Teams (owner, 26/10/2026) map onto the roles:
 
 - A user can hold several roles. A signed-in user with no role sees almost
   nothing ("ยังไม่กำหนดสิทธิ์").
-- New users join **by admin invitation only** (no public sign-up).
+- New users join **only through admin** (no public sign-up): admin creates a **User ID** + temporary
+  password; the user must set their own password at first sign-in and may add and confirm an email.
 
 ## 4. Core concept — three layers
 
@@ -194,7 +195,26 @@ production workbook (FORM WPS) — and the weekly technician schedule (ตาร
 Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 
 ### 6.1 Access and users
-- ✅ Email + password sign-in; admin invites users by email (`/users`).
+- 🟡 **Sign in with User ID or email** + password. A User ID account signs in through a hidden
+  placeholder email (`<user id>@users.ccse-group.com`, never shown) until the person adds their own.
+  User ID sign-in runs on the server so the email is never sent to the browser.
+- 🟡 **ผู้ใช้และสิทธิ์** (`/users`, admin): name, User ID, email (confirmed / waiting), roles by team,
+  2-step on/off, last sign-in. Admin can **add** (User ID + generated temporary password, shown once
+  to hand over), **edit** (name, User ID, email — set as confirmed, roles), **reset password** (user must
+  change it at next sign-in), **reset 2-step** (lost phone), **disable / enable**, **delete** (if the
+  person recorded work, the account is disabled and all roles removed instead, to keep history).
+  Admin cannot remove their own admin role, disable or delete themselves, or delete the last admin.
+  Warns when one person gets both ฝ่ายขาย and ฝ่ายคลัง (would see selling price and cost).
+- 🟡 **Re-confirm with the admin's password:** every change on ผู้ใช้และสิทธิ์ shows what will change
+  and asks for the admin's password again (checked on the server; an admin with 2-step must have
+  signed in with the code); saving company details (letterhead, tax ID, bank) asks too. Roles can no
+  longer be written directly from the browser — only through these server tools (migration 0028).
+- 🟡 **บัญชีของฉัน** (`/account`, everyone; click your name in the header): change password (current
+  password required; at least 8 characters with letters and digits), add / change email (confirmation
+  link), optional **2-step code** with an authenticator app (QR + 6-digit code; turning it off asks for
+  the password). A temporary password from admin sends the person here until they change it.
+- 🟡 **2-step sign-in:** accounts with 2-step enter the 6-digit code after the password; the app stays
+  locked until they do.
 - ✅ Role-based menu and Row Level Security on every table.
 - ✅ Sign-out clears all cached data.
 
@@ -456,6 +476,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 27/10/2026 | **User accounts:** sign in with User ID or email; admin adds users with User ID + temporary password, edits, resets password / 2-step, disables or deletes, each confirmed with the admin's password; บัญชีของฉัน for own password, email and optional 2-step codes; company details also need the password. Migration `0028_user_accounts` pending in Lovable; admin tools need the published site (they use the server's admin key). |
 | 26/10/2026 | Applied corrected synced migrations `0024_team_access` → `0025_cost_privacy` → `0026_finance_close_project` unchanged in journal order via checkpoint 0027. Verified all three source hashes against database history, RLS/grants, final local/import cost policies, enabled source guard, payment-reader helpers and restricted finance-close functions; generated types refreshed and 28 existing tests passed. Signed-in projects page works; full closing flow remains unverified because no projects exist. No app logic or original migration SQL changed. |
 | 26/10/2026 | Attempt to apply existing migrations `0024_team_access`, `0025_cost_privacy` and `0026_finance_close_project` was blocked before SQL execution by conflicting synced snapshot IDs / parent links. All three remain pending; database history is still at 0023 and the new cost-privacy / finance-close functions are absent. No app code or migration SQL changed. |
 | 26/10/2026 | Payment team can set 10 วางบิล and close the project (11) from the งวดเงิน tab once everything is received. Migration `0026_finance_close_project` pending in Lovable. |

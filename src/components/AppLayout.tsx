@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -102,6 +102,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { me, roles } = useMe();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // a password set by admin must be replaced before anything else
+  useEffect(() => {
+    if (me?.mustChangePassword && pathname !== "/account") navigate({ to: "/account", replace: true });
+  }, [me?.mustChangePassword, pathname, navigate]);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -118,12 +124,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-3">
             <SidebarTrigger />
             <div className="ml-auto flex items-center gap-3 text-sm">
-              <div className="text-right leading-tight">
-                <div className="font-medium">{me?.fullName || me?.email}</div>
+              <Link to="/account" className="text-right leading-tight hover:underline" title="บัญชีของฉัน">
+                <div className="font-medium">{me?.fullName || me?.username || me?.email}</div>
                 <div className="text-xs text-muted-foreground">
                   {roles.length ? roles.map((r) => ROLE_LABELS[r]).join(" · ") : "ยังไม่กำหนดสิทธิ์"}
                 </div>
-              </div>
+              </Link>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">ออกจากระบบ</span>
