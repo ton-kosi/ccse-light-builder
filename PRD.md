@@ -455,6 +455,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 26/10/2026 | Attempt to apply existing migrations `0024_team_access`, `0025_cost_privacy` and `0026_finance_close_project` was blocked before SQL execution by conflicting synced snapshot IDs / parent links. All three remain pending; database history is still at 0023 and the new cost-privacy / finance-close functions are absent. No app code or migration SQL changed. |
 | 26/10/2026 | Payment team can set 10 วางบิล and close the project (11) from the งวดเงิน tab once everything is received. Migration `0026_finance_close_project` pending in Lovable. |
 | 26/10/2026 | **Cost privacy:** purchase team sees costs and purchases of local SKUs only (imports: admin); payment team no longer sees costs or purchases; only admin changes a SKU's local / import source; sale team sees the งวดเงิน tab read only (bills, money received). Migration `0025_cost_privacy` pending in Lovable. |
 | 26/10/2026 | **Team access:** sale (sales + estimator) / purchase (stock) / payment (accounting) / production / technician rules — sale sees selling prices and stock but no costs; purchase sees costs but no selling prices; payment reads the BOQ and purchases but no longer records purchases; production sheet edited by production only; technicians lose the project list and get a WOS link on the job. Migration `0024_team_access` pending in Lovable. |
