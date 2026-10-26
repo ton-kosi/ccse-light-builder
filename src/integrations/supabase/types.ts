@@ -2395,6 +2395,10 @@ export type Database = {
           name: string
         }[]
       }
+      finance_set_project_status: {
+        Args: { _project_id: string; _status: number }
+        Returns: undefined
+      }
       issue_billing_doc: {
         Args: {
           _bill_date: string
