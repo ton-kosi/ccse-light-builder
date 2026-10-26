@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 24/10/2026
+> Last updated: 26/10/2026
 
 ## 1. Overview
 
@@ -89,7 +89,10 @@ Example: we **sell** "LED JEDI 13.8W/M" but **issue** SKU "LED strip 14.4W/m".
 | 11 | ปิดงาน | Closed |
 
 - The project moves to 6 automatically when **all deposit terms (มัดจำ) are
-  fully received**, or when the CEO/admin approves manually. Every status
+  fully received**, or when the CEO/admin approves manually. It moves to 7 when the
+  store confirms the first material issue, to **8 when an installation job is set to
+  "กำลังทำ"** (so "ของถึงหน้างาน" / "หลังส่งของ" terms become due — migration 0022), and
+  to 9 at the last installation handover. Every status
   change is written to `project_status_log` with who and when.
 - If the customer picked an option that is not yet selected in the project,
   the auto-move is blocked and the user is warned.
@@ -184,6 +187,9 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 - ✅ Sign-out clears all cached data.
 
 ### 6.2 Dashboard (`/dashboard`) ✅
+- ✅ **วันนี้ต้องทำอะไร** (top of the page): jobs running today (technicians / production
+  see only their own), open repair tickets, and for admin / accounting the bills to chase
+  today and terms ready to bill — each tile opens the page to act on it.
 - Overview per role. For accounting: **due to bill**, **overdue** (longest
   first, days in red) and the **latest 20 receipts**, each with THB totals.
 
@@ -321,7 +327,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Files:** drawings (แบบ) on the project — shown on every work order —
   or on one job; site photos. Private storage, images and PDF up to 20 MB;
   upload from a phone camera. Uploader or admin can delete.
-- ✅ **Handover (ส่งมอบงาน)** on survey / installation / service jobs once
+- ✅ **Handover (ส่งมอบงาน)** on installation / service jobs once
   released: photos of the finished work (required), receiver name and
   position, date, note, and the customer's signature on screen **or** a photo
   of the signed paper. Saving closes the job (done). For the last open
@@ -437,6 +443,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 26/10/2026 | Flow walkthrough fixes: dashboard "วันนี้ต้องทำอะไร" panel; handover only on installation / repair jobs (not on surveys); project moves to 8 ติดตั้ง automatically when an installation job starts, so step-8 payment terms become due (migration `0022_install_starts_status8`, pending in Lovable). |
 | 26/10/2026 | End-to-end test after Lovable applied 0015–0021: crews / schedule / holidays, measurement notation, production choices, WOS print, issue rounds + returns, working-day handover, warranty + repair tickets all work; test data removed. Collections waits for a real bill. |
 | 24/10/2026 | Applied corrected, synced migrations `0015_crew_schedule_wos` through `0019_payment_followups` unchanged in journal order; verified nine tables, RLS/grants, columns, triggers and migration hashes; refreshed generated types and passed 34 existing tests. Added a trigger-managed default for repair ticket numbers to resolve generated insert-type compatibility without changing app code. |
 | 24/10/2026 | Lovable blocked 0015 / 0018: crew login link is now a plain UUID (no FK to `auth.users`), and 0018 no longer seeds warranty rows — the app falls back to the quotation defaults and settings can save them. |

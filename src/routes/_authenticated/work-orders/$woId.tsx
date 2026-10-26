@@ -311,7 +311,8 @@ function WorkOrderDetail() {
         ) : null}
       </section>
 
-      {project && wo.wo_type !== "production" ? (
+      {/* only installation and repair jobs are handed over to the customer */}
+      {project && (wo.wo_type === "installation" || wo.wo_type === "service") ? (
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 text-sm font-semibold">ส่งมอบงาน</h2>
           <HandoverSection woId={wo.id} projectId={project.id} woStatus={wo.status} />

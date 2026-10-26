@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { PageHeader } from "@/components/AppLayout";
+import { TodayPanel } from "@/components/TodayPanel";
 import { Button } from "@/components/ui/button";
 import { useMe, meQueryKey } from "@/hooks/useMe";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
@@ -153,7 +154,9 @@ function Dashboard() {
             บัญชีนี้ยังไม่ได้กำหนดสิทธิ์ กรุณาติดต่อผู้ดูแลระบบ (admin) เพื่อกำหนดบทบาทให้คุณ
           </p>
         </div>
-      ) : null}
+      ) : (
+        <TodayPanel />
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="โปรเจกต์ทั้งหมด" value={projects?.length ?? 0} />
