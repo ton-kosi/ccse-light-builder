@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { KeyRound, Pencil, ShieldOff, Trash2, UserPlus, Lock, LockOpen } from "lucide-react";
 import { PageHeader } from "@/components/AppLayout";
+import { PasswordRules } from "@/components/PasswordRules";
 import { ConfirmPasswordDialog } from "@/components/ConfirmPasswordDialog";
 import { Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
@@ -431,6 +432,7 @@ function UserFormDialog({
                   สุ่มใหม่
                 </Button>
               </div>
+              <PasswordRules value={v.password} />
               <p className="text-xs text-muted-foreground">ผู้ใช้ต้องเปลี่ยนรหัสนี้เมื่อเข้าระบบครั้งแรก</p>
             </div>
           )}
@@ -460,7 +462,7 @@ function UserFormDialog({
           <Button variant="outline" onClick={onClose}>
             ยกเลิก
           </Button>
-          <Button type="submit" form="user-form">
+          <Button type="submit" form="user-form" disabled={!initial && !!passwordError(v.password)}>
             ถัดไป
           </Button>
         </DialogFooter>
@@ -502,12 +504,13 @@ function ResetPasswordDialog({
               สุ่มใหม่
             </Button>
           </div>
+          <PasswordRules value={pw} />
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             ยกเลิก
           </Button>
-          <Button type="submit" form="reset-form">
+          <Button type="submit" form="reset-form" disabled={!!passwordError(pw)}>
             ถัดไป
           </Button>
         </DialogFooter>

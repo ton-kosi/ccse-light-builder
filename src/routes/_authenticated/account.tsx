@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMe } from "@/hooks/useMe";
 import { isPlaceholderEmail, looksLikeEmail, passwordError } from "@/lib/accounts";
+import { PasswordRules } from "@/components/PasswordRules";
 import { ROLE_LABELS } from "@/lib/erp";
 
 export const Route = createFileRoute("/_authenticated/account")({
@@ -108,7 +109,10 @@ function PasswordSection() {
           <Label htmlFor="pw-again">พิมพ์รหัสใหม่อีกครั้ง</Label>
           <Input id="pw-again" type="password" autoComplete="new-password" value={again} onChange={(e) => setAgain(e.target.value)} required />
         </div>
-        <p className="text-xs text-muted-foreground sm:col-span-2">อย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข</p>
+        <div className="sm:col-span-2">
+          <PasswordRules value={next} />
+          {again && again !== next ? <p className="mt-1 text-xs text-destructive">รหัสใหม่สองช่องยังไม่ตรงกัน</p> : null}
+        </div>
         <div className="sm:text-right">
           <Button type="submit" disabled={busy}>
             {busy ? "กำลังบันทึก..." : "บันทึกรหัสใหม่"}

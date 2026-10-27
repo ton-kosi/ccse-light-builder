@@ -28,17 +28,19 @@ test("login field: email or User ID", () => {
   expect(looksLikeEmail("somchai")).toBe(false);
 });
 
-test("password rules", () => {
-  expect(passwordError("abc12345")).toBeNull();
-  expect(passwordError("short1")).not.toBeNull();
-  expect(passwordError("onlyletters")).not.toBeNull();
-  expect(passwordError("12345678")).not.toBeNull();
+test("password rules: lower, upper, digit, symbol, 8+", () => {
+  expect(passwordError("Abc123!x")).toBeNull();
+  expect(passwordError("Ab1!")).toContain("8");
+  expect(passwordError("abc12345")).toContain("ตัวพิมพ์ใหญ่");
+  expect(passwordError("Abc12345")).toContain("สัญลักษณ์");
+  expect(passwordError("ABC!2345")).toContain("ตัวพิมพ์เล็ก");
+  expect(passwordError("Abcdefg!")).toContain("ตัวเลข");
 });
 
 test("generated passwords pass the rules", () => {
   for (let i = 0; i < 200; i++) {
     const p = generatePassword();
-    expect(p).toHaveLength(10);
+    expect(p).toHaveLength(12);
     expect(passwordError(p)).toBeNull();
     expect(/[01lIO]/.test(p)).toBe(false);
   }

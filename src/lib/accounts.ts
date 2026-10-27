@@ -36,19 +36,47 @@ export function looksLikeEmail(login: string): boolean {
 
 export const MIN_PASSWORD = 8;
 
+/**
+ * The sign-in service (Lovable Cloud) asks for lower case, upper case, a digit and a symbol, so the
+ * app checks the same rule first and can say what is missing in Thai.
+ */
+export const PASSWORD_RULE = "อย่างน้อย 8 ตัว มีตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และสัญลักษณ์ (เช่น ! @ # -)";
+
+/** Each rule with whether `value` meets it — for the live checklist under password fields. */
+export function passwordChecks(value: string): { label: string; ok: boolean }[] {
+  return [
+    { label: `อย่างน้อย ${MIN_PASSWORD} ตัว`, ok: value.length >= MIN_PASSWORD },
+    { label: "ตัวพิมพ์เล็ก a-z", ok: /[a-z]/.test(value) },
+    { label: "ตัวพิมพ์ใหญ่ A-Z", ok: /[A-Z]/.test(value) },
+    { label: "ตัวเลข 0-9", ok: /[0-9]/.test(value) },
+    { label: "สัญลักษณ์ เช่น ! @ # -", ok: /[^a-zA-Z0-9]/.test(value) },
+  ];
+}
+
 export function passwordError(value: string): string | null {
+  const missing: string[] = [];
+  if (!/[a-z]/.test(value)) missing.push("ตัวพิมพ์เล็ก (a-z)");
+  if (!/[A-Z]/.test(value)) missing.push("ตัวพิมพ์ใหญ่ (A-Z)");
+  if (!/[0-9]/.test(value)) missing.push("ตัวเลข");
+  if (!/[^a-zA-Z0-9]/.test(value)) missing.push("สัญลักษณ์ เช่น ! @ # -");
   if (value.length < MIN_PASSWORD) return `รหัสผ่านต้องยาวอย่างน้อย ${MIN_PASSWORD} ตัว`;
-  if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) return "รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข";
+  if (missing.length) return `รหัสผ่านยังขาด: ${missing.join(", ")}`;
   return null;
 }
 
-/** Temporary password for a new user or a reset: 10 characters, no look-alikes (0/O, 1/l/I). */
+/**
+ * Temporary password for a new user or a reset: 12 characters with lower, upper, digit and symbol,
+ * no look-alikes (0/O, 1/l/I) and only symbols that are easy to read out.
+ */
 export function generatePassword(random: (n: number) => number = cryptoRandom): string {
-  const letters = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const digits = "23456789";
-  const all = letters + digits;
-  const out = [letters[random(letters.length)], digits[random(digits.length)]];
-  while (out.length < 10) out.push(all[random(all.length)]);
+  const symbols = "!@#$%*-_?";
+  const all = lower + upper + digits + symbols;
+  const pick = (set: string) => set[random(set.length)]!;
+  const out = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+  while (out.length < 12) out.push(pick(all));
   // shuffle so the letter / digit are not always first
   for (let i = out.length - 1; i > 0; i--) {
     const j = random(i + 1);

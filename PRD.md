@@ -214,7 +214,8 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
   with 2-step must have signed in with the code). Roles can no
   longer be written directly from the browser — only through these server tools (migration 0028).
 - 🟡 **บัญชีของฉัน** (`/account`, everyone; click your name in the header): change password (current
-  password required; at least 8 characters with letters and digits), add / change email (confirmation
+  password required; at least 8 characters with lower case, upper case, a digit and a symbol — the
+  sign-in service requires it; a live checklist under every new-password field shows what is missing), add / change email (confirmation
   link), optional **2-step code** with an authenticator app (QR + 6-digit code; turning it off asks for
   the password). A temporary password from admin sends the person here until they change it.
 - 🟡 **2-step sign-in:** accounts with 2-step enter the 6-digit code after the password; the app stays
@@ -480,6 +481,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 27/10/2026 | Passwords: the sign-in service refused the generated temporary password (no upper case / symbol). Temporary passwords are now 12 characters with lower, upper, digit and symbol; every new-password field shows a live checklist and the next button stays off until it passes; a refused password says which rule it broke. |
 | 27/10/2026 | Fix: adding a user failed at the admin-password step (the server signed in a second time itself). The password is now checked in the browser and the server verifies the fresh sign-in token. Password re-check added to every sensitive admin change: settings, SKU prices / costs, purchase edit / delete, bill cancel, receipt void, project delete, CEO approval. |
 | 27/10/2026 | **User accounts:** sign in with User ID or email; admin adds users with User ID + temporary password, edits, resets password / 2-step, disables or deletes, each confirmed with the admin's password; บัญชีของฉัน for own password, email and optional 2-step codes; company details also need the password. Migration `0028_user_accounts` pending in Lovable; admin tools need the published site (they use the server's admin key). |
 | 26/10/2026 | Applied corrected synced migrations `0024_team_access` → `0025_cost_privacy` → `0026_finance_close_project` unchanged in journal order via checkpoint 0027. Verified all three source hashes against database history, RLS/grants, final local/import cost policies, enabled source guard, payment-reader helpers and restricted finance-close functions; generated types refreshed and 28 existing tests passed. Signed-in projects page works; full closing flow remains unverified because no projects exist. No app logic or original migration SQL changed. |

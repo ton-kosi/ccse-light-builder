@@ -119,9 +119,19 @@ async function usernameTaken(sb: Awaited<ReturnType<typeof admin>>, username: st
   return (data ?? []).some((p) => p.id !== exceptId);
 }
 
-function friendly(message: string) {
+/** Thai text for sign-in service errors; a refused password says which rule it broke. */
+function friendly(error: { message: string; code?: string | undefined; reasons?: string[] | undefined }) {
+  const message = error.message;
   if (/already been registered|already exists/i.test(message)) return "อีเมลนี้มีผู้ใช้อยู่แล้ว";
-  if (/password/i.test(message) && /weak|short|least/i.test(message)) return "รหัสผ่านสั้นหรือง่ายเกินไป";
+  if (error.code === "weak_password" || (/password/i.test(message) && /weak|short|least|should contain/i.test(message))) {
+    const reasons = error.reasons ?? [];
+    const why: string[] = [];
+    if (reasons.includes("length") || /least|short/i.test(message)) why.push("ยาวไม่พอ");
+    if (reasons.includes("characters") || /should contain/i.test(message))
+      why.push("ต้องมีตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข และสัญลักษณ์");
+    if (reasons.includes("pwned")) why.push("รหัสนี้เคยรั่วไหลในอินเทอร์เน็ต ใช้รหัสอื่น");
+    return `ระบบไม่รับรหัสผ่านนี้${why.length ? ": " + why.join(" · ") : ""} (${message})`;
+  }
   return message;
 }
 
@@ -182,7 +192,7 @@ export const createUser = createServerFn({ method: "POST" })
       email_confirm: true,
       user_metadata: { full_name: data.fullName },
     });
-    if (error || !created.user) throw new Error(friendly(error?.message ?? "สร้างผู้ใช้ไม่สำเร็จ"));
+    if (error || !created.user) throw new Error(friendly(error ?? { message: "สร้างผู้ใช้ไม่สำเร็จ" }));
     const id = created.user.id;
     const { error: pErr } = await sb
       .from("profiles")
@@ -222,7 +232,7 @@ export const updateUser = createServerFn({ method: "POST" })
     const nextEmail = data.email || (isPlaceholderEmail(current) || !current ? loginEmailFor(data.username) : current);
     if (nextEmail !== current) {
       const { error } = await sb.auth.admin.updateUserById(data.userId, { email: nextEmail, email_confirm: true });
-      if (error) throw new Error(friendly(error.message));
+      if (error) throw new Error(friendly(error));
     }
     const { error: pErr } = await sb
       .from("profiles")
@@ -244,7 +254,7 @@ export const resetUserPassword = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sb = await requireAdmin(context as Ctx, data.reauthToken);
     const { error } = await sb.auth.admin.updateUserById(data.userId, { password: data.newPassword });
-    if (error) throw new Error(friendly(error.message));
+    if (error) throw new Error(friendly(error));
     await sb.from("profiles").update({ must_change_password: true }).eq("id", data.userId);
     return { ok: true };
   });
