@@ -1,0 +1,1 @@
+COMMENT ON FUNCTION public.profile_username_guard() IS 'Keeps profiles.username admin-managed (0028_user_accounts).';
