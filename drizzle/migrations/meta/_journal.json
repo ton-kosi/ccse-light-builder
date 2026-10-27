@@ -204,6 +204,13 @@
       "when": 1793005397941,
       "tag": "0028_user_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793069136166,
+      "tag": "0029_apply_pending_user_accounts",
+      "breakpoints": true
     }
   ]
 }
