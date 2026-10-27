@@ -50,13 +50,21 @@ async function anonClient() {
   });
 }
 
-async function passwordMatches(email: string, password: string): Promise<boolean> {
-  if (!email || !password) return false;
+/**
+ * Proof that the admin just typed their password again: the browser signs in once more (like the
+ * login page) and sends that brand-new access token. It must be valid, belong to the same person,
+ * come from a password sign-in, and be at most 5 minutes old.
+ */
+async function reauthValid(userId: string, token: string): Promise<boolean> {
+  if (!token || token.split(".").length !== 3) return false;
   const c = await anonClient();
-  const { error } = await c.auth.signInWithPassword({ email, password });
-  if (error) return false;
-  await c.auth.signOut({ scope: "local" }); // end only this check's session
-  return true;
+  const { data, error } = await c.auth.getClaims(token);
+  const claims = data?.claims as { sub?: string; iat?: number; amr?: { method?: string; timestamp?: number }[] } | undefined;
+  if (error || !claims || claims.sub !== userId) return false;
+  const now = Date.now() / 1000;
+  const pw = (claims.amr ?? []).find((a) => a.method === "password");
+  const at = pw?.timestamp ?? claims.iat ?? 0;
+  return now - at <= 300;
 }
 
 async function admin() {
@@ -64,8 +72,8 @@ async function admin() {
   return supabaseAdmin;
 }
 
-/** Signed-in user must be admin; with `password`, it must also be the admin's current password. */
-async function requireAdmin(ctx: Ctx, password?: string) {
+/** Signed-in user must be admin; with `reauthToken`, they must also have just re-entered their password. */
+async function requireAdmin(ctx: Ctx, reauthToken?: string) {
   const sb = await admin();
   const { data: roleRow } = await sb
     .from("user_roles")
@@ -74,12 +82,12 @@ async function requireAdmin(ctx: Ctx, password?: string) {
     .eq("role", "admin")
     .maybeSingle();
   if (!roleRow) throw new Error("เฉพาะผู้ดูแลระบบ (admin) เท่านั้น");
-  if (password !== undefined) {
+  if (reauthToken !== undefined) {
+    if (!(await reauthValid(ctx.userId, reauthToken)))
+      throw new Error("ยืนยันรหัสผ่านไม่ผ่านหรือหมดเวลา — ใส่รหัสผ่านอีกครั้ง");
     const { data } = await sb.auth.admin.getUserById(ctx.userId);
     const user = data.user;
-    if (!user?.email || !(await passwordMatches(user.email, password)))
-      throw new Error("รหัสผ่านของผู้ดูแลระบบไม่ถูกต้อง");
-    const hasMfa = (user.factors ?? []).some((f) => f.status === "verified");
+    const hasMfa = (user?.factors ?? []).some((f) => f.status === "verified");
     if (hasMfa && ctx.claims.aal !== "aal2") throw new Error("กรุณายืนยันรหัส 2 ชั้นก่อนทำรายการนี้");
   }
   return sb;
@@ -159,14 +167,14 @@ export const listUsers = createServerFn({ method: "GET" })
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { fullName: string; username: string; password: string; roles: AppRole[]; adminPassword: string }) => {
+    (d: { fullName: string; username: string; password: string; roles: AppRole[]; reauthToken: string }) => {
       const err = usernameError(d?.username ?? "") ?? passwordError(d?.password ?? "");
       if (err) throw new Error(err);
       return { ...d, username: normalizeUsername(d.username), fullName: (d.fullName ?? "").trim() };
     },
   )
   .handler(async ({ context, data }) => {
-    const sb = await requireAdmin(context as Ctx, data.adminPassword);
+    const sb = await requireAdmin(context as Ctx, data.reauthToken);
     if (await usernameTaken(sb, data.username)) throw new Error(`User ID "${data.username}" มีคนใช้แล้ว`);
     const { data: created, error } = await sb.auth.admin.createUser({
       email: loginEmailFor(data.username),
@@ -192,7 +200,7 @@ export const createUser = createServerFn({ method: "POST" })
 export const updateUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { userId: string; fullName: string; username: string; email: string; roles: AppRole[]; adminPassword: string }) => {
+    (d: { userId: string; fullName: string; username: string; email: string; roles: AppRole[]; reauthToken: string }) => {
       const err = usernameError(d?.username ?? "");
       if (err) throw new Error(err);
       const email = (d.email ?? "").trim().toLowerCase();
@@ -202,7 +210,7 @@ export const updateUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const ctx = context as Ctx;
-    const sb = await requireAdmin(ctx, data.adminPassword);
+    const sb = await requireAdmin(ctx, data.reauthToken);
     if (data.userId === ctx.userId && !data.roles.includes("admin"))
       throw new Error("ถอดสิทธิ์ admin ของตัวเองไม่ได้ — ให้ admin คนอื่นทำ");
     if (await usernameTaken(sb, data.username, data.userId)) throw new Error(`User ID "${data.username}" มีคนใช้แล้ว`);
@@ -228,13 +236,13 @@ export const updateUser = createServerFn({ method: "POST" })
 
 export const resetUserPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; newPassword: string; adminPassword: string }) => {
+  .inputValidator((d: { userId: string; newPassword: string; reauthToken: string }) => {
     const err = passwordError(d?.newPassword ?? "");
     if (err) throw new Error(err);
     return d;
   })
   .handler(async ({ context, data }) => {
-    const sb = await requireAdmin(context as Ctx, data.adminPassword);
+    const sb = await requireAdmin(context as Ctx, data.reauthToken);
     const { error } = await sb.auth.admin.updateUserById(data.userId, { password: data.newPassword });
     if (error) throw new Error(friendly(error.message));
     await sb.from("profiles").update({ must_change_password: true }).eq("id", data.userId);
@@ -243,9 +251,9 @@ export const resetUserPassword = createServerFn({ method: "POST" })
 
 export const resetUserMfa = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; adminPassword: string }) => d)
+  .inputValidator((d: { userId: string; reauthToken: string }) => d)
   .handler(async ({ context, data }) => {
-    const sb = await requireAdmin(context as Ctx, data.adminPassword);
+    const sb = await requireAdmin(context as Ctx, data.reauthToken);
     const { data: factors, error } = await sb.auth.admin.mfa.listFactors({ userId: data.userId });
     if (error) throw new Error(error.message);
     for (const f of factors.factors) {
@@ -259,11 +267,11 @@ export const resetUserMfa = createServerFn({ method: "POST" })
 
 export const setUserDisabled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; disabled: boolean; adminPassword: string }) => d)
+  .inputValidator((d: { userId: string; disabled: boolean; reauthToken: string }) => d)
   .handler(async ({ context, data }) => {
     const ctx = context as Ctx;
     if (data.userId === ctx.userId) throw new Error("ปิดการใช้งานบัญชีตัวเองไม่ได้");
-    const sb = await requireAdmin(ctx, data.adminPassword);
+    const sb = await requireAdmin(ctx, data.reauthToken);
     const { error } = await sb.auth.admin.updateUserById(data.userId, {
       ban_duration: data.disabled ? "876000h" : "none",
     });
@@ -273,11 +281,11 @@ export const setUserDisabled = createServerFn({ method: "POST" })
 
 export const deleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; adminPassword: string }) => d)
+  .inputValidator((d: { userId: string; reauthToken: string }) => d)
   .handler(async ({ context, data }) => {
     const ctx = context as Ctx;
     if (data.userId === ctx.userId) throw new Error("ลบบัญชีตัวเองไม่ได้");
-    const sb = await requireAdmin(ctx, data.adminPassword);
+    const sb = await requireAdmin(ctx, data.reauthToken);
     const { data: isAdmin } = await sb
       .from("user_roles")
       .select("role")

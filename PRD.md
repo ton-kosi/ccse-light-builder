@@ -205,9 +205,13 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
   person recorded work, the account is disabled and all roles removed instead, to keep history).
   Admin cannot remove their own admin role, disable or delete themselves, or delete the last admin.
   Warns when one person gets both ฝ่ายขาย and ฝ่ายคลัง (would see selling price and cost).
-- 🟡 **Re-confirm with the admin's password:** every change on ผู้ใช้และสิทธิ์ shows what will change
-  and asks for the admin's password again (checked on the server; an admin with 2-step must have
-  signed in with the code); saving company details (letterhead, tax ID, bank) asks too. Roles can no
+- 🟡 **Re-confirm with the admin's password** before every sensitive change: everything on ผู้ใช้และ
+  สิทธิ์ (shows what will change), all settings (remnant length, holidays, warranty months, company
+  letterhead / tax ID / bank), SKU selling price or cost (incl. CSV import of prices), editing or
+  deleting a purchase, cancelling a bill, voiding a receipt, deleting a project and "CEO อนุมัติ".
+  The password is checked in the browser like a normal sign-in; the user tools on the server also
+  require that fresh sign-in token (same person, password sign-in, at most 5 minutes old; an admin
+  with 2-step must have signed in with the code). Roles can no
   longer be written directly from the browser — only through these server tools (migration 0028).
 - 🟡 **บัญชีของฉัน** (`/account`, everyone; click your name in the header): change password (current
   password required; at least 8 characters with letters and digits), add / change email (confirmation
@@ -476,6 +480,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 27/10/2026 | Fix: adding a user failed at the admin-password step (the server signed in a second time itself). The password is now checked in the browser and the server verifies the fresh sign-in token. Password re-check added to every sensitive admin change: settings, SKU prices / costs, purchase edit / delete, bill cancel, receipt void, project delete, CEO approval. |
 | 27/10/2026 | **User accounts:** sign in with User ID or email; admin adds users with User ID + temporary password, edits, resets password / 2-step, disables or deletes, each confirmed with the admin's password; บัญชีของฉัน for own password, email and optional 2-step codes; company details also need the password. Migration `0028_user_accounts` pending in Lovable; admin tools need the published site (they use the server's admin key). |
 | 26/10/2026 | Applied corrected synced migrations `0024_team_access` → `0025_cost_privacy` → `0026_finance_close_project` unchanged in journal order via checkpoint 0027. Verified all three source hashes against database history, RLS/grants, final local/import cost policies, enabled source guard, payment-reader helpers and restricted finance-close functions; generated types refreshed and 28 existing tests passed. Signed-in projects page works; full closing flow remains unverified because no projects exist. No app logic or original migration SQL changed. |
 | 26/10/2026 | Attempt to apply existing migrations `0024_team_access`, `0025_cost_privacy` and `0026_finance_close_project` was blocked before SQL execution by conflicting synced snapshot IDs / parent links. All three remain pending; database history is still at 0023 and the new cost-privacy / finance-close functions are absent. No app code or migration SQL changed. |

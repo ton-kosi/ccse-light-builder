@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
 import { useMe } from "@/hooks/useMe";
+import { usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   const { isAdmin } = useMe();
   const qc = useQueryClient();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const { data } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
@@ -49,6 +51,7 @@ function SettingsPage() {
       toast.error("กรุณากรอกตัวเลขที่ถูกต้อง");
       return;
     }
+    if (!(await askPassword({ title: "บันทึกความยาวเศษม้วนขั้นต่ำ" }))) return;
     const { error } = await supabase.from("settings").update({ min_remnant_m: v }).eq("id", true);
     if (error) {
       toast.error(error.message);
@@ -87,6 +90,7 @@ function SettingsPage() {
       <HolidaysEditor />
       <WarrantyRulesEditor />
       <CompaniesEditor />
+      {passwordDialog}
     </div>
   );
 }

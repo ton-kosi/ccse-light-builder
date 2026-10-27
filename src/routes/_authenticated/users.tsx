@@ -54,7 +54,7 @@ type Confirm = {
   body: React.ReactNode;
   label: string;
   destructive?: boolean;
-  run: (adminPassword: string) => Promise<void>;
+  run: (reauthToken: string) => Promise<void>;
 };
 
 function UsersPage() {
@@ -175,8 +175,8 @@ function UsersPage() {
                               title: `รีเซ็ตรหัส 2 ชั้นของ ${nameOf(u)}`,
                               body: "ผู้ใช้จะเข้าระบบด้วยรหัสผ่านอย่างเดียวได้ แล้วตั้งรหัส 2 ชั้นใหม่เองที่ “บัญชีของฉัน”",
                               label: "รีเซ็ตรหัส 2 ชั้น",
-                              run: async (adminPassword) => {
-                                await resetUserMfa({ data: { userId: u.id, adminPassword } });
+                              run: async (reauthToken) => {
+                                await resetUserMfa({ data: { userId: u.id, reauthToken } });
                                 toast.success("ลบรหัส 2 ชั้นแล้ว");
                                 refresh();
                               },
@@ -199,8 +199,8 @@ function UsersPage() {
                                 : "ผู้ใช้จะเข้าระบบไม่ได้ทันที ข้อมูลที่เขาบันทึกไว้ยังอยู่ครบ",
                               label: u.disabled ? "เปิดใช้งาน" : "ปิดการใช้งาน",
                               destructive: !u.disabled,
-                              run: async (adminPassword) => {
-                                await setUserDisabled({ data: { userId: u.id, disabled: !u.disabled, adminPassword } });
+                              run: async (reauthToken) => {
+                                await setUserDisabled({ data: { userId: u.id, disabled: !u.disabled, reauthToken } });
                                 toast.success(u.disabled ? "เปิดใช้งานแล้ว" : "ปิดการใช้งานแล้ว");
                                 refresh();
                               },
@@ -225,8 +225,8 @@ function UsersPage() {
                               ),
                               label: "ลบผู้ใช้",
                               destructive: true,
-                              run: async (adminPassword) => {
-                                const r = await deleteUser({ data: { userId: u.id, adminPassword } });
+                              run: async (reauthToken) => {
+                                const r = await deleteUser({ data: { userId: u.id, reauthToken } });
                                 toast.success(r.deleted ? "ลบผู้ใช้แล้ว" : "มีงานที่ผู้ใช้บันทึกไว้ — ปิดการใช้งานและถอดสิทธิ์แทน");
                                 refresh();
                               },
@@ -260,7 +260,7 @@ function UsersPage() {
               title: before ? `บันทึกการแก้ไข ${nameOf(before)}` : `สร้างผู้ใช้ ${v.username}`,
               body: <ChangeSummary before={before} after={v} />,
               label: before ? "บันทึก" : "สร้างผู้ใช้",
-              run: async (adminPassword) => {
+              run: async (reauthToken) => {
                 if (before) {
                   await updateUser({
                     data: {
@@ -269,13 +269,13 @@ function UsersPage() {
                       username: v.username,
                       email: v.email,
                       roles: v.roles,
-                      adminPassword,
+                      reauthToken,
                     },
                   });
                   toast.success("บันทึกแล้ว");
                 } else {
                   await createUser({
-                    data: { fullName: v.fullName, username: v.username, password: v.password, roles: v.roles, adminPassword },
+                    data: { fullName: v.fullName, username: v.username, password: v.password, roles: v.roles, reauthToken },
                   });
                   setHandover({ title: "สร้างผู้ใช้แล้ว", username: v.username, password: v.password });
                 }
@@ -298,8 +298,8 @@ function UsersPage() {
               body: "รหัสเดิมจะใช้ไม่ได้ทันที และผู้ใช้ต้องเปลี่ยนรหัสใหม่เมื่อเข้าระบบครั้งถัดไป",
               label: "รีเซ็ตรหัสผ่าน",
               destructive: true,
-              run: async (adminPassword) => {
-                await resetUserPassword({ data: { userId: target.id, newPassword, adminPassword } });
+              run: async (reauthToken) => {
+                await resetUserPassword({ data: { userId: target.id, newPassword, reauthToken } });
                 setHandover({
                   title: "รีเซ็ตรหัสผ่านแล้ว",
                   username: target.username ?? target.email ?? "",

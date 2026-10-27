@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
 import { useMe } from "@/hooks/useMe";
+import { Cancelled, isCancelled, usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { categoryOf } from "@/lib/skuCategory";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 import {
@@ -75,6 +76,7 @@ function PurchasesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { has, isAdmin, isLoading: meLoading } = useMe();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   // purchase team: local SKUs only (the database hides imported SKUs' purchases and costs)
   const allowed = has("admin", "stock");
   const canRecord = allowed;
@@ -241,6 +243,7 @@ function PurchasesPage() {
 
   return (
     <div>
+      {passwordDialog}
       <PageHeader
         title="ซื้อของ"
         description="บันทึกทุกครั้งที่ซื้อ — รับของเข้าสต๊อกทันที และต้นทุนของ SKU จะเป็นราคาซื้อล่าสุด (ราคา + ค่าใช้จ่ายเพิ่ม ÷ จำนวน)"
@@ -531,8 +534,14 @@ function PurchasesPage() {
                           size="sm"
                           variant="ghost"
                           className="text-destructive"
-                          onClick={() => {
-                            if (confirm("ลบรายการซื้อนี้? ระบบจะหักสต๊อกคืนและคำนวณต้นทุนใหม่"))
+                          onClick={async () => {
+                            if (
+                              await askPassword({
+                                title: "ลบรายการซื้อ",
+                                body: "ระบบจะหักสต๊อกคืนและคำนวณต้นทุนใหม่",
+                                destructive: true,
+                              })
+                            )
                               remove.mutate(p.id);
                           }}
                         >
@@ -594,6 +603,7 @@ function EditPurchaseDialog({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const [f, setF] = useState({
     date: p.date,
     sku_id: p.sku_id,
@@ -614,6 +624,8 @@ function EditPurchaseDialog({
       const price = toNumber(f.unit_price);
       if (!f.sku_id) throw new Error("เลือก SKU");
       if (!qty || qty <= 0) throw new Error("จำนวนต้องมากกว่า 0");
+      if (!(await askPassword({ title: "บันทึกการแก้ไขรายการซื้อ", body: "สต๊อกและต้นทุนของ SKU จะคำนวณใหม่" })))
+        throw new Cancelled();
       if (price === null || price < 0) throw new Error("ใส่ราคาต่อหน่วย");
       const { data, error } = await supabase
         .from("purchases")
@@ -644,7 +656,7 @@ function EditPurchaseDialog({
       );
       onClose();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => isCancelled(e) || toast.error(e.message),
   });
 
   return (
@@ -653,6 +665,7 @@ function EditPurchaseDialog({
         <DialogHeader>
           <DialogTitle>แก้ไขรายการซื้อ</DialogTitle>
         </DialogHeader>
+        {passwordDialog}
         <form
           id="edit-purchase"
           className="grid gap-3 sm:grid-cols-2"

@@ -165,7 +165,6 @@ function CompanyForm({ company }: { company: Company }) {
         <ConfirmPasswordDialog
           title={`บันทึกข้อมูลบริษัท ${company.short_en}`}
           confirmLabel="บันทึก"
-          checkInBrowser
           onClose={() => setPending(null)}
           onConfirm={() => save(pending)}
         >

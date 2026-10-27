@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CsvImport, type CsvRow, boolCsv, numCsv } from "@/components/CsvImport";
 import { useMe } from "@/hooks/useMe";
+import { Cancelled, isCancelled, usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 import { ensureRollComponent, saveSkuPrice, SKU_PRICES_KEY, useSkuPrices } from "@/lib/skuPrices";
 import {
@@ -81,6 +82,7 @@ type Form = typeof EMPTY;
 
 function SkusPage() {
   const { canEditMaster, canSeeMoney, canSeeCost, canViewQuote, me } = useMe();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
@@ -117,6 +119,19 @@ function SkusPage() {
 
   const save = useMutation({
     mutationFn: async ({ id, form }: { id: string | null; form: Form }) => {
+      // selling price / cost typed by admin: confirm with the password first
+      if (canSeeMoney) {
+        const sellNew = toNumber(form.sell_price);
+        const mdNew = toNumber(form.max_discount) ?? 0;
+        const costNew = toNumber(form.unit_cost);
+        const oldP = id ? prices?.get(id) : undefined;
+        const oldC = id ? costs?.get(id) : undefined;
+        const moneyChanged =
+          (sellNew !== null && (!oldP || oldP.unitPrice !== sellNew || oldP.maxDiscount !== mdNew)) ||
+          (costNew !== null && oldC !== costNew);
+        if (moneyChanged && !(await askPassword({ title: "บันทึกราคาขาย / ต้นทุน", body: "ราคาขายใช้ในใบเสนอราคาใหม่ทุกใบ ต้นทุนใช้คิดกำไร" })))
+          throw new Cancelled();
+      }
       const row = formToRow(form);
       let skuId = id;
       if (id) {
@@ -165,7 +180,7 @@ function SkusPage() {
       qc.invalidateQueries({ queryKey: ["sku_costs"] });
       qc.invalidateQueries({ queryKey: SKU_PRICES_KEY });
     },
-    onError: (e: Error) => toast.error(friendly(e.message)),
+    onError: (e: Error) => isCancelled(e) || toast.error(friendly(e.message)),
   });
 
   async function importRows(rows: CsvRow[]) {
@@ -204,7 +219,14 @@ function SkusPage() {
     }
     // admin: cost / selling price / lowest price per row (lowest price → max discount %)
     const money = rows.filter((r) => r.unit_cost || r.sell_price);
-    if (money.length && canSeeMoney) {
+    if (
+      money.length &&
+      canSeeMoney &&
+      (await askPassword({
+        title: `บันทึกราคาขาย / ต้นทุนจากไฟล์ (${money.length} รายการ)`,
+        body: "ยกเลิก = นำเข้าเฉพาะข้อมูลสินค้าและยอดนับ ไม่เปลี่ยนราคา",
+      }))
+    ) {
       const { data: saved, error } = await supabase
         .from("skus")
         .select("id, code, name, unit")
@@ -330,6 +352,7 @@ function SkusPage() {
 
   return (
     <div>
+      {passwordDialog}
       <PageHeader
         title="สต็อก (SKU)"
         description="สินค้าจริงที่เบิกจากคลัง — ยอดคงเหลือคำนวณจากรายการรับ/เบิก/ปรับยอดเท่านั้น"

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMe } from "@/hooks/useMe";
+import { usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 import { methodLabel, PAY_METHODS } from "@/lib/payments";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
@@ -60,6 +61,7 @@ export async function openSlip(path: string) {
 export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const { isAdmin, canManagePayments } = useMe();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   /** sale team: sees whether the customer has paid, cannot bill or record money */
   const readOnly = !canManagePayments;
   const [billFor, setBillFor] = useState<Term | null>(null);
@@ -178,6 +180,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
+      {passwordDialog}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">งวดเงิน — {quote.ref_no} Rev {quote.rev}</h2>
         <div className="flex gap-2">
@@ -246,10 +249,11 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                           <>
                             <Button size="sm" variant="outline" onClick={() => setViewDoc(t.bill_id)}>ดูใบเบิกเงิน</Button>
                             {isAdmin ? (
-                              <Button size="sm" variant="ghost" onClick={() => {
+                              <Button size="sm" variant="ghost" onClick={async () => {
                                 const reason = window.prompt(`เหตุผลที่ยกเลิกใบเบิกเงิน ${t.bill_no}`);
                                 if (reason === null) return;
                                 if (!reason.trim()) { toast.error("ต้องระบุเหตุผล"); return; }
+                                if (!(await askPassword({ title: `ยกเลิกใบเบิกเงิน ${t.bill_no}`, body: `เหตุผล: ${reason}`, destructive: true }))) return;
                                 cancelDoc.mutate({ id: t.bill_id!, reason });
                               }}>ยกเลิกใบ</Button>
                             ) : null}
@@ -285,10 +289,11 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                                     <td>{r.slip_path ? <button className="text-primary underline" onClick={() => openSlip(r.slip_path!)}>ดู</button> : "-"}</td>
                                     <td>
                                       {r.voided_at ? <span className="no-underline">ลบแล้ว: {r.void_reason}</span> : isAdmin ? (
-                                        <Button size="sm" variant="ghost" className="h-6" onClick={() => {
+                                        <Button size="sm" variant="ghost" className="h-6" onClick={async () => {
                                           const reason = window.prompt("เหตุผลที่ลบรายการรับเงินนี้");
                                           if (reason === null) return;
                                           if (!reason.trim()) { toast.error("ต้องระบุเหตุผล"); return; }
+                                          if (!(await askPassword({ title: `ลบรายการรับเงิน ${formatTHB(Number(r.amount))} บาท`, body: `เหตุผล: ${reason}`, destructive: true }))) return;
                                           voidReceipt.mutate({ id: r.id, reason });
                                         }}>ลบ</Button>
                                       ) : null}

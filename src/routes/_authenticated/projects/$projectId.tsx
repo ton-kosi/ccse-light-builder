@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/hooks/useMe";
+import { usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
 import {
   PROJECT_STATUSES,
@@ -241,6 +242,7 @@ function OverviewTab({
   const max = project.install_days_max;
   const actual = project.install_days_actual;
   const { canManagePayments } = useMe();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const qcFin = useQueryClient();
   const { data: finance } = useQuery({
     queryKey: ["project_finance", project.id],
@@ -318,6 +320,7 @@ function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {passwordDialog}
       <section className="grid gap-4 sm:grid-cols-3">
         <Stat
           label={`ยอดใบเสนอราคาปัจจุบัน${quotation ? quotationRevisionSuffix(quotation.rev) : ""}`}
@@ -406,7 +409,12 @@ function OverviewTab({
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             value={project.released_by ?? ""}
             disabled={!canEditSales}
-            onChange={(e) => onUpdate({ released_by: e.target.value || null })}
+            onChange={async (e) => {
+              const v = e.target.value || null;
+              // CEO approval releases work before the deposit: admin confirms with the password
+              if (v === "ceo" && !(await askPassword({ title: "CEO อนุมัติปล่อยงาน", body: "ปล่อยใบงานได้ก่อนรับมัดจำ" }))) return;
+              onUpdate({ released_by: v });
+            }}
           >
             <option value="">— ยังไม่ระบุ —</option>
             <option value="deposit">รับมัดจำแล้ว</option>
@@ -565,6 +573,7 @@ function DeleteProject({ id, code }: { id: string; code: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [typed, setTyped] = useState("");
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const remove = useMutation({
     mutationFn: () => deleteProjectWithFiles(id),
     onSuccess: ({ left }) => {
@@ -593,11 +602,15 @@ function DeleteProject({ id, code }: { id: string; code: string }) {
           variant="destructive"
           size="sm"
           disabled={typed.trim() !== code || remove.isPending}
-          onClick={() => remove.mutate()}
+          onClick={async () => {
+            if (await askPassword({ title: `ลบโปรเจกต์ ${code}`, body: "ลบทุกอย่างของโปรเจกต์นี้ — กู้คืนไม่ได้", destructive: true }))
+              remove.mutate();
+          }}
         >
           {remove.isPending ? "กำลังลบ…" : "ลบโปรเจกต์นี้"}
         </Button>
       </div>
+      {passwordDialog}
     </section>
   );
 }

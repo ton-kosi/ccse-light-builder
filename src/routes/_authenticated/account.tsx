@@ -290,7 +290,6 @@ function TwoStepSection() {
           title="ปิดรหัส 2 ชั้น"
           confirmLabel="ปิดรหัส 2 ชั้น"
           destructive
-          checkInBrowser
           onClose={() => setConfirmOff(false)}
           onConfirm={async () => {
             const { error } = await supabase.auth.mfa.unenroll({ factorId: active.id });

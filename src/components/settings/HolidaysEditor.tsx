@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Cancelled, isCancelled, usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { holidaysKey, useHolidays } from "@/hooks/useHolidays";
@@ -14,6 +15,7 @@ import { thaiDow } from "@/lib/jobs";
  */
 export function HolidaysEditor() {
   const qc = useQueryClient();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const { data: holidays } = useHolidays();
   const year = new Date().getFullYear();
   const [show, setShow] = useState(year);
@@ -22,6 +24,7 @@ export function HolidaysEditor() {
 
   const add = useMutation({
     mutationFn: async () => {
+      if (!(await askPassword({ title: "บันทึกวันหยุดนักขัตฤกษ์", body: "วันหยุดมีผลกับการนับวันติดตั้งและค่าติดตั้งเกินวัน" }))) throw new Cancelled();
       if (!f.day || !f.name.trim()) throw new Error("ใส่วันที่และชื่อวันหยุด");
       const { error } = await supabase
         .from("public_holidays")
@@ -35,6 +38,7 @@ export function HolidaysEditor() {
       qc.invalidateQueries({ queryKey: holidaysKey });
     },
     onError: (e: Error) =>
+      isCancelled(e) ||
       toast.error(
         /public_holidays|schema cache/i.test(e.message)
           ? "ยังบันทึกไม่ได้ — ให้ Lovable รันไฟล์ docs/sql/crew_schedule_wos.sql ก่อน"
@@ -43,11 +47,12 @@ export function HolidaysEditor() {
   });
   const remove = useMutation({
     mutationFn: async (day: string) => {
+      if (!(await askPassword({ title: "ลบวันหยุด", destructive: true }))) throw new Cancelled();
       const { error } = await supabase.from("public_holidays").delete().eq("day", day);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: holidaysKey }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => isCancelled(e) || toast.error(e.message),
   });
 
   return (
@@ -111,6 +116,7 @@ export function HolidaysEditor() {
           เพิ่มวันหยุด
         </Button>
       </form>
+      {passwordDialog}
     </section>
   );
 }

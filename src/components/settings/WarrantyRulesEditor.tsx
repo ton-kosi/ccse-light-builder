@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Cancelled, isCancelled, usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { Input } from "@/components/ui/input";
 import { useWarrantyRules, warrantyRulesKey } from "@/hooks/useWarranty";
 import { SKU_CATEGORIES } from "@/lib/skuCategory";
@@ -10,12 +11,17 @@ import { Button } from "@/components/ui/button";
 /** Warranty months per product type (SKU category), counted from handover. Admin only. */
 export function WarrantyRulesEditor() {
   const qc = useQueryClient();
+  const { askPassword, passwordDialog } = usePasswordConfirm();
   const { data } = useWarrantyRules();
   const saved = data?.saved ?? false;
   const byCat = new Map((data?.rules ?? []).map((r) => [r.category, r]));
 
   const save = useMutation({
     mutationFn: async ({ category, months }: { category: string; months: number | null }) => {
+      if (!(await askPassword({ title: "บันทึกระยะประกัน", body: "ระยะประกันใช้ตัดสินว่าใบแจ้งซ่อมอยู่ในประกันหรือไม่" }))) {
+        qc.invalidateQueries({ queryKey: warrantyRulesKey });
+        throw new Cancelled();
+      }
       // the first edit saves the defaults too, so the other product types keep their months
       if (!saved) {
         const { error: e0 } = await supabase.from("warranty_rules").upsert(DEFAULT_WARRANTY_RULES, { onConflict: "category" });
@@ -34,6 +40,7 @@ export function WarrantyRulesEditor() {
       qc.invalidateQueries({ queryKey: ["project_warranty"] });
     },
     onError: (e: Error) =>
+      isCancelled(e) ||
       toast.error(
         /warranty_rules|schema cache/i.test(e.message)
           ? "ยังบันทึกไม่ได้ — ให้ Lovable รันไฟล์ docs/sql/warranty_repairs.sql ก่อน"
@@ -83,6 +90,7 @@ export function WarrantyRulesEditor() {
           );
         })}
       </div>
+      {passwordDialog}
     </section>
   );
 }
