@@ -10,6 +10,8 @@ import { formatQty } from "@/lib/format";
 import { useMe } from "@/hooks/useMe";
 import { categoryOf } from "@/lib/skuCategory";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
+import { ScanCount } from "@/components/stock/ScanCount";
+import { ScanLine } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/stock")({
   head: () => ({
@@ -30,8 +32,9 @@ const STATUS_RANK: Record<Status, number> = { urgent: 0, order: 1, ok: 2 };
 
 function StockPage() {
   const [search, setSearch] = useState("");
-  const { has } = useMe();
+  const { has, canEditMaster } = useMe();
   const canPR = has("admin", "stock");
+  const [counting, setCounting] = useState(false);
   const [filter, setFilter] = useState<"all" | Status>("all");
   const [cat, setCat] = useState("");
 
@@ -121,11 +124,24 @@ function StockPage() {
       <PageHeader
         title="สต็อก"
         actions={
-          <Button asChild variant="outline">
-            <Link to="/skus">ทะเบียน SKU / รับ-เบิกของ</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {canEditMaster ? (
+              <Button variant={counting ? "default" : "outline"} onClick={() => setCounting(!counting)}>
+                <ScanLine className="h-4 w-4" /> ตรวจนับด้วยสแกน
+              </Button>
+            ) : null}
+            <Button asChild variant="outline">
+              <Link to="/skus">ทะเบียน SKU / รับ-เบิกของ</Link>
+            </Button>
+          </div>
         }
       />
+      {counting && canEditMaster ? (
+        <ScanCount
+          skus={skus ?? []}
+          onHand={new Map((onHand ?? []).map((h) => [h.sku_id ?? "", Number(h.on_hand ?? 0)]))}
+        />
+      ) : null}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input className="max-w-xs" placeholder="ค้นหารหัสหรือชื่อ" value={search} onChange={(e) => setSearch(e.target.value)} />
         <CategoryFilter skus={skus ?? []} value={cat} onChange={setCat} />

@@ -2045,6 +2045,7 @@ export type Database = {
       }
       skus: {
         Row: {
+          barcodes: string[]
           code: string
           created_at: string
           cut_step_cm: number | null
@@ -2062,6 +2063,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          barcodes?: string[]
           code: string
           created_at?: string
           cut_step_cm?: number | null
@@ -2079,6 +2081,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          barcodes?: string[]
           code?: string
           created_at?: string
           cut_step_cm?: number | null

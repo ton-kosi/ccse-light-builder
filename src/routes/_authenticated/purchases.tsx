@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
 import { useMe } from "@/hooks/useMe";
+import { ScanBox } from "@/components/scan/ScanBox";
+import { findByScan } from "@/lib/barcode";
 import { Cancelled, isCancelled, usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { categoryOf } from "@/lib/skuCategory";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
@@ -154,6 +156,20 @@ function PurchasesPage() {
     });
     setLines((ls) => [...ls.filter((l) => l.sku_id || l.qty || l.unit_price), line]);
   };
+  /** a scanned label / supplier barcode adds a purchase line for that SKU */
+  const addScanned = (code: string) => {
+    const { match, candidates } = findByScan(skus ?? [], code);
+    if (!match) {
+      toast.error(candidates.length ? `บาร์โค้ด ${code} ตรงกับหลาย SKU — เลือก SKU เอง` : `ไม่พบสินค้ารหัส ${code}`);
+      return;
+    }
+    if (!canBuy(match)) {
+      toast.error(`${match.code} เป็นสินค้านำเข้า — ผู้ดูแลระบบเป็นคนบันทึกซื้อ`);
+      return;
+    }
+    setLines((ls) => [...ls.filter((l) => l.sku_id || l.qty || l.unit_price), newLine({ sku_id: match.id, qty: "1" })]);
+    toast.success(`เพิ่ม ${match.code} — ใส่จำนวนและราคา`);
+  };
   // "รับของ" from the purchase-request page lands here with ?pr=
   useEffect(() => {
     if (search.pr && openPrs) {
@@ -286,6 +302,10 @@ function PurchasesPage() {
           <Field label="หมายเหตุ">
             <Input value={head.note} onChange={(e) => setHead({ ...head, note: e.target.value })} />
           </Field>
+        </div>
+
+        <div className="mt-4 max-w-md">
+          <ScanBox placeholder="สแกนป้ายหรือบาร์โค้ดสินค้าเพื่อเพิ่มบรรทัด" onScan={addScanned} />
         </div>
 
         <div className="mt-4 overflow-x-auto">

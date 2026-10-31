@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 27/10/2026
+> Last updated: 31/10/2026
 
 ## 1. Overview
 
@@ -342,6 +342,26 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Clauses** (`/clauses`) — remark / warranty / note / warning text,
   linked to sales components or "every quotation".
 - ✅ CSV import for master data.
+- 🟡 **Barcodes & labels:**
+  - Each SKU has a list of extra codes that scan to it (`skus.barcodes`): supplier barcodes
+    (EAN / UPC on the box) and its own **old SKU codes** — renaming a SKU keeps the old code there
+    automatically, so labels already on the shelf still scan. Edit in the SKU form ("บาร์โค้ดผู้ขาย /
+    รหัสเก่า") or the CSV column `barcode` (several separated by ,).
+  - **SKU labels** (`/print/sku-labels?ids=`, admin / estimator / stock): 80 × 50 mm, one per page
+    for a thermal label printer (TSC TE210): QR of the SKU code + the code in large text (readable if
+    the QR is damaged), name, category, unit; 1–10 copies each. From the SKU page: per row, or
+    "พิมพ์ป้าย" for the SKUs listed (up to 200). Remnant labels now carry a QR of the remnant code.
+  - **Scan box** (USB / Bluetooth scanner types the code + Enter; on phones a camera button reads QR
+    and barcodes — built-in reader on Android Chrome, bundled reader elsewhere). A SKU code wins over
+    barcodes; a barcode on several SKUs asks which one.
+  - **ตรวจนับด้วยสแกน** (stock page, admin / estimator / stock): scan → type the counted total →
+    Enter; the difference is posted as an `adjust` movement ("ตรวจนับสต็อก (สแกน)"), same rule as
+    the CSV count; a list shows system vs counted vs difference. An unknown supplier barcode can be
+    linked to its SKU on the spot.
+  - **Receiving:** scanning on the purchase form adds a line with that SKU (import SKUs refused for
+    non-admin, as before). The SKU search also finds SKUs by barcode and has a scan box.
+  - Label stock for hot places: PET (polyester) labels + full-resin ribbon, high-temperature
+    acrylic adhesive; never direct-thermal labels.
 - ✅ **Stock count by CSV** (admin, estimator, stock): the SKU import accepts an
   optional `qty` column = counted stock. The difference from the current on-hand
   is posted as an `adjust` movement ("ตรวจนับสต็อก (นำเข้า CSV)"), so importing
@@ -481,6 +501,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 31/10/2026 | **Barcodes:** SKU barcode list (supplier barcodes + old codes kept on rename), printable 80 × 50 mm SKU labels with QR, QR on remnant labels, scan box (USB scanner or phone camera), scan-to-count on the stock page, scan-to-add on purchases, SKU search by barcode, CSV `barcode` column. Migration `0030_sku_barcodes` pending in Lovable; libraries `qrcode` and `barcode-detector` added. |
 | 27/10/2026 | Passwords: the sign-in service refused the generated temporary password (no upper case / symbol). Temporary passwords are now 12 characters with lower, upper, digit and symbol; every new-password field shows a live checklist and the next button stays off until it passes; a refused password says which rule it broke. |
 | 27/10/2026 | Fix: adding a user failed at the admin-password step (the server signed in a second time itself). The password is now checked in the browser and the server verifies the fresh sign-in token. Password re-check added to every sensitive admin change: settings, SKU prices / costs, purchase edit / delete, bill cancel, receipt void, project delete, CEO approval. |
 | 27/10/2026 | **User accounts:** sign in with User ID or email; admin adds users with User ID + temporary password, edits, resets password / 2-step, disables or deletes, each confirmed with the admin's password; บัญชีของฉัน for own password, email and optional 2-step codes; company details also need the password. Migration `0028_user_accounts` pending in Lovable; admin tools need the published site (they use the server's admin key). |

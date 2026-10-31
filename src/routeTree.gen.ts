@@ -26,6 +26,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as PrintSkuLabelsRouteImport } from './routes/print.sku-labels'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
 import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
@@ -126,6 +127,11 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const PrintSkuLabelsRoute = PrintSkuLabelsRouteImport.update({
+  id: '/print/sku-labels',
+  path: '/print/sku-labels',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjectsIndexRoute =
   AuthenticatedProjectsIndexRouteImport.update({
     id: '/projects/',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
@@ -312,6 +321,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/stock'
     | '/users'
+    | '/print/sku-labels'
     | '/projects/$projectId'
     | '/work-orders/$woId'
     | '/print/billing/$docId'
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/stock'
     | '/users'
+    | '/print/sku-labels'
     | '/projects/$projectId'
     | '/work-orders/$woId'
     | '/print/billing/$docId'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/_authenticated/skus'
     | '/_authenticated/stock'
     | '/_authenticated/users'
+    | '/print/sku-labels'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/work-orders/$woId'
     | '/print/billing/$docId'
@@ -394,6 +406,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  PrintSkuLabelsRoute: typeof PrintSkuLabelsRoute
   PrintBillingDocIdRoute: typeof PrintBillingDocIdRoute
   PrintHandoverWoIdRoute: typeof PrintHandoverWoIdRoute
   PrintMaterialsProjectIdRoute: typeof PrintMaterialsProjectIdRoute
@@ -525,6 +538,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/users'
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/print/sku-labels': {
+      id: '/print/sku-labels'
+      path: '/print/sku-labels'
+      fullPath: '/print/sku-labels'
+      preLoaderRoute: typeof PrintSkuLabelsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/projects/': {
       id: '/_authenticated/projects/'
@@ -669,6 +689,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  PrintSkuLabelsRoute: PrintSkuLabelsRoute,
   PrintBillingDocIdRoute: PrintBillingDocIdRoute,
   PrintHandoverWoIdRoute: PrintHandoverWoIdRoute,
   PrintMaterialsProjectIdRoute: PrintMaterialsProjectIdRoute,

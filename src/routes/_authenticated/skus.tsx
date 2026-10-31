@@ -29,6 +29,9 @@ import {
 import { DEMO_PREFIX, loadDemoData, removeDemoData } from "@/lib/demoData";
 import { attrFieldsFor, attrsForCategory, attrsOf, attrSummary, guessAttrs } from "@/lib/skuAttrs";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
+import { ScanBox } from "@/components/scan/ScanBox";
+import { parseBarcodeList } from "@/lib/barcode";
+import { Tag } from "lucide-react";
 import { countAdjustments, parseCount, STOCK_COUNT_NOTE } from "@/lib/stockCount";
 
 export const Route = createFileRoute("/_authenticated/skus")({
@@ -71,6 +74,10 @@ const EMPTY = {
   cut_step_cm: "",
   max_piece_m: "",
   notes: "",
+  /** supplier barcodes / old codes that scan to this SKU, comma separated */
+  barcodes: "",
+  /** the SKU already had barcodes (so clearing the field still saves an empty list) */
+  had_barcodes: false,
   category: "",
   /** category-specific fields (LED chip, PCB width, profile model, PSU watt…) */
   attrs: {} as Record<string, string>,
@@ -203,16 +210,21 @@ function SkusPage() {
         roll_family: r.roll_family || null,
         cut_step_cm: numCsv(r.cut_step_cm),
         max_piece_m: numCsv(r.max_piece_m),
+        ...(r.barcode?.trim() ? { barcodes: parseBarcodeList(r.barcode) } : {}),
         // only touch notes when the file has them, so re-importing never wipes a saved category
         ...(r.category || r.notes
           ? { notes: withCategory(r.notes ?? "", r.category?.trim() || null) }
           : {}),
       };
     });
-    // rows with and without notes go separately: a bulk upsert fills missing columns with null
-    const withNotes = payload.filter((p) => "notes" in p);
-    const plain = payload.filter((p) => !("notes" in p));
-    for (const part of [withNotes, plain]) {
+    // rows with different columns (notes / barcodes or not) go separately: a bulk upsert fills
+    // missing columns with null
+    const groups = new Map<string, TablesInsert<"skus">[]>();
+    for (const p of payload) {
+      const key = Object.keys(p).sort().join(",");
+      groups.set(key, [...(groups.get(key) ?? []), p]);
+    }
+    for (const part of groups.values()) {
       if (!part.length) continue;
       const { error } = await supabase.from("skus").upsert(part, { onConflict: "code" });
       if (error) throw new Error(friendly(error.message));
@@ -298,7 +310,9 @@ function SkusPage() {
   const list = (skus ?? [])
     .filter((k) => !cat || categoryOf(k) === cat)
     .filter(
-      (k) => !s || [k.code, k.name, k.roll_family ?? ""].some((x) => x.toLowerCase().includes(s)),
+      (k) =>
+        !s ||
+        [k.code, k.name, k.roll_family ?? "", ...(k.barcodes ?? [])].some((x) => x.toLowerCase().includes(s)),
     );
   const cols = 10 + (canSeeCost ? 1 : 0) + (canViewQuote ? 2 : 0) + (canEditMaster ? 1 : 0);
   // SKUs whose category or category fields can still be filled from their name
@@ -361,7 +375,7 @@ function SkusPage() {
             <>
               <CsvImport
                 label="นำเข้า CSV"
-                columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes,unit_cost,sell_price,min_price (หรือ max_discount),qty (ยอดตรวจนับ)"
+                columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes,barcode (บาร์โค้ดผู้ขาย คั่นด้วย ,),unit_cost,sell_price,min_price (หรือ max_discount),qty (ยอดตรวจนับ)"
                 onRows={importRows}
               />
               {canSeeMoney ? (
@@ -407,6 +421,18 @@ function SkusPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <CategoryFilter skus={skus ?? []} value={cat} onChange={setCat} />
+        <ScanBox className="w-full sm:w-72" placeholder="สแกนเพื่อค้นหา" onScan={(code) => setSearch(code)} />
+        {canEditMaster && list.length ? (
+          <a
+            href={`/print/sku-labels?ids=${list.slice(0, 200).map((k) => k.id).join(",")}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center gap-1 rounded-md border border-input px-3 text-sm hover:bg-secondary"
+            title="ป้าย QR 80 × 50 มม. ของสินค้าที่แสดงอยู่ (สูงสุด 200)"
+          >
+            <Tag className="h-4 w-4" /> พิมพ์ป้าย ({Math.min(list.length, 200)})
+          </a>
+        ) : null}
       </div>
       {canEditMaster && guessed.length ? (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-muted/40 px-3 py-2 text-sm">
@@ -536,6 +562,15 @@ function SkusPage() {
                           <Button size="sm" variant="outline" onClick={() => setMoving(k)}>
                             ปรับยอด/รับของ
                           </Button>
+                          <a
+                            href={`/print/sku-labels?ids=${k.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="พิมพ์ป้าย QR"
+                            className="inline-flex h-8 items-center rounded-md px-2 hover:bg-secondary"
+                          >
+                            <Tag className="h-4 w-4" />
+                          </a>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -645,6 +680,8 @@ function rowToForm(
     cut_step_cm: s(k.cut_step_cm),
     max_piece_m: s(k.max_piece_m),
     notes: noteText(k.notes),
+    barcodes: (k.barcodes ?? []).join(", "),
+    had_barcodes: (k.barcodes ?? []).length > 0,
     category: savedCategory(k.notes) ?? guessCategory(k),
     attrs: guessAttrs(k, savedCategory(k.notes) ?? guessCategory(k)),
     unit_cost: cost === undefined ? "" : String(cost),
@@ -654,7 +691,10 @@ function rowToForm(
 }
 
 function formToRow(f: Form): TablesInsert<"skus"> {
+  const barcodes = parseBarcodeList(f.barcodes);
   return {
+    // only sent when there is something to save (works before the barcode column exists)
+    ...(barcodes.length || f.had_barcodes ? { barcodes } : {}),
     code: f.code.trim(),
     name: f.name.trim(),
     unit: f.unit.trim() || "ชิ้น",
@@ -861,6 +901,14 @@ function SkuForm({
           </Field>
         </>
       ) : null}
+      <Field label="บาร์โค้ดผู้ขาย / รหัสเก่า (คั่นด้วย ,)" className="sm:col-span-2">
+        <Input
+          className="font-mono"
+          value={f.barcodes}
+          placeholder="เช่น 8851234567890 — ป้ายที่พิมพ์จากระบบใช้รหัส SKU อยู่แล้ว"
+          onChange={set("barcodes")}
+        />
+      </Field>
       <Field label="หมายเหตุ" className="sm:col-span-2">
         <Input value={f.notes} onChange={set("notes")} />
       </Field>

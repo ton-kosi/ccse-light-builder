@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/AppLayout";
+import { qrSvg } from "@/components/scan/QrCode";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,18 +91,21 @@ function RemnantsPage() {
     return Number(yb) - Number(ya) || Number(mb) - Number(ma);
   });
 
-  const printLabel = (r: Rem) => {
+  const printLabel = async (r: Rem) => {
+    // open first (inside the click) so the browser does not block the window, then fill it
     const w = window.open("", "_blank", "width=420,height=320");
     if (!w) return;
+    const qr = await qrSvg(r.code).catch(() => "");
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
     w.document.write(`<html><head><title>${esc(r.code)}</title><style>
       @page{size:80mm 50mm;margin:3mm} body{font-family:'Noto Sans Thai',sans-serif;margin:0}
-      .l{border:2px solid #000;padding:8px;width:72mm;height:42mm;box-sizing:border-box}
+      .l{border:2px solid #000;padding:8px;width:72mm;height:42mm;box-sizing:border-box;display:flex;gap:8px;align-items:center}
+      .q{width:30mm;height:30mm;flex:none} .q svg{width:100%;height:100%}
       .c{font-size:28px;font-weight:700} .s{font-size:13px} .m{font-size:22px;font-weight:700}
-      </style></head><body><div class="l"><div class="c">${esc(r.code)}</div>
+      </style></head><body><div class="l"><div class="q">${qr}</div><div><div class="c">${esc(r.code)}</div>
       <div class="s">${esc(r.skus?.code ?? "")}<br/>${esc(r.skus?.name ?? "")}</div>
       <div class="m">${formatQty(Number(r.length_m))} ม.</div>
-      <div class="s">${formatDate(r.created_at)}</div></div>
+      <div class="s">${formatDate(r.created_at)}</div></div></div>
       <script>window.onload=()=>{window.print()}</script></body></html>`);
     w.document.close();
   };
