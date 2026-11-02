@@ -26,6 +26,7 @@ export const SKU_CATEGORIES = [
   "Clipso track",
   "Smart film",
   "Film transformer",
+  "Dimmer / controller",
   "Service",
   "อื่นๆ",
 ] as const;
@@ -48,6 +49,7 @@ export const CATEGORY_HINT: Partial<Record<SkuCategoryName, string>> = {
   "Clipso track": "รางเย็บผ้า CC / CW (ราคาต่อเส้น)",
   "Smart film": "ฟิล์ม privacy / PDLC (ราคาต่อ ตร.ม.)",
   "Film transformer": "หม้อแปลงฟิล์ม เช่น 65Vac",
+  "Dimmer / controller": "Power dimmer, Mini dim, Manual dimmer, Smart control",
   Service: "งานบริการ เช่น พ่นสี (ไม่ตัดสต๊อก)",
 };
 

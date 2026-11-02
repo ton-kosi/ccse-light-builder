@@ -30,6 +30,8 @@ import { DEMO_PREFIX, loadDemoData, removeDemoData } from "@/lib/demoData";
 import { attrFieldsFor, attrsForCategory, attrsOf, attrSummary, guessAttrs } from "@/lib/skuAttrs";
 import { CategoryFilter } from "@/components/stock/CategoryFilter";
 import { ScanBox } from "@/components/scan/ScanBox";
+import { AssembleDialog, KitEditDialog } from "@/components/stock/KitDialogs";
+import { kitModeLabel, parseBomCsv } from "@/lib/kits";
 import { parseBarcodeList } from "@/lib/barcode";
 import { Tag } from "lucide-react";
 import { countAdjustments, parseCount, STOCK_COUNT_NOTE } from "@/lib/stockCount";
@@ -88,13 +90,18 @@ const EMPTY = {
 type Form = typeof EMPTY;
 
 function SkusPage() {
-  const { canEditMaster, canSeeMoney, canSeeCost, canViewQuote, me } = useMe();
+  const { canEditMaster, canSeeMoney, canSeeCost, canViewQuote, me, has } = useMe();
+  /** store + production record finished in-house assemblies */
+  const canAssemble = canEditMaster || has("production");
   const { askPassword, passwordDialog } = usePasswordConfirm();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("");
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [moving, setMoving] = useState<Sku | null>(null);
+  /** parts list editor / "assembled, put into stock" */
+  const [kitEdit, setKitEdit] = useState<Sku | null>(null);
+  const [assembling, setAssembling] = useState<Sku | null>(null);
   const [history, setHistory] = useState<Sku | null>(null);
 
   const { data: skus, isLoading } = useQuery({
@@ -189,6 +196,37 @@ function SkusPage() {
     },
     onError: (e: Error) => isCancelled(e) || toast.error(friendly(e.message)),
   });
+
+  /** Parts lists from CSV: each kit in the file gets exactly the parts listed (replaces its list). */
+  async function importKits(rows: CsvRow[]) {
+    const idByCode = new Map<string, string>();
+    for (const k of skus ?? []) {
+      idByCode.set(k.code, k.id);
+      idByCode.set(k.code.toLowerCase(), k.id);
+    }
+    const { kits, errors } = parseBomCsv(rows, idByCode);
+    const current = new Map((skus ?? []).map((k) => [k.id, k]));
+    for (const [id, kit] of kits)
+      if (!kit.mode && (current.get(id)?.kit_mode ?? "none") === "none")
+        errors.push(`${current.get(id)?.code}: ใส่ kit_mode (stock หรือ phantom) อย่างน้อยหนึ่งแถว`);
+    if (errors.length) throw new Error(errors.slice(0, 6).join(" · ") + (errors.length > 6 ? ` · และอีก ${errors.length - 6} ข้อ` : ""));
+    for (const [id, kit] of kits) {
+      if (kit.mode) {
+        const { error } = await supabase.from("skus").update({ kit_mode: kit.mode }).eq("id", id);
+        if (error) throw new Error(friendly(error.message));
+      }
+      const { error: e1 } = await supabase.from("sku_components").delete().eq("kit_sku_id", id);
+      if (e1) throw new Error(friendly(e1.message));
+      const { error: e2 } = await supabase
+        .from("sku_components")
+        .insert(kit.parts.map((p) => ({ kit_sku_id: id, component_sku_id: p.component_sku_id, qty: p.qty })));
+      if (e2) throw new Error(friendly(e2.message));
+    }
+    qc.invalidateQueries({ queryKey: ["skus"] });
+    qc.invalidateQueries({ queryKey: ["sku_components"] });
+    qc.invalidateQueries({ queryKey: ["material_demand"] });
+    return kits.size;
+  }
 
   async function importRows(rows: CsvRow[]) {
     // check every counted qty before saving anything, so a bad cell never half-imports
@@ -378,6 +416,11 @@ function SkusPage() {
                 columns="code,name,category,unit,source,lead_time_days,min_stock,is_roll,roll_length_m,roll_family,cut_step_cm,max_piece_m,notes,barcode (บาร์โค้ดผู้ขาย คั่นด้วย ,),unit_cost,sell_price,min_price (หรือ max_discount),qty (ยอดตรวจนับ)"
                 onRows={importRows}
               />
+              <CsvImport
+                label="นำเข้าสูตรประกอบ"
+                columns="kit_code,component_code,qty,kit_mode (stock = ประกอบเก็บสต็อก / phantom = แตกตอนเบิก)"
+                onRows={importKits}
+              />
               {canSeeMoney ? (
                 <>
                   <Button
@@ -488,7 +531,21 @@ function SkusPage() {
                 return (
                   <tr key={k.id} className="border-t border-border">
                     <Td className="font-mono text-xs">{k.code}</Td>
-                    <Td className="font-medium">{k.name}</Td>
+                    <Td className="font-medium">
+                      {k.name}
+                      {k.kit_mode && k.kit_mode !== "none" ? (
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                          <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
+                            {kitModeLabel(k.kit_mode)}
+                          </span>
+                          {k.kit_mode === "stock" && canAssemble ? (
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setAssembling(k)}>
+                              ประกอบ
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </Td>
                     <Td className="whitespace-nowrap">
                       {savedCategory(k.notes) ?? (
                         <span
@@ -562,6 +619,9 @@ function SkusPage() {
                           <Button size="sm" variant="outline" onClick={() => setMoving(k)}>
                             ปรับยอด/รับของ
                           </Button>
+                          <Button size="sm" variant="ghost" title="สูตรประกอบ (ชิ้นส่วน)" onClick={() => setKitEdit(k)}>
+                            สูตร
+                          </Button>
                           <a
                             href={`/print/sku-labels?ids=${k.id}`}
                             target="_blank"
@@ -614,6 +674,9 @@ function SkusPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {kitEdit ? <KitEditDialog sku={kitEdit} skus={skus ?? []} onClose={() => setKitEdit(null)} /> : null}
+      {assembling ? <AssembleDialog sku={assembling} skus={skus ?? []} onClose={() => setAssembling(null)} /> : null}
 
       <Dialog open={!!moving} onOpenChange={(o) => !o && setMoving(null)}>
         <DialogContent>

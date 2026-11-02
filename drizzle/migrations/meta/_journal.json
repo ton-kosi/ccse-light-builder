@@ -218,6 +218,13 @@
       "when": 1793069196166,
       "tag": "0030_sku_barcodes",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793069256166,
+      "tag": "0031_sku_kits",
+      "breakpoints": true
     }
   ]
 }

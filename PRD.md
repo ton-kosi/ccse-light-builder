@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 31/10/2026
+> Last updated: 02/11/2026
 
 ## 1. Overview
 
@@ -362,6 +362,20 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
     non-admin, as before). The SKU search also finds SKUs by barcode and has a scan box.
   - Label stock for hot places: PET (polyester) labels + full-resin ribbon, high-temperature
     acrylic adhesive; never direct-thermal labels.
+- 🟡 **Parts lists (สูตรประกอบ):** a SKU can be made from other SKUs (`sku_components`, qty per
+  piece), in one of two modes (`skus.kit_mode`):
+  - **ประกอบเก็บสต็อก** (`stock`) — assembled in-house ahead of time, e.g. V2 Snap mount / Strip Snap /
+    Strip Snap Clip = CNC acrylic housing + N52 magnets. "ประกอบ" on the SKU page (admin / stock /
+    production) shows parts needed vs on hand and how many can be built, then posts parts out
+    (`issue`) and finished pieces in (`receive`) in one step (`assemble_kit`); a shortage warns but
+    can still be saved (the parts go negative until the next count).
+  - **แตกตอนเบิก** (`phantom`) — never stocked itself, e.g. Power dimmer, Mini dim, Manual dimmer,
+    Smart control: wherever a project needs it, the material demand, pick list, store issue and
+    purchase demand use its parts instead (`private.project_demand` now explodes phantom kits one
+    level; the old logic is `project_demand_direct`).
+  - Edit per SKU ("สูตร") or import a CSV `kit_code, component_code, qty, kit_mode` ("นำเข้าสูตรประกอบ":
+    each kit in the file gets exactly the parts listed; every problem is listed with its row).
+  - New category **Dimmer / controller** (the six ACC-DM items).
 - ✅ **Stock count by CSV** (admin, estimator, stock): the SKU import accepts an
   optional `qty` column = counted stock. The difference from the current on-hand
   is posted as an `adjust` movement ("ตรวจนับสต็อก (นำเข้า CSV)"), so importing
@@ -501,6 +515,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 02/11/2026 | **Parts lists:** SKUs made from other SKUs — "ประกอบเก็บสต็อก" (assemble into stock: parts out, finished pieces in) and "แตกตอนเบิก" (projects issue and buy the parts instead); per-SKU editor + CSV import; Dimmer / controller category. Migration `0031_sku_kits` pending in Lovable (after 0030). |
+| 31/10/2026 | Imported the owner's item list (`stock_count_31102026.csv`): 179 SKUs with category, LED / power-supply details and supplier, 63 costs. The file had no counted quantities, so stock is still 0; Neon flex roll length / family and profile models are still to fill in. |
 | 31/10/2026 | **Barcodes:** SKU barcode list (supplier barcodes + old codes kept on rename), printable 80 × 50 mm SKU labels with QR, QR on remnant labels, scan box (USB scanner or phone camera), scan-to-count on the stock page, scan-to-add on purchases, SKU search by barcode, CSV `barcode` column. Migration `0030_sku_barcodes` pending in Lovable; libraries `qrcode` and `barcode-detector` added. |
 | 27/10/2026 | Passwords: the sign-in service refused the generated temporary password (no upper case / symbol). Temporary passwords are now 12 characters with lower, upper, digit and symbol; every new-password field shows a live checklist and the next button stays off until it passes; a refused password says which rule it broke. |
 | 27/10/2026 | Fix: adding a user failed at the admin-password step (the server signed in a second time itself). The password is now checked in the browser and the server verifies the fresh sign-in token. Password re-check added to every sensitive admin change: settings, SKU prices / costs, purchase edit / delete, bill cancel, receipt void, project delete, CEO approval. |
