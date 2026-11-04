@@ -8,7 +8,19 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import type { GridLine } from "@/components/boq/BoqGrid";
 import { Block, SkuSelect, type Sku } from "@/components/boq/FoSetDialog";
 import { Choice, Row } from "@/components/boq/LinearDialog";
-import { buildCanoe, CANOE_SIZES, canoeLengths, runsFromSpec, type CanoeConfig, type CanoeSize } from "@/lib/canoe";
+import {
+  buildCanoe,
+  CANOE_SIZES,
+  canoeLengths,
+  defaultSs,
+  DIFFUSERS,
+  runsFromSpec,
+  SS_GRADES,
+  SS_MODELS,
+  type CanoeConfig,
+  type CanoeSize,
+  type SsOptions,
+} from "@/lib/canoe";
 import { parseCutSpec } from "@/lib/cutSpec";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { categoryOf, SKU_OPTIONS_KEY } from "@/lib/skuCategory";
@@ -73,6 +85,12 @@ export function CanoeDialog({
   const [zone, setZone] = useState(editing?.zone ?? "");
   const [disc, setDisc] = useState(editing ? String(editing.discount) : "0");
   const set = (p: Partial<CanoeConfig>) => setC((o) => ({ ...o, ...p }));
+  const isSS = c.housingType === "ss";
+  const ss = c.ss ?? defaultSs();
+  const setSs = (p: Partial<SsOptions>) => setC((o) => ({ ...o, ss: { ...(o.ss ?? defaultSs()), ...p } }));
+  // stainless housing bars / acrylic covers: anything named SS / stainless, acrylic / cover
+  const ssHousings = useMemo(() => (skus ?? []).filter((s) => /\bSS\b|SS[-\s]?3\d\d|stainless|สแตนเลส/i.test(`${s.code} ${s.name}`)), [skus]);
+  const covers = useMemo(() => (skus ?? []).filter((s) => /acrylic|cover|อะคริลิก|ฝาครอบ/i.test(`${s.code} ${s.name}`)), [skus]);
 
   const parsed = spec.trim() ? parseCutSpec(spec) : null;
   const specError = parsed && "error" in parsed ? parsed.error : null;
@@ -81,7 +99,7 @@ export function CanoeDialog({
   const cfg: CanoeConfig = { ...c, runs, spec };
   const led = byId.get(c.ledSkuId);
   const built = useMemo(
-    () => (prices ? buildCanoe(cfg, led, prices, () => crypto.randomUUID()) : null),
+    () => (prices ? buildCanoe(cfg, led, prices, () => crypto.randomUUID(), (id) => byId.get(id)?.unit) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(cfg), led, prices],
   );
@@ -234,7 +252,72 @@ export function CanoeDialog({
               </p>
             </Block>
 
-            <Block title="3. ตัวเรือน Canoe (ตัดสต็อกตามจำนวนท่อน)">
+            <Block title="3. ตัวเรือน Canoe">
+              <div className="mb-3 flex flex-wrap gap-1.5 text-sm">
+                <Choice on={!isSS} onClick={() => set({ housingType: "alu" })}>
+                  อลูมิเนียม (ท่อน L / M / S / SS)
+                </Choice>
+                <Choice on={isSS} onClick={() => set({ housingType: "ss", ss })}>
+                  สแตนเลส (ต่อเนื่อง เชื่อมหน้างาน)
+                </Choice>
+              </div>
+              {isSS ? (
+                <div className="grid gap-2 text-sm">
+                  <Row label="หน้าตัด">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SS_MODELS.map((m) => (
+                        <Choice key={m.key} on={ss.model === m.key} onClick={() => setSs({ model: m.key })}>
+                          {m.label} ({m.w}×{m.h})
+                        </Choice>
+                      ))}
+                      <Choice on={ss.model === "custom"} onClick={() => setSs({ model: "custom" })}>
+                        ขนาดพิเศษ
+                      </Choice>
+                    </div>
+                  </Row>
+                  {ss.model === "custom" ? (
+                    <Row label="ขนาดพิเศษ">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        กว้าง
+                        <Input className="h-8 w-16" inputMode="decimal" value={ss.customW || ""} onChange={(e) => setSs({ customW: toNumber(e.target.value) ?? 0 })} />
+                        × สูง
+                        <Input className="h-8 w-16" inputMode="decimal" value={ss.customH || ""} onChange={(e) => setSs({ customH: toNumber(e.target.value) ?? 0 })} />
+                        มม. · ค่าทำแบบพิเศษ
+                        <Input className="h-8 w-24 text-right" inputMode="decimal" value={ss.surcharge || ""} onChange={(e) => setSs({ surcharge: toNumber(e.target.value) ?? 0 })} />
+                        บาท (ทั้งชุด)
+                      </div>
+                    </Row>
+                  ) : null}
+                  <Row label="เกรดสแตนเลส">
+                    <div className="flex flex-wrap gap-1.5">
+                      {SS_GRADES.map((g) => (
+                        <Choice key={g} on={ss.grade === g} onClick={() => setSs({ grade: g })}>
+                          {g}
+                        </Choice>
+                      ))}
+                    </div>
+                  </Row>
+                  <Row label="Diffuser">
+                    <div className="flex flex-wrap gap-1.5">
+                      {DIFFUSERS.map((d) => (
+                        <Choice key={d} on={ss.diffuser === d} onClick={() => setSs({ diffuser: d })}>
+                          {d}
+                        </Choice>
+                      ))}
+                    </div>
+                  </Row>
+                  <Row label="ตัวเรือนสแตนเลส (เส้น 2.4 ม.)">
+                    <SkuSelect value={ss.housingSkuId} preferred={ssHousings} category="ตัวเรือนสแตนเลส" all={skus ?? []} onChange={(id) => setSs({ housingSkuId: id })} />
+                  </Row>
+                  <Row label="ฝาครอบอะคริลิก (แผ่น 2.4 ม.)">
+                    <SkuSelect value={ss.coverSkuId} preferred={covers} category="ฝาครอบอะคริลิก" all={skus ?? []} onChange={(id) => setSs({ coverSkuId: id })} />
+                  </Row>
+                  <p className="text-xs text-muted-foreground">
+                    ใช้ตัวเรือน {plan?.ssBars ?? 0} เส้น และฝาครอบ {plan?.ssCovers ?? 0} แผ่น (ปัดขึ้นทีละช่วง — เชื่อม / ต่อหน้างาน) · SKU
+                    หน่วย “m” ตัดสต็อกเป็นเมตร (เส้น × 2.4) หน่วยอื่นตัดเป็นเส้น
+                  </p>
+                </div>
+              ) : (
               <div className="grid gap-2 text-sm">
                 {CANOE_SIZES.map((k: CanoeSize) => (
                   <Row key={k} label={`ท่อน ${k}${c.double ? " (Double)" : ""}`}>
@@ -252,6 +335,7 @@ export function CanoeDialog({
                   ยังไม่มี SKU ตัวเรือน Canoe? เพิ่มที่หน้า SKU ก่อน (เช่น CANOE-L-SINGLE) แล้วตั้งราคาขาย
                 </p>
               </div>
+              )}
             </Block>
           </div>
 

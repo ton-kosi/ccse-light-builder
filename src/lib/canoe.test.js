@@ -96,3 +96,30 @@ test("a joined run is not fitted as one long piece row", async () => {
   ]);
   expect(plan.runM).toBe(1.4);
 });
+
+test("stainless Canoe: 2.4 m bars + acrylic covers per run, custom section surcharge", async () => {
+  const { buildCanoe, barsFor, ssSectionText, defaultSs } = await import("./canoe.ts");
+  expect(barsFor(2.4)).toBe(1);
+  expect(barsFor(2.41)).toBe(2);
+  expect(barsFor(7.92)).toBe(4);
+  const prices = new Map([
+    ["led", { unitPrice: 1000, maxDiscount: 0 }],
+    ["ss", { unitPrice: 2000, maxDiscount: 0 }],
+    ["cov", { unitPrice: 500, maxDiscount: 0 }],
+  ]);
+  const ss = { ...defaultSs(), housingSkuId: "ss", coverSkuId: "cov" };
+  const cfg = { v: 1, blockId: "s1", code: "", title: "POOL", ledSkuId: "led", double: false, housing: {}, housingType: "ss", ss, runs: [{ length: 2.49, sets: 1 }, { length: 7.92, sets: 1 }], rowIds: [] };
+  let n = 0;
+  // housing SKU in metres (bars × 2.4), cover in pieces
+  const b = buildCanoe(cfg, led14, prices, () => `r${n++}`, (id) => (id === "ss" ? "m" : "ea"));
+  expect(b.plan.ssBars).toBe(6); // 2 + 4
+  expect(b.rows[1].recipes.map((r) => [r.sku_id, r.qty])).toEqual([["led", 10.4], ["ss", 14.4], ["cov", 6]]);
+  expect(b.rows[1].customer_text).toContain("SS304 WSS.3150 (31 x 50 MM.), OPAL DIFFUSER");
+  expect(b.problems).toEqual([]);
+  // custom section: needs a size, adds the surcharge to the set
+  const custom = buildCanoe({ ...cfg, ss: { ...ss, model: "custom", customW: 40, customH: 60, surcharge: 5000 } }, led14, prices, () => `c${n++}`, (id) => (id === "ss" ? "m" : "ea"));
+  expect(custom.list).toBeCloseTo(b.list + 5000, 0);
+  expect(ssSectionText({ ...ss, model: "custom", customW: 40, customH: 60 })).toBe("CUSTOM SECTION 40 x 60 MM.");
+  expect(buildCanoe({ ...cfg, ss: { ...ss, model: "custom" } }, led14, prices, () => `d${n++}`).problems).toContain("ใส่ขนาดหน้าตัดพิเศษ (กว้าง × สูง มม.)");
+  expect(buildCanoe({ ...cfg, ss: { ...ss, coverSkuId: "" } }, led14, prices, () => `e${n++}`).problems).toContain("เลือก SKU ฝาครอบอะคริลิก");
+});

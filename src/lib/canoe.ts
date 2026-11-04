@@ -118,6 +118,56 @@ export function fitRun(lengthM: number, lengths: Lengths): CanoeFit | null {
 
 export type CanoeRun = { length: number; sets: number; label?: string };
 
+/*
+ * Stainless (SS) Canoe — spec sheets WSS.3150 / WSS.3155UB / WSS.3550SB (23 Dec 2025).
+ * The housing is continuous: cut from 2.4 m SS bars and welded on site; an acrylic cover on top,
+ * also 2.4 m pieces joined end to end. The LED inside is still cut in Canoe pieces (above).
+ * Owner (04/11/2026): a custom cross-section is priced per metre + a surcharge; grade and diffuser
+ * are chosen in the builder.
+ */
+export const SS_BAR_M = 2.4;
+export const COVER_M = 2.4;
+export const SS_MODELS = [
+  { key: "3150", label: "WSS.3150", w: 31, h: 50 },
+  { key: "3155UB", label: "WSS.3155UB", w: 31, h: 55 },
+  { key: "3550SB", label: "WSS.3550SB", w: 35, h: 50 },
+] as const;
+export const SS_GRADES = ["SS304", "SS316", "SS316L"] as const;
+export const DIFFUSERS = ["Jedi", "Opal", "Satin", "Prismatic"] as const;
+
+export type SsOptions = {
+  /** a model key from SS_MODELS, or "custom" */
+  model: string;
+  customW: number;
+  customH: number;
+  grade: (typeof SS_GRADES)[number];
+  diffuser: (typeof DIFFUSERS)[number];
+  housingSkuId: string;
+  coverSkuId: string;
+  /** custom cross-section only: one-off amount (THB) added to the set */
+  surcharge: number;
+};
+
+export const defaultSs = (): SsOptions => ({
+  model: "3150",
+  customW: 0,
+  customH: 0,
+  grade: "SS304",
+  diffuser: "Opal",
+  housingSkuId: "",
+  coverSkuId: "",
+  surcharge: 0,
+});
+
+/** Whole 2.4 m bars (or covers) for one straight run — welded / joined, so offcuts stay offcuts. */
+export const barsFor = (lengthM: number, barM = SS_BAR_M) => Math.max(1, Math.ceil(lengthM / barM - 1e-9));
+
+/** "WSS.3150 (31 x 50 MM.)" or "CUSTOM 40 x 60 MM." */
+export function ssSectionText(ss: SsOptions): string {
+  const m = SS_MODELS.find((x) => x.key === ss.model);
+  return m ? `${m.label} (${m.w} x ${m.h} MM.)` : `CUSTOM SECTION ${ss.customW} x ${ss.customH} MM.`;
+}
+
 export type CanoeConfig = {
   v: 1;
   blockId: string;
@@ -125,8 +175,11 @@ export type CanoeConfig = {
   title: string;
   ledSkuId: string;
   double: boolean;
-  /** housing SKU per piece size (single or double housings, as chosen) */
+  /** housing SKU per piece size (single or double housings, as chosen) — aluminium housing */
   housing: Partial<Record<CanoeSize, string>>;
+  /** "ss" = continuous stainless housing + acrylic cover (older sets: aluminium) */
+  housingType?: "alu" | "ss";
+  ss?: SsOptions;
   runs: CanoeRun[];
   /** the lengths as typed ("2.49x2 + 4.18"), kept so the window reopens with the same text */
   spec?: string;
@@ -152,12 +205,14 @@ export function planCanoe(c: Pick<CanoeConfig, "double" | "runs">, led: SkuLite 
   const lengths = led ? canoeLengths(led, c.double) : null;
   const runs = c.runs
     .filter((r) => r.length > 0 && r.sets > 0)
-    .map((r) => ({ ...r, fit: lengths ? fitRun(r.length, lengths) : null }));
+    .map((r) => ({ ...r, fit: lengths ? fitRun(r.length, lengths) : null, bars: barsFor(r.length) }));
+  // stainless housing: 2.4 m bars and 2.4 m acrylic covers per run
+  const ssBars = runs.reduce((n, r) => n + r.bars * r.sets, 0);
   const totals = zero();
   for (const r of runs) if (r.fit) for (const k of CANOE_SIZES) totals[k] += r.fit.counts[k] * r.sets;
   const ledM = round(CANOE_SIZES.reduce((m, k) => m + totals[k] * NOMINAL[k], 0) * (c.double ? 2 : 1));
   const runM = round(runs.reduce((m, r) => m + r.length * r.sets, 0));
-  return { lengths, runs, totals, ledM, runM };
+  return { lengths, runs, totals, ledM, runM, ssBars, ssCovers: ssBars };
 }
 
 /** BOQ rows for a Canoe block: a heading and one line priced per metre of run. */
@@ -166,8 +221,11 @@ export function buildCanoe(
   led: SkuLite | undefined,
   prices: Map<string, PartPrice>,
   newId: () => string,
+  /** unit of a SKU ("m" → housing / cover counted in metres, else in pieces) */
+  unitOf: (skuId: string) => string | undefined = () => undefined,
 ) {
   const tag = (role: string) => `${CNO_TAG}${c.blockId} ${role}`;
+  const ss = c.housingType === "ss" ? (c.ss ?? defaultSs()) : null;
   const plan = planCanoe(c, led);
   const problems: string[] = [];
   const missing = new Set<string>();
@@ -190,7 +248,27 @@ export function buildCanoe(
     recipes.push({ sku_id: c.ledSkuId, qty: plan.ledM, note: tag("LED") });
     add(c.ledSkuId, plan.ledM);
   }
-  for (const k of CANOE_SIZES) {
+  if (ss) {
+    const inM = (id: string) => /^m\.?$|เมตร/i.test(unitOf(id) ?? "");
+    const part = (id: string, pieces: number, barM: number, role: string, what: string) => {
+      if (!id) {
+        problems.push(`เลือก SKU ${what}`);
+        return;
+      }
+      const qty = inM(id) ? round(pieces * barM) : pieces;
+      recipes.push({ sku_id: id, qty, note: tag(role) });
+      add(id, qty);
+    };
+    if (plan.ssBars) {
+      part(ss.housingSkuId, plan.ssBars, SS_BAR_M, "SS HOUSING", "ตัวเรือนสแตนเลส");
+      part(ss.coverSkuId, plan.ssCovers, COVER_M, "COVER", "ฝาครอบอะคริลิก");
+    }
+    if (ss.model === "custom") {
+      if (!(ss.customW > 0 && ss.customH > 0)) problems.push("ใส่ขนาดหน้าตัดพิเศษ (กว้าง × สูง มม.)");
+      if (ss.surcharge > 0) list += ss.surcharge;
+    }
+  }
+  for (const k of ss ? [] : CANOE_SIZES) {
     const n = plan.totals[k];
     if (!n) continue;
     const id = c.housing[k];
@@ -217,7 +295,9 @@ export function buildCanoe(
     {
       id: newId(),
       kind: "priced",
-      customer_text: `${c.double ? "DOUBLE CANOE" : "CANOE"}${led ? ` - ${led.name}` : ""}`,
+      customer_text: ss
+        ? `${c.double ? "DOUBLE CANOE" : "CANOE"} ${ss.grade} ${ssSectionText(ss)}, ${ss.diffuser.toUpperCase()} DIFFUSER${led ? ` - ${led.name}` : ""}`
+        : `${c.double ? "DOUBLE CANOE" : "CANOE"}${led ? ` - ${led.name}` : ""}`,
       qty: plan.runM,
       unit: "M.",
       unit_price: perM,

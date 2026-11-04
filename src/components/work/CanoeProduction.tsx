@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { useWorkSheet } from "@/components/work/WorkSheet";
-import { CANOE_SIZES, parseCanoe, pieceCuts, planCanoe, runsFromSpec, type CanoeConfig } from "@/lib/canoe";
+import { CANOE_SIZES, parseCanoe, pieceCuts, planCanoe, runsFromSpec, ssSectionText, type CanoeConfig } from "@/lib/canoe";
 import { parseCutSpec } from "@/lib/cutSpec";
 import { formatQty } from "@/lib/format";
 
@@ -52,6 +52,7 @@ export function useCanoeProduction(projectId: string) {
         fromSite: runs !== b.config.runs,
         plan: planCanoe({ double: b.config.double, runs }, led),
         cuts: led ? pieceCuts(led, b.config.double) : [],
+        ss: b.config.housingType === "ss" ? (b.config.ss ?? null) : null,
       };
     })
     .sort((a, b) => a.itemNo.localeCompare(b.itemNo, undefined, { numeric: true }));
@@ -76,6 +77,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
               {b.itemNo ? `ข้อ ${b.itemNo} · ` : ""}
               {b.config.code ? `${b.config.code} : ` : ""}
               {b.config.title} · {b.config.double ? "Double" : "Single"}
+              {b.ss ? ` · ${b.ss.grade} ${ssSectionText(b.ss)} · ${b.ss.diffuser}` : ""}
             </div>
             <div className={print ? "" : "text-xs text-muted-foreground"}>
               {b.led ? `${b.led.code} — ${b.led.name}` : "ไม่พบไฟ"} ·{" "}
@@ -95,6 +97,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
                   ))}
                   <th className="text-right">ต่อได้ (ม.)</th>
                   <th className="text-right">ต่าง</th>
+                  {b.ss ? <th className="text-right">สแตนเลส / ฝา (เส้น)</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -114,6 +117,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
                     <td className={"text-right tabular-nums " + (r.fit && !r.fit.ok ? "font-bold text-destructive" : "")}>
                       {r.fit ? `${r.fit.diffM >= 0 ? "เหลือ" : "เกิน"} ${cm(Math.abs(r.fit.diffM))} ซม.` : ""}
                     </td>
+                    {b.ss ? <td className="text-right tabular-nums">{r.bars} × {r.sets}</td> : null}
                   </tr>
                 ))}
                 <tr className="border-t border-foreground font-semibold">
@@ -127,6 +131,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
                   <td colSpan={2} className="text-right">
                     LED {formatQty(b.plan.ledM)} ม.
                   </td>
+                  {b.ss ? <td className="text-right tabular-nums">{b.plan.ssBars} / {b.plan.ssCovers}</td> : null}
                 </tr>
               </tbody>
             </table>
@@ -134,7 +139,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
               <thead className={print ? "" : "text-xs text-muted-foreground"}>
                 <tr>
                   <th className="px-1 text-left">ท่อน</th>
-                  <th className="px-1 text-right">ตัวเรือน (ซม.)</th>
+                  {b.ss ? null : <th className="px-1 text-right">ตัวเรือน (ซม.)</th>}
                   <th className="px-1 text-right">LED ด้านนอก</th>
                   {b.config.double ? <th className="px-1 text-right">LED ด้านใน</th> : null}
                   <th className="px-1 text-right">จำนวน</th>
@@ -144,7 +149,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
                 {b.cuts.map((c) => (
                   <tr key={c.size} className="border-t border-border">
                     <td className="px-1 font-semibold">{c.size}</td>
-                    <td className="px-1 text-right tabular-nums">{cm(c.housingM)}</td>
+                    {b.ss ? null : <td className="px-1 text-right tabular-nums">{cm(c.housingM)}</td>}
                     <td className="px-1 text-right tabular-nums">{formatQty(c.outerCm)}</td>
                     {b.config.double ? <td className="px-1 text-right tabular-nums">{formatQty(c.innerCm ?? 0)}</td> : null}
                     <td className="px-1 text-right tabular-nums">{b.plan.totals[c.size] || "-"}</td>

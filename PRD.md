@@ -291,6 +291,14 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
   SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
   production sheet; it has its own section there (below).
+  - **Stainless housing** (spec sheets WSS.3150 / WSS.3155UB / WSS.3550SB, 23 Dec 2025): instead of
+    L / M / S / SS housings, a **continuous SS housing** cut from **2.4 m bars welded on site** plus an
+    **acrylic cover in 2.4 m pieces** joined end to end — whole bars / covers per straight run (each side
+    of a corner counts on its own). Cross-section WSS.3150 (31×50), WSS.3155UB (31×55), WSS.3550SB
+    (35×50) or a **custom W × H** priced per metre + a one-off **surcharge** for the set; grade
+    **SS304 / SS316 / SS316L** and diffuser **Jedi / Opal / Satin / Prismatic** chosen in the builder and
+    printed in the BOQ line. The LED inside is still cut in Canoe pieces. Housing / cover SKUs in unit
+    "m" are issued in metres (bars × 2.4), otherwise in pieces.
 - Builders only offer SKUs of the matching stock category.
 
 #### Work tab (ใบ Work)
@@ -537,6 +545,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 04/11/2026 | **Canoe stainless housing:** continuous SS housing from 2.4 m bars welded on site + 2.4 m acrylic covers, sections WSS.3150 / 3155UB / 3550SB or custom W × H (+ surcharge), grade SS304 / 316 / 316L, diffuser Jedi / Opal / Satin / Prismatic; bars and covers per run on the production sheet. |
 | 04/11/2026 | Canoe: each side of a joined run [a+b] (L-shape corner, pool steps) gets its own pieces instead of being added into one long run — in the BOQ builder and on the production sheet. |
 | 04/11/2026 | **Canoe on the production sheet:** pieces per run (site measurement first, else BOQ), totals per size, LED metres, housing length and LED cut per piece (outer / inner for Double), on the ใบ Work tab, production jobs and the printed ใบผลิต. Checked with a throwaway project (deleted). |
 | 04/11/2026 | **Canoe builder** in the BOQ: piece lengths per LED from the production workbook, automatic L / M / S / SS choice (fewest pieces, +5 / −10 cm), LED ×2 for Double, priced per metre of run from LED + housing pieces. Checked against FAIRMONT 68-013/1 (2.49 → 5 L, 7.92 → 15 L + 1 M, 4.44 → 8 L + 1 M). Needs Canoe housing SKUs and LED selling prices before saving. |
