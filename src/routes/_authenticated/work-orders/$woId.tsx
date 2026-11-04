@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import { CanoeProduction } from "@/components/work/CanoeProduction";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 import { RELEASE_MIN_STATUS, WO_STATUSES, statusLabel, woStatusLabel, woTypeLabel } from "@/lib/erp";
 import { formatDate, formatQty, toNumber } from "@/lib/format";
@@ -262,6 +263,7 @@ function WorkOrderDetail() {
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-1 text-sm font-semibold">ใบผลิต (ตัดไฟ)</h2>
           <ProductionSheet projectId={project.id} canEdit={canEditProductionSheet} />
+          <CanoeProduction projectId={project.id} />
         </section>
       ) : null}
 

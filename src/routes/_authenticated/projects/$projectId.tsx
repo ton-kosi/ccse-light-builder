@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/hooks/useMe";
+import { CanoeProduction } from "@/components/work/CanoeProduction";
 import { usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
 import {
@@ -177,6 +178,7 @@ function ProjectDetail() {
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">ใบผลิต (ตัดไฟ)</h2>
             <ProductionSheet projectId={projectId} canEdit={canEditProductionSheet} />
+            <CanoeProduction projectId={projectId} />
           </section>
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">เบิกของ / คืนของ</h2>

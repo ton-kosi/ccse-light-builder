@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ProductionSheet } from "@/components/work/ProductionSheet";
+import { CanoeProduction } from "@/components/work/CanoeProduction";
 import { useWorkSheet } from "@/components/work/WorkSheet";
 import { quotationRevisionSuffix } from "@/lib/boq";
 import { formatDate } from "@/lib/format";
@@ -66,6 +67,7 @@ function PrintProduction() {
           </div>
         </div>
         <ProductionSheet projectId={projectId} canEdit={false} print />
+        <CanoeProduction projectId={projectId} print />
         <div className="mt-6 grid grid-cols-3 gap-8 text-center text-xs">
           {["ผู้ตัด / ประกอบ", "ผู้ตรวจสอบ (QC)", "หัวหน้าฝ่ายผลิต"].map((s) => (
             <div key={s}>

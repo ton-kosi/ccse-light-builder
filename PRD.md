@@ -288,7 +288,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   the parts (LED metres + housing pieces at their selling prices); parts go to the line's recipe
   (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
   SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
-  production sheet. ⬜ Next: Canoe piece list on the production sheet / stickers.
+  production sheet; it has its own section there (below).
 - Builders only offer SKUs of the matching stock category.
 
 #### Work tab (ใบ Work)
@@ -304,6 +304,13 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   project + item no., survives a new Rev): round down / up, assembly (พับ LED /
   เฉลี่ยกลาง), notified date (วันแจ้งผลิต), remark. On the ใบ Work tab and on
   production work orders; print `/print/production/$projectId` (A4 landscape).
+- 🟡 **Canoe on the production sheet** (ใบ Work tab, production jobs, print `/print/production`):
+  per Canoe set — item no., code, LED, Single / Double, and whether the lengths are the **site
+  measurement** (wins when there is one; joined runs [a+b] count as one run) or the BOQ; per run the
+  L / M / S / SS pieces, built length and how far over / short; totals per size and LED metres;
+  per size the housing length and the **LED cut per piece** (outer = single piece length, inner =
+  5 mm shorter for Double — workbook columns ด้านนอก / ด้านใน); all sets added up at the end. No
+  prices. ⬜ Canoe stickers.
 - ✅ **เบิกของ / คืนของ (material issue rounds + returns)** on the ใบ Work tab: per SKU
   ใบงาน (WOS need) · หน้างาน (actual LED / profile metres from the production sheet) ·
   เบิกครั้งที่ 1 (the first "ยืนยันเบิกของ") · 2, 3 … (extra issues) · เบิกรวม · คืนของ ·
@@ -528,6 +535,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 04/11/2026 | **Canoe on the production sheet:** pieces per run (site measurement first, else BOQ), totals per size, LED metres, housing length and LED cut per piece (outer / inner for Double), on the ใบ Work tab, production jobs and the printed ใบผลิต. Checked with a throwaway project (deleted). |
 | 04/11/2026 | **Canoe builder** in the BOQ: piece lengths per LED from the production workbook, automatic L / M / S / SS choice (fewest pieces, +5 / −10 cm), LED ×2 for Double, priced per metre of run from LED + housing pieces. Checked against FAIRMONT 68-013/1 (2.49 → 5 L, 7.92 → 15 L + 1 M, 4.44 → 8 L + 1 M). Needs Canoe housing SKUs and LED selling prices before saving. |
 | 02/11/2026 | **Parts lists:** SKUs made from other SKUs — "ประกอบเก็บสต็อก" (assemble into stock: parts out, finished pieces in) and "แตกตอนเบิก" (projects issue and buy the parts instead); per-SKU editor + CSV import; Dimmer / controller category. Migration `0031_sku_kits` pending in Lovable (after 0030). |
 | 31/10/2026 | Imported the owner's item list (`stock_count_31102026.csv`): 179 SKUs with category, LED / power-supply details and supplier, 63 costs. The file had no counted quantities, so stock is still 0; Neon flex roll length / family and profile models are still to fill in. |

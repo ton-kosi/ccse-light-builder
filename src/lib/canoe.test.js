@@ -70,3 +70,15 @@ test("BOQ rows: price per metre from parts, housing required, config round-trips
   const noHousing = buildCanoe({ ...cfg, housing: {} }, led14, prices, () => `x${n++}`);
   expect(noHousing.problems).toContain("เลือก SKU ตัวเรือน Canoe ขนาด L");
 });
+
+test("production: LED cut per piece (outer = single piece, inner = 5 mm shorter for Double)", async () => {
+  const { pieceCuts, runsFromSpec } = await import("./canoe.ts");
+  expect(pieceCuts(led14, false)[0]).toEqual({ size: "L", housingM: 0.5, outerCm: 50, innerCm: null });
+  const d = pieceCuts({ code: "LED-Top-9.6-120-3000", name: "9.6W/m, 120dots" }, true);
+  expect(d[0]).toEqual({ size: "L", housingM: 0.51, outerCm: 50.5, innerCm: 50 });
+  expect(pieceCuts(led72, false).map((c) => c.size)).toEqual(["L", "S", "SS"]);
+  expect(runsFromSpec([{ pieces: [1.2, 1.3], sets: 2 }, { pieces: [4.18], sets: 1 }])).toEqual([
+    { length: 2.5, sets: 2 },
+    { length: 4.18, sets: 1 },
+  ]);
+});

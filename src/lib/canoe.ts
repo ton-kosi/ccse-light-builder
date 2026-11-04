@@ -258,3 +258,25 @@ function round(n: number) {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
+
+/**
+ * LED cut per piece for production (workbook "Canoe" tab, columns ด้านนอก / ด้านใน): the outer strip
+ * is as long as the single-Canoe piece, the inner strip 5 mm shorter. Single Canoe uses the outer
+ * strip only; Double Canoe has both.
+ */
+export function pieceCuts(led: SkuLite, double: boolean) {
+  const single = canoeLengths(led, false);
+  const housing = canoeLengths(led, double);
+  if (!single || !housing) return [];
+  return CANOE_SIZES.filter((k) => single[k]).map((k) => ({
+    size: k,
+    housingM: housing[k]!,
+    outerCm: Math.round(single[k]! * 1000) / 10,
+    innerCm: double ? Math.round((single[k]! - 0.005) * 1000) / 10 : null,
+  }));
+}
+
+/** Runs for production: the site measurement ("2.49x2 + [1.2+1.3]") when there is one, else the BOQ. */
+export function runsFromSpec(runs: { pieces: number[]; sets: number }[]): CanoeRun[] {
+  return runs.map((r) => ({ length: Math.round(r.pieces.reduce((a, b) => a + b, 0) * 1000) / 1000, sets: r.sets }));
+}
