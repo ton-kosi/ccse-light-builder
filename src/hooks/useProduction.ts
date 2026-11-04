@@ -62,7 +62,7 @@ export function useProduction(projectId: string) {
     enabled: lines.length > 0,
     queryFn: async () => {
       const [lr, comps] = await Promise.all([
-        supabase.from("line_recipes").select("quote_line_id, sku_id").in("quote_line_id", ids),
+        supabase.from("line_recipes").select("quote_line_id, sku_id, note").in("quote_line_id", ids),
         codes.length
           ? supabase.from("sales_components").select("id, code").in("code", codes)
           : Promise.resolve({ data: [] as { id: string; code: string }[], error: null }),
@@ -83,6 +83,7 @@ export function useProduction(projectId: string) {
       const codeToComp = new Map((comps.data ?? []).map((c) => [c.code, c.id]));
       const perLine = new Map<string, Sku[]>();
       for (const r of lr.data ?? []) {
+        if (r.note?.startsWith("CNO ")) continue; // Canoe: fixed L / M / S / SS pieces
         const s = byId.get(r.sku_id);
         if (s) perLine.set(r.quote_line_id, [...(perLine.get(r.quote_line_id) ?? []), s]);
       }

@@ -16,6 +16,8 @@ import { parseNeon, type NeonConfig } from "@/lib/neon";
 import { rebalanceNeon } from "@/lib/neonSync";
 import { FilmDialog, type FilmTarget } from "@/components/boq/FilmDialog";
 import { parseFilm, type FilmConfig } from "@/lib/film";
+import { CanoeDialog, type CanoeTarget } from "@/components/boq/CanoeDialog";
+import { parseCanoe, type CanoeConfig } from "@/lib/canoe";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   LINE_KINDS,
@@ -72,6 +74,7 @@ export function BoqGrid({
   const [clpTarget, setClpTarget] = useState<ClipsoTarget | null>(null);
   const [neoTarget, setNeoTarget] = useState<NeonTarget | null>(null);
   const [pvfTarget, setPvfTarget] = useState<FilmTarget | null>(null);
+  const [cnoTarget, setCnoTarget] = useState<CanoeTarget | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const pendingFocus = useRef<{ id: string; c: number } | null>(null);
@@ -104,13 +107,26 @@ export function BoqGrid({
     queryKey: ["set_lines", quotationId, lineIds.join(",")],
     enabled: lineIds.length > 0,
     queryFn: async () => {
-      const [fo, lin, clp, neo, pvf] = await Promise.all([
+      const [fo, lin, clp, neo, pvf, cno] = await Promise.all([
         supabase.from("line_recipes").select("quote_line_id").in("quote_line_id", lineIds).like("note", "FO %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "LIN %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "CLP %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "NEO %"),
         supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "PVF %"),
+        supabase.from("line_recipes").select("quote_line_id, note").in("quote_line_id", lineIds).like("note", "CNO %"),
       ]);
+      if (cno.error) throw cno.error;
+      const cnoBlocks = new Map<string, CanoeConfig>();
+      const cnoRow = new Map<string, string>();
+      for (const r of cno.data) {
+        const cfg = parseCanoe(r.note);
+        if (cfg) {
+          cnoBlocks.set(cfg.blockId, cfg);
+          for (const id of cfg.rowIds) cnoRow.set(id, cfg.blockId);
+        }
+        const bid = r.note?.split(" ")[1];
+        if (bid) cnoRow.set(r.quote_line_id, bid);
+      }
       if (fo.error) throw fo.error;
       if (lin.error) throw lin.error;
       if (clp.error) throw clp.error;
@@ -161,7 +177,7 @@ export function BoqGrid({
         const bid = r.note?.split(" ")[1];
         if (bid) rowBlock.set(r.quote_line_id, bid);
       }
-      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow, pvfBlocks, pvfRow };
+      return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow, pvfBlocks, pvfRow, cnoBlocks, cnoRow };
     },
   });
   const foLines = setLines?.fo;
@@ -181,8 +197,25 @@ export function BoqGrid({
     const bid = setLines?.pvfRow.get(id);
     return bid ? (setLines?.pvfBlocks.get(bid) ?? null) : null;
   };
-  /** Reopens the linear / FO / Clipso / Jedi flex / film window a row was built in. */
+  const cnoBlockOf = (id: string) => {
+    const bid = setLines?.cnoRow.get(id);
+    return bid ? (setLines?.cnoBlocks.get(bid) ?? null) : null;
+  };
+  /** Reopens the linear / FO / Clipso / Jedi flex / film / Canoe window a row was built in. */
   const openSet = (l: GridLine) => {
+    const cno = cnoBlockOf(l.id);
+    if (cno) {
+      const blockRows = lines.filter((x) => cno.rowIds.includes(x.id));
+      const priced = blockRows.find((x) => x.kind === "priced");
+      setCnoTarget({
+        mode: "edit",
+        config: cno,
+        option: blockRows[0]?.option_name ?? null,
+        zone: blockRows[0]?.zone ?? null,
+        discount: Number(priced?.discount_percent ?? 0),
+      });
+      return;
+    }
     const lin = linBlockOf(l.id);
     const clp = clpBlockOf(l.id);
     const neo = neoBlockOf(l.id);
@@ -570,10 +603,11 @@ export function BoqGrid({
               const clp = clpBlockOf(l.id);
               const neo = neoBlockOf(l.id);
               const pvf = pvfBlockOf(l.id);
-              const isFo = !!foLines?.has(l.id) || !!lin || !!clp || !!neo || !!pvf;
-              const setName = pvf ? "ชุด Privacy film" : neo ? "ชุด Jedi flex" : clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
+              const cno = cnoBlockOf(l.id);
+              const isFo = !!foLines?.has(l.id) || !!lin || !!clp || !!neo || !!pvf || !!cno;
+              const setName = cno ? "ชุด Canoe" : pvf ? "ชุด Privacy film" : neo ? "ชุด Jedi flex" : clp ? "ชุด Clipso" : lin ? "ชุดไฟเส้น" : "ชุด FO";
               // first line of a linear / Clipso / Jedi flex block, or the FO line, carries the "edit set" shortcut
-              const block = lin ?? clp ?? neo ?? pvf;
+              const block = lin ?? clp ?? neo ?? pvf ?? cno;
               const setStart = block
                 ? lines.find((x) => block.rowIds.includes(x.id))?.id === l.id
                 : !!foLines?.has(l.id);
@@ -790,6 +824,9 @@ export function BoqGrid({
             <Button size="sm" variant="outline" onClick={() => setPvfTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
               + เพิ่มชุด Privacy film
             </Button>
+            <Button size="sm" variant="outline" onClick={() => setCnoTarget({ mode: "new", option: lines[lines.length - 1]?.option_name ?? null })}>
+              + เพิ่มชุด Canoe
+            </Button>
           </>
         ) : null}
         <span className="text-xs text-muted-foreground">
@@ -804,6 +841,15 @@ export function BoqGrid({
           canSeeCost={canSeeCost}
           replaceRows={replaceRows}
           onClose={() => setLinTarget(null)}
+        />
+      ) : null}
+      {cnoTarget ? (
+        <CanoeDialog
+          target={cnoTarget}
+          quotationId={quotationId}
+          canSeeCost={canSeeCost}
+          replaceRows={replaceRows}
+          onClose={() => setCnoTarget(null)}
         />
       ) : null}
       {pvfTarget ? (

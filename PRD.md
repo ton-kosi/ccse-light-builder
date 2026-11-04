@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 02/11/2026
+> Last updated: 04/11/2026
 
 ## 1. Overview
 
@@ -276,6 +276,19 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   strips across the roll width, track in 2 m lengths, optional LED above.
 - ✅ **Privacy film (PDLC)** — per m² on cutting size, max sheet 1.5 × 3 m,
   busbar per piece, transformers per location by watts.
+- 🟡 **Canoe** ("+ เพิ่มชุด Canoe") — a run is built from fixed pieces **L / M / S / SS** (nominal
+  50 / 40 / 30 / 20 cm) whose exact length depends on the LED so the strip is cut on its cut points
+  (production workbook tab "Canoe"): 4.8W 60/144, 14.4W 60 Nichia, 19.2W 60 = 0.50/0.40/0.30/0.20 m;
+  9.6W 120 = +5 mm; COB 8/12/15, 9.6W 210, 14.4W 180, 19.2W 240 = +15 mm; 7.2W 30 Nichia =
+  0.50 / – / 0.34 / 0.24 (no M); Double Canoe = +5 mm each; other LEDs are not made as Canoe.
+  Each piece adds 2 mm for the joint. Lengths are typed like the WOS ("2.49x2 + 4.18"); for each run
+  the system picks the **fewest pieces** that end up at most **5 cm longer / 10 cm shorter** than
+  measured (then the closest), and flags runs it cannot fit. LED = nominal × pieces (×2 for Double).
+  Sold **per metre of run**: one BOQ line (qty = run metres, cut lengths printed below) priced from
+  the parts (LED metres + housing pieces at their selling prices); parts go to the line's recipe
+  (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
+  SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
+  production sheet. ⬜ Next: Canoe piece list on the production sheet / stickers.
 - Builders only offer SKUs of the matching stock category.
 
 #### Work tab (ใบ Work)
@@ -515,6 +528,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 04/11/2026 | **Canoe builder** in the BOQ: piece lengths per LED from the production workbook, automatic L / M / S / SS choice (fewest pieces, +5 / −10 cm), LED ×2 for Double, priced per metre of run from LED + housing pieces. Checked against FAIRMONT 68-013/1 (2.49 → 5 L, 7.92 → 15 L + 1 M, 4.44 → 8 L + 1 M). Needs Canoe housing SKUs and LED selling prices before saving. |
 | 02/11/2026 | **Parts lists:** SKUs made from other SKUs — "ประกอบเก็บสต็อก" (assemble into stock: parts out, finished pieces in) and "แตกตอนเบิก" (projects issue and buy the parts instead); per-SKU editor + CSV import; Dimmer / controller category. Migration `0031_sku_kits` pending in Lovable (after 0030). |
 | 31/10/2026 | Imported the owner's item list (`stock_count_31102026.csv`): 179 SKUs with category, LED / power-supply details and supplier, 63 costs. The file had no counted quantities, so stock is still 0; Neon flex roll length / family and profile models are still to fill in. |
 | 31/10/2026 | **Barcodes:** SKU barcode list (supplier barcodes + old codes kept on rename), printable 80 × 50 mm SKU labels with QR, QR on remnant labels, scan box (USB scanner or phone camera), scan-to-count on the stock page, scan-to-add on purchases, SKU search by barcode, CSV `barcode` column. Migration `0030_sku_barcodes` pending in Lovable; libraries `qrcode` and `barcode-detector` added. |
