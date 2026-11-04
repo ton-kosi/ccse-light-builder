@@ -276,7 +276,17 @@ export function pieceCuts(led: SkuLite, double: boolean) {
   }));
 }
 
-/** Runs for production: the site measurement ("2.49x2 + [1.2+1.3]") when there is one, else the BOQ. */
+/**
+ * Runs from typed lengths ("2.49x2 + [1.2+1.3]"). Each side of a joined run [a+b] — an L-shape
+ * corner, pool steps — is a separate straight Canoe and gets its own pieces; its label "2.1", "2.2"
+ * (run 2, side 1 / 2) keeps them together on the sheets.
+ */
 export function runsFromSpec(runs: { pieces: number[]; sets: number }[]): CanoeRun[] {
-  return runs.map((r) => ({ length: Math.round(r.pieces.reduce((a, b) => a + b, 0) * 1000) / 1000, sets: r.sets }));
+  return runs.flatMap((r, gi) =>
+    r.pieces.map((p, pi) => ({
+      length: Math.round(p * 1000) / 1000,
+      sets: r.sets,
+      ...(r.pieces.length > 1 ? { label: `${gi + 1}.${pi + 1}` } : {}),
+    })),
+  );
 }

@@ -77,8 +77,22 @@ test("production: LED cut per piece (outer = single piece, inner = 5 mm shorter 
   const d = pieceCuts({ code: "LED-Top-9.6-120-3000", name: "9.6W/m, 120dots" }, true);
   expect(d[0]).toEqual({ size: "L", housingM: 0.51, outerCm: 50.5, innerCm: 50 });
   expect(pieceCuts(led72, false).map((c) => c.size)).toEqual(["L", "S", "SS"]);
+  // L-shape / pool steps: each side of [1.2+1.3] is its own straight Canoe
   expect(runsFromSpec([{ pieces: [1.2, 1.3], sets: 2 }, { pieces: [4.18], sets: 1 }])).toEqual([
-    { length: 2.5, sets: 2 },
+    { length: 1.2, sets: 2, label: "1.1" },
+    { length: 1.3, sets: 2, label: "1.2" },
     { length: 4.18, sets: 1 },
   ]);
+});
+
+test("a joined run is not fitted as one long piece row", async () => {
+  const { runsFromSpec, planCanoe } = await import("./canoe.ts");
+  // 1.0 + 1.0 as one 2.0 m run would be 4 L; as two sides it is 2 L each = still 4, but 0.7 + 0.7
+  // needs its own short pieces on each side (1 L + 1 SS each), not 3 L across the corner
+  const plan = planCanoe({ double: false, runs: runsFromSpec([{ pieces: [0.7, 0.7], sets: 1 }]) }, led14);
+  expect(plan.runs.map((r) => r.fit.counts)).toEqual([
+    { L: 1, M: 0, S: 0, SS: 1 },
+    { L: 1, M: 0, S: 0, SS: 1 },
+  ]);
+  expect(plan.runM).toBe(1.4);
 });

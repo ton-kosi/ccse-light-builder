@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import type { GridLine } from "@/components/boq/BoqGrid";
 import { Block, SkuSelect, type Sku } from "@/components/boq/FoSetDialog";
 import { Choice, Row } from "@/components/boq/LinearDialog";
-import { buildCanoe, CANOE_SIZES, canoeLengths, type CanoeConfig, type CanoeSize } from "@/lib/canoe";
+import { buildCanoe, CANOE_SIZES, canoeLengths, runsFromSpec, type CanoeConfig, type CanoeSize } from "@/lib/canoe";
 import { parseCutSpec } from "@/lib/cutSpec";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { categoryOf, SKU_OPTIONS_KEY } from "@/lib/skuCategory";
@@ -76,7 +76,8 @@ export function CanoeDialog({
 
   const parsed = spec.trim() ? parseCutSpec(spec) : null;
   const specError = parsed && "error" in parsed ? parsed.error : null;
-  const runs = parsed && !("error" in parsed) ? parsed.runs.map((r) => ({ length: r.pieces.reduce((a, b) => a + b, 0), sets: r.sets })) : [];
+  // each side of a joined run [a+b] (L-shape, pool steps) gets its own pieces
+  const runs = parsed && !("error" in parsed) ? runsFromSpec(parsed.runs) : [];
   const cfg: CanoeConfig = { ...c, runs, spec };
   const led = byId.get(c.ledSkuId);
   const built = useMemo(
@@ -173,7 +174,7 @@ export function CanoeDialog({
             <Block title="2. ความยาวแต่ละช่วง (เมตร)">
               <Input
                 className="font-mono"
-                placeholder="เช่น 2.49x2 + 4.18 + 7.92   (x = จำนวนชุด)"
+                placeholder="เช่น 2.49x2 + 4.18 + [1.2+0.8]   (x = จำนวนชุด, [ ] = ต่อเป็นมุม / ขั้นบันได)"
                 value={spec}
                 onChange={(e) => setSpec(e.target.value)}
               />
@@ -196,7 +197,10 @@ export function CanoeDialog({
                   <tbody>
                     {plan.runs.map((r, i) => (
                       <tr key={i} className="border-t border-border">
-                        <td className="py-1 tabular-nums">{formatQty(r.length)} ม.</td>
+                        <td className="py-1 tabular-nums">
+                          {r.label ? <span className="text-muted-foreground">ด้าน {r.label} · </span> : null}
+                          {formatQty(r.length)} ม.
+                        </td>
                         <td className="tabular-nums">× {r.sets}</td>
                         {CANOE_SIZES.map((k) => (
                           <td key={k} className="text-right tabular-nums">
@@ -225,7 +229,8 @@ export function CanoeDialog({
                 </table>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
-                ระบบเลือกท่อนให้น้อยที่สุด โดยยาวเกินได้ไม่เกิน 5 ซม. และสั้นกว่าได้ไม่เกิน 10 ซม.
+                ระบบเลือกท่อนให้น้อยที่สุด โดยยาวเกินได้ไม่เกิน 5 ซม. และสั้นกว่าได้ไม่เกิน 10 ซม. · ช่วงที่ต่อกัน
+                [a+b] เช่น มุม L หรือขั้นบันไดสระ คิดท่อนแยกทีละด้าน
               </p>
             </Block>
 

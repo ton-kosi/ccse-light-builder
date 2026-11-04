@@ -281,7 +281,9 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (production workbook tab "Canoe"): 4.8W 60/144, 14.4W 60 Nichia, 19.2W 60 = 0.50/0.40/0.30/0.20 m;
   9.6W 120 = +5 mm; COB 8/12/15, 9.6W 210, 14.4W 180, 19.2W 240 = +15 mm; 7.2W 30 Nichia =
   0.50 / – / 0.34 / 0.24 (no M); Double Canoe = +5 mm each; other LEDs are not made as Canoe.
-  Each piece adds 2 mm for the joint. Lengths are typed like the WOS ("2.49x2 + 4.18"); for each run
+  Each piece adds 2 mm for the joint. Lengths are typed like the WOS ("2.49x2 + 4.18"); a joined run
+  "[1.2+0.8]" (L-shape corner, pool steps) is **one Canoe per side**, each side fitted on its own
+  (shown as ด้าน 1.1 / 1.2); for each run
   the system picks the **fewest pieces** that end up at most **5 cm longer / 10 cm shorter** than
   measured (then the closest), and flags runs it cannot fit. LED = nominal × pieces (×2 for Double).
   Sold **per metre of run**: one BOQ line (qty = run metres, cut lengths printed below) priced from
@@ -306,7 +308,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   production work orders; print `/print/production/$projectId` (A4 landscape).
 - 🟡 **Canoe on the production sheet** (ใบ Work tab, production jobs, print `/print/production`):
   per Canoe set — item no., code, LED, Single / Double, and whether the lengths are the **site
-  measurement** (wins when there is one; joined runs [a+b] count as one run) or the BOQ; per run the
+  measurement** (wins when there is one; each side of a joined run [a+b] is fitted separately) or the BOQ; per run the
   L / M / S / SS pieces, built length and how far over / short; totals per size and LED metres;
   per size the housing length and the **LED cut per piece** (outer = single piece length, inner =
   5 mm shorter for Double — workbook columns ด้านนอก / ด้านใน); all sets added up at the end. No
@@ -535,6 +537,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 04/11/2026 | Canoe: each side of a joined run [a+b] (L-shape corner, pool steps) gets its own pieces instead of being added into one long run — in the BOQ builder and on the production sheet. |
 | 04/11/2026 | **Canoe on the production sheet:** pieces per run (site measurement first, else BOQ), totals per size, LED metres, housing length and LED cut per piece (outer / inner for Double), on the ใบ Work tab, production jobs and the printed ใบผลิต. Checked with a throwaway project (deleted). |
 | 04/11/2026 | **Canoe builder** in the BOQ: piece lengths per LED from the production workbook, automatic L / M / S / SS choice (fewest pieces, +5 / −10 cm), LED ×2 for Double, priced per metre of run from LED + housing pieces. Checked against FAIRMONT 68-013/1 (2.49 → 5 L, 7.92 → 15 L + 1 M, 4.44 → 8 L + 1 M). Needs Canoe housing SKUs and LED selling prices before saving. |
 | 02/11/2026 | **Parts lists:** SKUs made from other SKUs — "ประกอบเก็บสต็อก" (assemble into stock: parts out, finished pieces in) and "แตกตอนเบิก" (projects issue and buy the parts instead); per-SKU editor + CSV import; Dimmer / controller category. Migration `0031_sku_kits` pending in Lovable (after 0030). |

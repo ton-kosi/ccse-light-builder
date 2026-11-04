@@ -100,7 +100,10 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
               <tbody>
                 {b.plan.runs.map((r, i) => (
                   <tr key={i} className="border-t border-border">
-                    <td className="py-0.5 tabular-nums">{formatQty(r.length)}</td>
+                    <td className="py-0.5 tabular-nums">
+                      {r.label ? <span className={print ? "" : "text-muted-foreground"}>ด้าน {r.label} · </span> : null}
+                      {formatQty(r.length)}
+                    </td>
                     <td className="tabular-nums">× {r.sets}</td>
                     {CANOE_SIZES.map((k) => (
                       <td key={k} className="text-right tabular-nums">
