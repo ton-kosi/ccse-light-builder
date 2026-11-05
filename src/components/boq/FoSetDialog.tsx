@@ -16,6 +16,7 @@ import type { GridLine } from "@/components/boq/BoqGrid";
 import {
   buildFoRecipes,
   buildFoText,
+  defaultFoCables,
   foSkuGroups,
   illuminatorDisplayName,
   matchByWatt,
@@ -107,9 +108,8 @@ export function FoSetDialog({
       illuminatorName: illuminatorDisplayName(ill),
       locatedNote: "",
       machines: 1,
-      lengthPerPoint: 0,
-      sizes: groups.cables
-        .slice(0, 3)
+      lengthPerPoint: 8,
+      sizes: defaultFoCables(groups.cables)
         .map((s, i) => ({ label: LABELS[i] ?? `#${i + 1}`, skuId: s.id, points: 0 })),
       endSkuId: groups.ends[0]?.id ?? null,
       harnessSkuId: matchByWatt(groups.harnesses, ill),

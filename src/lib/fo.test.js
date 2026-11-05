@@ -1,4 +1,19 @@
 import { test, expect } from "bun:test";
+import { defaultFoCables as defaultFoCables2 } from "./fo.ts";
+
+test("S / M / L default to plain 0.50 / 0.75 / 1.00 mm cable", () => {
+  const c = (code, name) => ({ id: code, code, name });
+  const list = [
+    c("B-0.25", "FO cable 0.25mm"),
+    c("LS-0.75", "FO cable laser sparkle PMMA 0.75mm"),
+    c("B-0.50", "FO cable 0.50mm"),
+    c("B-0.75", "FO cable 0.75mm"),
+    c("WJ-1.00", "FO cable 1.00mm with jacket"),
+    c("B-1.00", "FO cable 1.00mm"),
+  ];
+  expect(defaultFoCables2(list).map((x) => x.id)).toEqual(["B-0.50", "B-0.75", "B-1.00"]);
+  expect(defaultFoCables2(list.slice(0, 2)).map((x) => x.id)).toEqual(["B-0.25", "LS-0.75"]);
+});
 import {
   buildFoRecipes,
   buildFoText,

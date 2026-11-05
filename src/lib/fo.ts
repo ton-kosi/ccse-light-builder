@@ -188,6 +188,15 @@ export function foSkuGroups<T extends SkuLite>(skus: T[]) {
   };
 }
 
+/** Sizes S / M / L are normally plain 0.50 / 0.75 / 1.00 mm cable; other stock falls back to the thinnest three. */
+export function defaultFoCables<T extends SkuLite>(cables: T[]): T[] {
+  const plain = cables.filter((s) => !/sparkle|jacket/i.test(text(s)));
+  const usual = [0.5, 0.75, 1]
+    .map((d) => plain.find((s) => Math.abs(diameterOf(s) - d) < 1e-6))
+    .filter((s): s is T => !!s);
+  return usual.length === 3 ? usual : cables.slice(0, 3);
+}
+
 /** Prefer the accessory made for the same wattage as the illuminator (e.g. FOWP50W for FO50W). */
 export function matchByWatt(list: SkuLite[], illuminator: SkuLite | undefined): string | null {
   if (!list.length) return null;

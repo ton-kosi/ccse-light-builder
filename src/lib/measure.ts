@@ -48,6 +48,14 @@ export function measurementFromInput(input: {
   return { measured_qty, cut_lengths, cut_spec };
 }
 
+/**
+ * Quantity the final Rev bills: for an LED line measured in cut lengths, the length production really
+ * cuts (its round down / up choice on the production sheet); otherwise the measured quantity.
+ */
+export function finalQty(measuredQty: number, productionCutM: number | null | undefined, hasCuts: boolean): number {
+  return hasCuts && productionCutM && productionCutM > 0 ? productionCutM : measuredQty;
+}
+
 export type CompareRow = {
   contractQty: number;
   measuredQty: number;

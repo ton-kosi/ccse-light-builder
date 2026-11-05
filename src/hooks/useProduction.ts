@@ -52,8 +52,8 @@ export type ProductionLine = {
  * (Neon flex rolls have their own roll plan). No prices are read.
  */
 export function useProduction(projectId: string) {
-  const { lines, isLoading } = useWorkSheet(projectId);
-  const { data: measured } = useMeasurements(projectId);
+  const { lines, linesLoaded, isLoading } = useWorkSheet(projectId);
+  const { data: measured, isSuccess: measuredLoaded } = useMeasurements(projectId);
   const ids = lines.map((l) => l.id);
   const codes = [...new Set(lines.map((l) => l.component_code).filter(Boolean) as string[])];
 
@@ -161,5 +161,7 @@ export function useProduction(projectId: string) {
       settings: st,
     });
   }
-  return { lines: out, isLoading: isLoading || skus.isLoading };
+  // false until every number is in (or a load failed): don't act on a partial sheet
+  const ready = linesLoaded && measuredLoaded && settings.isSuccess && (lines.length === 0 || skus.isSuccess);
+  return { lines: out, isLoading: isLoading || skus.isLoading, ready };
 }

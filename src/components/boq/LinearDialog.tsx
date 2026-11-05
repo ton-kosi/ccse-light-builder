@@ -18,13 +18,18 @@ import { SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 import {
   buildLinear,
   circuitLength,
-  DIM_TYPES,
-  hasProfile,
+  circuitQty,
+  nearFitPsu,
+  roundUpStep,
   IP_RATINGS,
   isDoubleJacket,
+  LINEAR_DIM_TYPES,
   linearSkuGroups,
+  nominalWatt,
   parseLengths,
-  pickPsu,
+  psuOfCircuit,
+  usesEz,
+  usesProfile,
   wattPerMOf,
   type DimType,
   type PsuSkip,
@@ -47,6 +52,7 @@ import {
   usesEzClip,
   type MountType,
 } from "@/lib/profiles";
+import { dotsOfLed } from "@/lib/canoe";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { useSkuPrices } from "@/lib/skuPrices";
 
@@ -63,9 +69,9 @@ export type LinearTarget =
 const sel = "h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm";
 const COLORS = ["BLACK", "WHITE", "TBD"];
 const IP_HELP: Record<IpRating, string> = {
-  IP44: "ไม่ใส่ profile · heat sink + single jacket",
-  IP54: "ใส่ profile · heat sink + single jacket",
-  IP65: "ใส่ profile · heat sink + double jacket",
+  IP44: "heat sink + single jacket",
+  IP54: "heat sink + single jacket",
+  IP65: "heat sink + double jacket",
 };
 
 export function LinearDialog({
@@ -96,6 +102,14 @@ export function LinearDialog({
       return data as Sku[];
     },
   });
+  const { data: cutSteps } = useQuery({
+    queryKey: ["linear_cut_steps"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("skus").select("id, cut_step_cm");
+      if (error) throw error;
+      return new Map(data.map((s) => [s.id, s.cut_step_cm == null ? null : Number(s.cut_step_cm)]));
+    },
+  });
   const { data: prices } = useSkuPrices();
   const groups = useMemo(() => linearSkuGroups(skus ?? []), [skus]);
   const byId = useMemo(() => new Map((skus ?? []).map((s) => [s.id, s])), [skus]);
@@ -121,6 +135,8 @@ export function LinearDialog({
     setC(withChoices({
       v: 1,
       blockId: crypto.randomUUID().slice(0, 8),
+      withProfile: true,
+      dimmerSkuId: groups.dimmers.find((s) => /mini/i.test(`${s.code} ${s.name}`))?.id ?? null,
       typeCode: "",
       ledSkuId: led?.id ?? "",
       ledName: led ? led.name.toUpperCase() : "",
@@ -143,7 +159,7 @@ export function LinearDialog({
       profileExtras: [],
       color: "",
       paintSkuId: groups.paints[0]?.id ?? null,
-      psuOptions: groups.psuFor("DALI"),
+      psuOptions: groups.psu24For("DALI"),
       loadFactor: 0.8,
       // default: prices folded into the LED line; tick an item to price it on its own line
       show: { heatsink: false, profile: false, paint: false, psu: false },
@@ -156,9 +172,18 @@ export function LinearDialog({
   // PSU choices always follow the dimming type
   useEffect(() => {
     if (!c || !skus) return;
-    const opts = groups.psuFor(c.dim);
+    const opts = groups.psu24For(c.dim);
     if (JSON.stringify(opts) !== JSON.stringify(c.psuOptions)) setC({ ...c, psuOptions: opts });
   }, [c, skus, groups]);
+
+  // the quantity follows the chosen LED's cut step
+  const ledForStep = c ? byId.get(c.ledSkuId) : undefined;
+  const stepForLed = ledForStep && cutSteps ? roundUpStep(dotsOfLed(ledForStep), cutSteps.get(ledForStep.id)) : null;
+  useEffect(() => {
+    if (!c || !ledForStep || !cutSteps) return;
+    if ((c.cutStepCm ?? null) !== stepForLed) setC({ ...c, cutStepCm: stepForLed });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c?.ledSkuId, stepForLed, !!ledForStep, !!cutSteps]);
 
   const set = (p: Partial<LinearConfig>) => setC((o) => (o ? { ...o, ...p } : o));
 
@@ -198,7 +223,7 @@ export function LinearDialog({
     } else if (prf && prf.id !== n.profileSkuId) {
       out.profileName = `${prf.name.toUpperCase()} w/ MOUNTING`;
     }
-    const rail = railNeeded(hasProfile(n.ip) ? model : null, !!out.ezClip);
+    const rail = railNeeded(usesProfile(n) ? model : null, usesEz(out));
     const current = n.heatsinkSkuId ? byId.get(n.heatsinkSkuId) : undefined;
     if (rail && (!current || railOf(current) !== rail)) {
       const fit = groups.heatsinks.find((s) => railOf(s) === rail);
@@ -231,9 +256,10 @@ export function LinearDialog({
       if (!(c.wattPerM > 0)) throw new Error("กรุณากรอกวัตต์ต่อเมตร");
       if (!c.circuits.some((k) => circuitLength(k) > 0))
         throw new Error("กรุณาใส่ความยาวอย่างน้อย 1 วงจร");
-      const fitModel = hasProfile(c.ip) ? profileModel(c.profileModel) : null;
+      const fitModel = usesProfile(c) ? profileModel(c.profileModel) : null;
       const bad = fitModel ? fitProblem(fitModel, c.pcbMm ?? null) : null;
       if (bad) throw new Error(bad);
+      if (c.dim === "1-10V" && !c.dimmerSkuId) throw new Error("กรุณาเลือก Mini dimmer");
       if (c.show.psu && !c.psuOptions.length)
         throw new Error(`ไม่มีหม้อแปลงแบบ ${c.dim} ในหมวด Power supply — ดูรายละเอียดใต้หัวข้อ "หม้อแปลง"`);
       if (built.missing.length)
@@ -251,6 +277,7 @@ export function LinearDialog({
         discount_percent: r.kind === "priced" ? discNum : 0,
         option_name: option.trim() || null,
         zone: i === 0 ? zone.trim() || null : null,
+        item_no: r.item_no ?? null,
         component_id: null,
         circuit_note: null,
         cut_lengths: null,
@@ -275,9 +302,9 @@ export function LinearDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const profileOn = c ? hasProfile(c.ip) : false;
+  const profileOn = c ? usesProfile(c) : false;
   const model = c && profileOn ? profileModel(c.profileModel) : null;
-  const rail = c ? railNeeded(model, !!c.ezClip) : null;
+  const rail = c ? railNeeded(model, usesEz(c)) : null;
   const railFit = rail ? groups.heatsinks.filter((s) => railOf(s) === rail) : [];
   const railChoices = railFit.length ? railFit : groups.heatsinks;
   // profiles the LED fits in (PCB width); unrecognised ones stay selectable
@@ -301,7 +328,14 @@ export function LinearDialog({
           <div className="grid gap-5 lg:grid-cols-[1fr_420px]">
             <div className="space-y-5">
               <Block title="1. ไฟรุ่นไหน สีอะไร">
-                <div className="grid gap-2 sm:grid-cols-[100px_1fr_100px]">
+                <div className="grid gap-2 sm:grid-cols-[64px_100px_1fr_100px]">
+                  <Field label="ข้อที่">
+                    <Input
+                      value={c.itemNo ?? ""}
+                      placeholder="3"
+                      onChange={(e) => set({ itemNo: e.target.value })}
+                    />
+                  </Field>
                   <Field label="รหัสแบบ">
                     <Input
                       value={c.typeCode}
@@ -355,7 +389,7 @@ export function LinearDialog({
                   <span className="self-center text-xs text-muted-foreground">{IP_HELP[c.ip]}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {DIM_TYPES.map((d) => (
+                  {LINEAR_DIM_TYPES.map((d) => (
                     <Choice key={d} on={c.dim === d} onClick={() => set({ dim: d as DimType })}>
                       {d}
                     </Choice>
@@ -394,6 +428,27 @@ export function LinearDialog({
                         all={skus ?? []}
                         onChange={(id) => set({ singleJacketSkuId: id || null })}
                       />
+                    </Row>
+                  )}
+                  <Row label="Profile">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Choice on={profileOn} onClick={() => setP({ withProfile: true })}>
+                        ใส่ profile
+                      </Choice>
+                      <Choice on={!profileOn} onClick={() => setP({ withProfile: false })}>
+                        เส้นเปล่า ไม่มี profile
+                      </Choice>
+                    </div>
+                  </Row>
+                  {profileOn ? null : (
+                    <Row label="การยึด">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={!c.noEzClip}
+                          onCheckedChange={(v) => setP({ noEzClip: v !== true })}
+                        />
+                        ยึดด้วย EZ clip (ราง 4/8, พิมพ์ "w/ EZ-CLIP" ในใบ)
+                      </label>
                     </Row>
                   )}
                   {profileOn ? (
@@ -554,10 +609,21 @@ export function LinearDialog({
                     <PsuInfo
                       dim={c.dim}
                       options={c.psuOptions}
-                      report={groups.psuReport(c.dim)}
+                      report={groups.psu24Report(c.dim)}
                       total={groups.psus.length}
                     />
                   </Row>
+                  {c.dim === "1-10V" ? (
+                    <Row label="Mini dimmer (ต่อวงจร)">
+                      <SkuSelect
+                        value={c.dimmerSkuId ?? null}
+                        preferred={groups.dimmers}
+                        category="Dimmer / controller"
+                        all={skus ?? []}
+                        onChange={(id) => set({ dimmerSkuId: id || null })}
+                      />
+                    </Row>
+                  ) : null}
                 </div>
               </Block>
 
@@ -567,17 +633,24 @@ export function LinearDialog({
                     <tr>
                       <th className="w-28 pb-1 font-medium">CKT. NO.</th>
                       <th className="pb-1 font-medium">ความยาวแต่ละท่อน (ม.) เช่น 0.70+0.70</th>
-                      <th className="w-16 pb-1 text-right font-medium">รวม ม.</th>
+                      <th className="w-16 pb-1 text-right font-medium" title="แต่ละท่อนปัดขึ้นตามระยะตัด LED">
+                        คิด ม.
+                      </th>
                       <th className="w-16 pb-1 text-right font-medium">วัตต์</th>
-                      <th className="w-24 pb-1 text-right font-medium">หม้อแปลง</th>
+                      <th className="w-44 pb-1 pl-2 font-medium">หม้อแปลง</th>
                       <th className="w-10" />
                     </tr>
                   </thead>
                   <tbody>
                     {c.circuits.map((k, i) => {
-                      const L = circuitLength(k);
+                      const L = circuitQty(k, c);
+                      const typed = circuitLength(k);
                       const W = L * c.wattPerM;
-                      const psu = pickPsu(W, c.psuOptions, c.loadFactor);
+                      const near = !k.psuSkuId && k.sharedWith == null ? nearFitPsu(W, c.psuOptions, c.loadFactor) : null;
+                      const psu = psuOfCircuit(k, c);
+                      const isShared = k.sharedWith != null;
+                      const setK = (p: Partial<typeof k>) =>
+                        set({ circuits: c.circuits.map((x, j) => (j === i ? { ...x, ...p } : x)) });
                       return (
                         <tr key={i}>
                           <td className="py-1 pr-2">
@@ -610,12 +683,51 @@ export function LinearDialog({
                               }}
                             />
                           </td>
-                          <td className="py-1 text-right tabular-nums">{L ? formatQty(L) : "—"}</td>
+                          <td className="py-1 text-right tabular-nums">
+                            {L ? formatQty(L) : "—"}
+                            {L && Math.abs(L - typed) > 1e-6 ? (
+                              <div className="text-xs text-muted-foreground">วัด {formatQty(typed)}</div>
+                            ) : null}
+                          </td>
                           <td className="py-1 text-right tabular-nums">
                             {W ? formatQty(Math.round(W * 10) / 10) : "—"}
                           </td>
-                          <td className="py-1 text-right text-xs">
-                            {psu ? `${psu.count} × ${psu.watt}W` : "—"}
+                          <td className="py-1 pl-2 text-xs">
+                            <select
+                              className={sel}
+                              title="อัตโนมัติ = โหลดไม่เกิน 80%"
+                              value={isShared ? "shared" : (k.psuSkuId ?? "")}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === "shared") setK({ sharedWith: k.sharedWith ?? "", psuSkuId: null });
+                                else setK({ sharedWith: null, psuSkuId: v || null });
+                              }}
+                            >
+                              <option value="">อัตโนมัติ</option>
+                              {c.psuOptions.map((o) => (
+                                <option key={o.skuId} value={o.skuId}>
+                                  {nominalWatt(o.watt)}W ({byId.get(o.skuId)?.code ?? "?"})
+                                </option>
+                              ))}
+                              <option value="shared">ใช้ร่วมกับข้ออื่น</option>
+                            </select>
+                            {isShared ? (
+                              <Input
+                                className="mt-1 h-8"
+                                placeholder="ITEM 8.1"
+                                value={k.sharedWith ?? ""}
+                                onChange={(e) => setK({ sharedWith: e.target.value.toUpperCase() })}
+                              />
+                            ) : psu && W > 0 ? (
+                              <div className={"mt-0.5 " + (W > psu.watt * psu.count * c.loadFactor + 1e-9 ? "font-medium text-warning" : "text-muted-foreground")}>
+                                {psu.count} × {nominalWatt(psu.watt)}W · โหลด {Math.round((W / (psu.watt * psu.count)) * 100)}%
+                              </div>
+                            ) : null}
+                            {near ? (
+                              <div className="mt-0.5 text-muted-foreground">
+                                {nominalWatt(near.watt)}W ก็พอได้ โหลด {Math.round((W / near.watt) * 100)}% — เลือกเองถ้ายืนยัน
+                              </div>
+                            ) : null}
                           </td>
                           <td className="py-1 text-right">
                             <Button
@@ -636,6 +748,11 @@ export function LinearDialog({
                     })}
                   </tbody>
                 </table>
+                {c.cutStepCm ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    จำนวนในใบ = แต่ละท่อนปัดขึ้นตามระยะตัด {c.cutStepCm} ซม. · ตอนผลิตปัดลงได้ แล้ว Rev สุดท้ายคิดตามที่ตัดจริง
+                  </p>
+                ) : null}
                 <Button
                   size="sm"
                   variant="outline"

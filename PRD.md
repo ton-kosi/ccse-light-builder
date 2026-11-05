@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 04/11/2026
+> Last updated: 05/11/2026
 
 ## 1. Overview
 
@@ -256,7 +256,9 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Final Rev from measurements** (BOQ tab, quote editors): contract vs
   measured per line with the +/- money before and after VAT; one button creates
   a new Rev whose quantities and cut lengths are the measured ones, and marks the
-  last payment term as the balance.
+  last payment term as the balance. An LED line measured in cut lengths bills what
+  production really cuts (its round down / up choice on the production sheet), not
+  the raw site length.
 - ✅ Totals: subtotal → special discount → contract adjustments (% on the
   running total, fixed amount, or note) → VAT. `vat_mode` only changes how VAT
   is printed (show / "EXCLUDING VAT x%" / none).
@@ -269,9 +271,23 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 #### Product calculators (builders)
 - ✅ **LED linear** — profile rules (Jedi % per LED/profile, sizes by
   mounting/trim, 3/8 vs 4/8 rail, PCB > 10 mm not allowed in W13/45° Reverse).
+  IP decides only the jacket (IP65 double, IP44 / IP54 single); **profile or bare strip is a separate
+  choice**. A bare strip prints "w/ EZ-CLIP" and takes the 4/8 rail unless EZ clips are switched off.
+  **BOQ quantity:** LEDs of 120 dots/m or fewer (spare LED can be folded) and COB (too dense to fold,
+  cut full) are rounded up to the LED's cut step **piece by piece** (1.35 × 6 at 10 cm = 8.40 M); other
+  dense strips stay as typed. The typed length stays in "- L = …"; LED, rail, jacket, profile, paint and
+  power supply use the rounded metres. Production may round down on site, and the final Rev then bills
+  that length (below).
+  Only **24V** power supplies are offered (12V, 15V and constant-current units are left out, with the
+  reason); printed at their sold-as size (26.4 W → 25W, 76.8 W → 75W). Per circuit the PSU is automatic
+  (≤ 80 % load, **SWP first**, waterproof ELG only if no SWP is big enough; a smaller SWP at up to 90 %
+  is suggested to confirm by hand), **picked by hand** (load % shown, amber above 80 %), or **shared with another item**
+  (no PSU of its own, printed "(SHARED w/ ITEM 8.1)"). **1-10V** = non-dim 24V PSU + mini dimmers
+  1:1 with the power supplies. An item number on the block prints on the heading and as 3.1, 3.2 … on the circuits.
 - ✅ **Jedi flex / neon** — sold by the roll: runs packed into 5/10 m rolls
   (no joining offcuts); all lines of one roll family share one price per metre.
-- ✅ **Fibre-optic sets**.
+- ✅ **Fibre-optic sets** — sizes S / M / L default to plain 0.50 / 0.75 / 1.00 mm cable, 8 m per point
+  (editable).
 - ✅ **Clipso stretch ceiling** — 3.4/5.1 m × 50 m rolls, +10 cm per side,
   strips across the roll width, track in 2 m lengths, optional LED above.
 - ✅ **Privacy film (PDLC)** — per m² on cutting size, max sheet 1.5 × 3 m,
@@ -545,6 +561,10 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 05/11/2026 | Owner's answers: BOQ rounds up (COB is cut full, ≤ 120 dots can fold); the final Rev bills an LED line at the production sheet's cut length, so a piece rounded down in production comes down in the last payment; FO default 8 m per point. ALIEN sample set to 8 m. |
+| 04/11/2026 | Owner's answers: LED quantity rounded up to the cut step per piece (≤ 120 dots/m and COB); automatic PSU stays at 80 % and prefers SWP, with a hint for a slightly smaller unit; mini dimmer 1:1 with the power supply; FO S / M / L = 0.50 / 0.75 / 1.00 mm. |
+| 04/11/2026 | **LED linear builder fixes from THE PANO:** profile no longer tied to IP; "w/ EZ-CLIP" wording; only 24V power supplies (12V / 15V / 700 mA could be chosen before, also in Jedi flex); sold-as watts and "SWITCHING POWER SUPPLY" wording; PSU picked by hand or shared with another item; 1-10V with mini dimmer; item numbers kept when a block is re-saved. Older saved blocks keep their old profile rule. |
+| 04/11/2026 | Sample projects entered from real quotations (kept, prices 0 because the PDFs hide them): QC21-50-213 ASVAINTRA (Clipso), QC26-55-029 CYPRES LESSOLS (Orluna, 2 options), QC25-54-304 SALA BANG PAIN (Canoe retrofit, typed by hand), QC25-54-197 ALIEN (FO, 4 options + FOC install), QC26-55-109 THE PANO 2026 (LED linear + Clipso, 293 lines). Gaps found are listed for the owner (IP44 + profile, shared / DALI PSUs, 1-10V + mini dimmer, length rounding, Clipso PSU count, Canoe retrofit). |
 | 04/11/2026 | **Canoe stainless housing:** continuous SS housing from 2.4 m bars welded on site + 2.4 m acrylic covers, sections WSS.3150 / 3155UB / 3550SB or custom W × H (+ surcharge), grade SS304 / 316 / 316L, diffuser Jedi / Opal / Satin / Prismatic; bars and covers per run on the production sheet. |
 | 04/11/2026 | Canoe: each side of a joined run [a+b] (L-shape corner, pool steps) gets its own pieces instead of being added into one long run — in the BOQ builder and on the production sheet. |
 | 04/11/2026 | **Canoe on the production sheet:** pieces per run (site measurement first, else BOQ), totals per size, LED metres, housing length and LED cut per piece (outer / inner for Double), on the ใบ Work tab, production jobs and the printed ใบผลิต. Checked with a throwaway project (deleted). |

@@ -10,6 +10,12 @@ import {
   psuDimOf,
   wattOfPsu,
   psuReport,
+  psu24Report,
+  psuVoltOf,
+  nominalWatt,
+  roundUpStep,
+  circuitQty,
+  nearFitPsu,
 } from "./linear.ts";
 
 const PRICES = new Map([
@@ -88,7 +94,122 @@ test("rows follow THE PANO layout", () => {
   expect([rows[6].qty, rows[6].unit, rows[6].unit_price]).toEqual([1, "EA.", 2500]);
 });
 
-test("IP44 has no profile/painting; IP65 uses double jacket", () => {
+test("profile is its own choice: IP44 with profile, IP54 / IP65 bare strip with EZ clip", () => {
+  const ip44 = buildLinear({ ...base, ip: "IP44", withProfile: true }, PRICES, ids).rows.map((r) => r.customer_text);
+  expect(ip44).toContain("- ALUMINIUM V2.13 PROFILE & ACRYLIC DIFFUSER w/ MOUNTING");
+  expect(ip44).toContain("- ALUMINIUM HEAT DISSIPATION & SINGLE JACKET");
+  const bare = buildLinear({ ...base, ip: "IP65", withProfile: false }, PRICES, ids).rows.map((r) => r.customer_text);
+  expect(bare.some((t) => /PROFILE|PAINTING/.test(t))).toBe(false);
+  expect(bare).toContain("- ALUMINIUM HEAT DISSIPATION & DOUBLE JACKET w/ EZ-CLIP");
+  const noClip = buildLinear({ ...base, withProfile: false, noEzClip: true }, PRICES, ids).rows.map((r) => r.customer_text);
+  expect(noClip).toContain("- ALUMINIUM HEAT DISSIPATION & SINGLE JACKET");
+});
+
+test("1-10V: non-dim 24V power supply + mini dimmer per circuit", () => {
+  const prices = new Map([...PRICES, ["mini", { unitPrice: 900, maxDiscount: 0 }]]);
+  const { rows } = buildLinear(
+    { ...base, dim: "1-10V", dimmerSkuId: "mini", circuits: [{ ckt: "WA-N1", lengths: [0.5] }] },
+    prices,
+    ids,
+  );
+  const t = rows.map((r) => r.customer_text);
+  expect(t[0]).toContain("IP54 1-10V DIM");
+  expect(t).toContain("- SWITCHING POWER SUPPLY 24V 75W");
+  const mini = rows.find((r) => r.customer_text === "- MINI DIMMER FOR 1-10V");
+  expect([mini.qty, mini.unit, mini.unit_price]).toEqual([1, "SET", 900]);
+  expect(mini.recipes.map((x) => x.sku_id)).toEqual(["mini"]);
+});
+
+test("power supply: only 24V offered, sold-as watts, picked by hand or shared", () => {
+  const p = (code, name, watt) => ({ id: code, code, name, notes: watt ? `[วัตต์: ${watt}]` : null });
+  const psus = [
+    p("ACC-PS-MW-CV-N-12-75", "SWP 12V 75W"),
+    p("ACC-PS-MW-CV-N-15-100", "SWP 15V 100W"),
+    p("ACC-PS-MW-CC-F-700-100-IP", "ELG-100-700A, (350mA-700mA), IP65"),
+    p("ACC-PS-MW-CV-N-24-3.2", "SWP 24V 3.2A", 76.8),
+    p("ACC-PS-MW-CV-N-24-150-IP", "ELG-150-24, Non-Dim, IP67"),
+  ];
+  const r = psu24Report(psus, "NON-DIM");
+  expect(r.options.map((o) => o.skuId)).toEqual(["ACC-PS-MW-CV-N-24-3.2", "ACC-PS-MW-CV-N-24-150-IP"]);
+  expect(r.skipped.map((x) => x.reason)).toEqual([
+    "เป็น 12V ไม่ใช่ 24V",
+    "เป็น 15V ไม่ใช่ 24V",
+    "เป็น constant current ไม่ใช่ 24V",
+  ]);
+  expect(psuVoltOf(p("PSUDIM0-10V", "Power supply 24V 60W"))).toBe(24);
+  expect(psuVoltOf(p("X", "Driver 0-10V 60W"))).toBeNull();
+  expect([26.4, 52.8, 76.8, 108, 156, 211.2, 75, 200, 36].map(nominalWatt)).toEqual([25, 50, 75, 100, 150, 200, 75, 200, 36]);
+
+  const t = buildLinear(
+    {
+      ...base,
+      circuits: [
+        { ckt: "A", lengths: [1], psuSkuId: "psu150" },
+        { ckt: "B", lengths: [1], sharedWith: "ITEM 8.1" },
+      ],
+    },
+    PRICES,
+    ids,
+  ).rows.map((r) => r.customer_text);
+  expect(t).toContain("- POWER SUPPLY 24V 150W DALI-DIM");
+  expect(t).toContain("- POWER SUPPLY 24V DALI-DIM (SHARED w/ ITEM 8.1)");
+  expect(t.filter((x) => x.includes("POWER SUPPLY"))).toHaveLength(2);
+});
+
+test("quantity: each piece rounded up to the cut step, typed length stays in the text", () => {
+  expect(roundUpStep("60", 10)).toBe(10);
+  expect(roundUpStep("120", 5)).toBe(5);
+  expect(roundUpStep("COB", 5)).toBe(5);
+  expect(roundUpStep("180", 3.33)).toBeNull();
+  expect(roundUpStep("60", null)).toBeNull();
+  const six = { ckt: "BRC-06", lengths: [1.35, 1.35, 1.35, 1.35, 1.35, 1.35] };
+  expect(circuitQty(six, { cutStepCm: 10 })).toBe(8.4); // not 8.1 rounded as a whole
+  expect(circuitQty({ ckt: "", lengths: [2.75, 2.82] }, { cutStepCm: 10 })).toBe(5.7);
+  expect(circuitQty({ ckt: "", lengths: [0.3] }, { cutStepCm: 10 })).toBe(0.3); // already on the step
+  expect(circuitQty({ ckt: "", lengths: [0.76] }, { cutStepCm: 5 })).toBe(0.8);
+  expect(circuitQty({ ckt: "", lengths: [0.34] }, { cutStepCm: 16.67 })).toBe(0.5); // 16.67 = 50/3 exactly
+  expect(circuitQty({ ckt: "", lengths: [1.23] }, {})).toBe(1.23);
+  const { rows } = buildLinear({ ...base, cutStepCm: 10, circuits: [six] }, PRICES, ids);
+  const led = rows.find((r) => r.customer_text.startsWith("- L ="));
+  expect(led.customer_text).toContain("1.35M");
+  expect(led.qty).toBe(8.4);
+  expect(led.recipes[0].qty).toBe(8.4);
+  expect(rows.find((r) => r.customer_text.includes("HEAT")).qty).toBe(8.4);
+});
+
+test("SWP first; waterproof only when no SWP is big enough; near-fit hint up to 90%", () => {
+  const opts = [
+    { skuId: "elg150", watt: 150, waterproof: true },
+    { skuId: "swp156", watt: 156 },
+    { skuId: "swp76", watt: 75 },
+  ];
+  expect(pickPsu(120, opts).skuId).toBe("swp156");
+  expect(pickPsu(160, [...opts, { skuId: "elg300", watt: 300, waterproof: true }]).skuId).toBe("elg300");
+  expect(pickPsu(400, opts)).toMatchObject({ skuId: "swp156", count: 4 });
+  expect(nearFitPsu(61.2, opts).skuId).toBe("swp76"); // 82 %
+  expect(nearFitPsu(151, opts)).toBeNull(); // 97 % of 156
+  expect(nearFitPsu(50, opts)).toBeNull(); // already fits
+});
+
+test("mini dimmer 1:1 with the power supply", () => {
+  const prices = new Map([...PRICES, ["mini", { unitPrice: 900, maxDiscount: 0 }]]);
+  const { rows } = buildLinear(
+    { ...base, dim: "1-10V", dimmerSkuId: "mini", circuits: [{ ckt: "A", lengths: [20] }] },
+    prices,
+    ids,
+  );
+  expect(rows.find((r) => r.customer_text.includes("SWITCHING")).qty).toBe(3);
+  const mini = rows.find((r) => r.customer_text.includes("MINI DIMMER"));
+  expect(mini.qty).toBe(3);
+  expect(mini.recipes[0].qty).toBe(3);
+});
+
+test("item number: heading + circuits, survives without circuit numbers", () => {
+  const { rows } = buildLinear({ ...base, itemNo: "3" }, PRICES, ids);
+  expect(rows.filter((r) => r.item_no).map((r) => r.item_no)).toEqual(["3", "3.1", "3.2"]);
+});
+
+test("older blocks keep the old rule: IP44 has no profile/painting; IP65 uses double jacket", () => {
   const ip44 = buildLinear({ ...base, ip: "IP44" }, PRICES, ids).rows.map((r) => r.customer_text);
   expect(ip44.some((t) => /PROFILE|PAINTING/.test(t))).toBe(false);
   expect(ip44[0]).toContain("IP44");

@@ -5,36 +5,66 @@
  *     CKT. NO. BRA-01                                      ← circuit heading (only when a number is given)
  *     - L = 3.20M                       3.20 M.  @price    ← LED row (always shown)
  *     - ALUMINIUM HEAT DISSIPATION & SINGLE JACKET  3.20 M. ← shown if ticked
- *     - <profile name>                  3.20 M.            ← IP54/IP65 only, shown if ticked
+ *     - <profile name>                  3.20 M.            ← when the block has a profile, shown if ticked
  *     - INDUSTRIAL SPRAY PAINTING (BLACK) 3.20 M.          ← when a colour is set, shown if ticked
  *     - POWER SUPPLY 24V 75W DALI-DIM   1 EA.              ← sized per circuit at 80 % load
  *
  * "Show price" per item: when off, the item is still listed by name (no qty/price) and still
  * goes to stock, but its price is folded into the LED row, so the customer total is the same.
  *
- * IP rules: IP44 = no profile, heat sink + single jacket
- *           IP54 = profile, heat sink + single jacket
- *           IP65 = profile, heat sink + double jacket
+ * IP decides the jacket only: IP65 = double jacket, IP44 / IP54 = single jacket.
+ * A profile is a separate choice (THE PANO has IP44 with profile and IP54 / IP65 bare strips).
+ * A bare strip is fixed with EZ clips unless switched off (printed "w/ EZ-CLIP", rail 4/8).
+ *
+ * 1-10V = ordinary 24V non-dim power supply + one mini dimmer per power supply.
+ *
+ * BOQ quantity: LEDs of 120 dots/m or fewer (spare LED can be folded) and COB (too dense to fold, cut
+ * full) are rounded up to the cut step, piece by piece, so 1.35 × 6 at a 10 cm step is 8.40 M. Other
+ * dense strips stay as typed. Production may round down on site; the final Rev then bills that length.
  */
 import type { PartPrice } from "@/lib/fo";
 import { inCategory, readTags } from "./skuCategory";
 import { jediPercent, profileModel, type Chip, type Diffuser, type MountType } from "./profiles";
+import { exactStep } from "./production";
 
 export type IpRating = "IP44" | "IP54" | "IP65";
-export type DimType = "NON-DIM" | "0-10V" | "DMX" | "DALI";
+export type DimType = "NON-DIM" | "0-10V" | "1-10V" | "DMX" | "DALI";
 export const IP_RATINGS: IpRating[] = ["IP44", "IP54", "IP65"];
 export const DIM_TYPES: DimType[] = ["NON-DIM", "0-10V", "DMX", "DALI"];
 
-export const hasProfile = (ip: IpRating) => ip !== "IP44";
+/** Dimming choices of the LED linear builder (the other builders keep DIM_TYPES). */
+export const LINEAR_DIM_TYPES: DimType[] = ["NON-DIM", "1-10V", "0-10V", "DMX", "DALI"];
 export const isDoubleJacket = (ip: IpRating) => ip === "IP65";
 
-export type PsuOption = { skuId: string; watt: number };
+export type PsuOption = {
+  skuId: string;
+  watt: number;
+  /** waterproof unit (IP6x): automatic takes the ordinary SWP first */
+  waterproof?: boolean;
+};
 export type Extra = { skuId: string; perM: number };
-export type Circuit = { ckt: string; lengths: number[] };
+export type Circuit = {
+  ckt: string;
+  lengths: number[];
+  /** power supply picked by hand (e.g. sized for a load shared with another item); absent = automatic */
+  psuSkuId?: string | null;
+  /** runs on another item's power supply, e.g. "ITEM 8.1": no PSU of its own, printed as a note */
+  sharedWith?: string | null;
+};
 
 export type LinearConfig = {
   v: 1;
   blockId: string;
+  /** item number of the heading; circuits print as <item>.1, <item>.2 … */
+  itemNo?: string | null;
+  /** has a profile; absent (older blocks) = the old rule, every IP except IP44 */
+  withProfile?: boolean;
+  /** LED cut step (cm) the quantity is rounded up to; absent = quantity as typed */
+  cutStepCm?: number | null;
+  /** bare strip not fixed with EZ clips */
+  noEzClip?: boolean;
+  /** mini dimmer per circuit, for 1-10V */
+  dimmerSkuId?: string | null;
   typeCode: string;
   ledSkuId: string;
   ledName: string;
@@ -71,6 +101,7 @@ export type LinearConfig = {
 
 export type LinRecipe = { sku_id: string; qty: number; note: string };
 export type LinRow = {
+  item_no?: string | null;
   id: string;
   kind: "heading" | "priced" | "display";
   customer_text: string;
@@ -83,10 +114,38 @@ export type LinRow = {
 const r2 = (x: number) => Math.round(x * 100) / 100;
 const r3 = (x: number) => Math.round(x * 1000) / 1000;
 export const circuitLength = (c: Circuit) => r3(c.lengths.reduce((s, x) => s + (x > 0 ? x : 0), 0));
+
+/** Cut step to round up to: LEDs of 120 dots/m or fewer and COB; denser strips stay as typed. */
+export function roundUpStep(dots: string | null, cutStepCm: number | null | undefined): number | null {
+  if (!cutStepCm || !(cutStepCm > 0) || !dots) return null;
+  return dots === "COB" || Number(dots) <= 120 ? cutStepCm : null;
+}
+
+/** Metres quoted for a circuit: each piece rounded up to the LED's cut step. */
+export function circuitQty(ck: Circuit, c: Pick<LinearConfig, "cutStepCm">): number {
+  if (!c.cutStepCm) return circuitLength(ck);
+  const step = exactStep(c.cutStepCm);
+  return r3(
+    ck.lengths.reduce((s, x) => s + (x > 0 ? (Math.ceil((x * 100) / step - 1e-6) * step) / 100 : 0), 0),
+  );
+}
 const m = (x: number) => `${x.toFixed(2)}M`;
 
 export function dimLabel(d: DimType): string {
-  return d === "NON-DIM" ? "NON-DIM" : d === "0-10V" ? "0-10V DIM" : `${d}-DIM`;
+  return d === "NON-DIM" ? "NON-DIM" : d === "0-10V" || d === "1-10V" ? `${d} DIM` : `${d}-DIM`;
+}
+
+export const usesProfile = (c: Pick<LinearConfig, "withProfile" | "ip">) =>
+  c.withProfile ?? c.ip !== "IP44";
+
+/** EZ clips: a bare strip unless switched off, or an LED whose SKU says it uses them. */
+export const usesEz = (c: Pick<LinearConfig, "withProfile" | "ip" | "noEzClip" | "ezClip">) =>
+  !!c.ezClip || (!usesProfile(c) && !c.noEzClip);
+
+/** What a PSU is sold as: real 26.4 / 76.8 / 156 W SWPs are the 25 / 75 / 150 W on quotations. */
+export function nominalWatt(w: number): number {
+  const down = Math.floor(w / 25 + 1e-9) * 25;
+  return down > 0 && w - down <= down * 0.1 ? down : Math.round(w);
 }
 
 /** Smallest PSU whose rated watt × load ≥ needed; if none is big enough, several of the largest. */
@@ -97,9 +156,11 @@ export function pickPsu(
 ): { skuId: string; watt: number; count: number } | null {
   const opts = options.filter((o) => o.watt > 0).sort((a, b) => a.watt - b.watt);
   if (!(watts > 0) || !opts.length) return null;
-  const fit = opts.find((o) => o.watt * load >= watts - 1e-9);
+  const swp = opts.filter((o) => !o.waterproof);
+  const fit =
+    swp.find((o) => o.watt * load >= watts - 1e-9) ?? opts.find((o) => o.watt * load >= watts - 1e-9);
   if (fit) return { ...fit, count: 1 };
-  const big = opts[opts.length - 1]!;
+  const big = (swp.length ? swp : opts).at(-1)!;
   return { ...big, count: Math.ceil(watts / (big.watt * load) - 1e-9) };
 }
 
@@ -109,7 +170,7 @@ export function pickPsu(
  */
 export function jediOf(c: LinearConfig): number | null {
   const model = profileModel(c.profileModel);
-  if (!hasProfile(c.ip) || !model || (c.diffuser ?? "JEDI") !== "JEDI") return null;
+  if (!usesProfile(c) || !model || (c.diffuser ?? "JEDI") !== "JEDI") return null;
   if (c.jediPct != null) return c.jediPct;
   return jediPercent(model, c.wattPerM, c.chip ?? "STANDARD");
 }
@@ -151,9 +212,11 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
 
   const rows: LinRow[] = [];
   const tag = (role: string) => `${TAG}${c.blockId} ${role}`;
+  const itemNo = c.itemNo?.trim() || null;
   rows.push({
     id: newId(),
     kind: "heading",
+    item_no: itemNo,
     customer_text: typeHeading(c, jediOf(c)),
     qty: null,
     unit: null,
@@ -163,16 +226,23 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
 
   const jacket = isDoubleJacket(c.ip) ? c.doubleJacketSkuId : c.singleJacketSkuId;
   const jacketWord = isDoubleJacket(c.ip) ? "DOUBLE" : "SINGLE";
-  const withProfile = hasProfile(c.ip) && !!c.profileSkuId;
+  const withProfile = usesProfile(c) && !!c.profileSkuId;
+  const ezText = !usesProfile(c) && usesEz(c) ? " w/ EZ-CLIP" : "";
+  const switching = c.dim === "NON-DIM" || c.dim === "1-10V";
+  const psuWords = switching ? "SWITCHING POWER SUPPLY 24V" : "POWER SUPPLY 24V";
+  const psuDim = switching ? "" : ` ${dimLabel(c.dim)}`;
+  let cktNo = 0;
 
   c.circuits.forEach((ck) => {
-    const L = circuitLength(ck);
+    const L = circuitQty(ck, c);
     if (!(L > 0)) return;
     // no circuit number = no "CKT. NO." line on the quotation
+    cktNo += 1;
     if (ck.ckt.trim())
       rows.push({
         id: newId(),
         kind: "heading",
+        item_no: itemNo ? `${itemNo}.${cktNo}` : null,
         customer_text: `CKT. NO. ${ck.ckt.trim()}`,
         qty: null,
         unit: null,
@@ -241,7 +311,7 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
 
     item(
       c.show.heatsink,
-      `- ALUMINIUM HEAT DISSIPATION & ${jacketWord} JACKET`,
+      `- ALUMINIUM HEAT DISSIPATION & ${jacketWord} JACKET${ezText}`,
       L,
       "M.",
       [
@@ -274,16 +344,37 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
         ],
         "PAINT",
       );
-    const psu = pickPsu(L * c.wattPerM, c.psuOptions, c.loadFactor);
-    if (psu)
+    const psu = psuOfCircuit(ck, c);
+    const shared = ck.sharedWith?.trim();
+    if (shared)
+      extraRows.push({
+        id: newId(),
+        kind: "display",
+        customer_text: `- ${psuWords}${psuDim} (SHARED w/ ${shared})`,
+        qty: null,
+        unit: null,
+        unit_price: null,
+        recipes: [],
+      });
+    else if (psu)
       item(
         c.show.psu,
-        `- POWER SUPPLY 24V ${psu.watt}W ${dimLabel(c.dim)}`,
+        `- ${psuWords} ${nominalWatt(psu.watt)}W${psuDim}`,
         psu.count,
         "EA.",
         [{ skuId: psu.skuId, qty: psu.count, stock: true }],
         "PSU",
         ` x ${psu.count}`,
+      );
+    if (c.dim === "1-10V" && !shared)
+      item(
+        c.show.psu,
+        "- MINI DIMMER FOR 1-10V",
+        psu?.count ?? 1,
+        "SET",
+        [{ skuId: c.dimmerSkuId ?? null, qty: psu?.count ?? 1, stock: true }],
+        "DIMMER",
+        ` x ${psu?.count ?? 1}`,
       );
 
     led.unit_price = r2(ledAmount / L);
@@ -305,6 +396,24 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
     maxDiscount: list > 0 ? Math.floor((allowed / list) * 1000) / 10 : 0,
     missing: [...missing],
   };
+}
+
+/** The circuit's PSU: none when shared, the one picked by hand if still offered, else automatic. */
+export function psuOfCircuit(ck: Circuit, c: Pick<LinearConfig, "wattPerM" | "psuOptions" | "loadFactor" | "cutStepCm">) {
+  if (ck.sharedWith?.trim()) return null;
+  const hand = ck.psuSkuId ? c.psuOptions.find((o) => o.skuId === ck.psuSkuId) : null;
+  if (hand) return { ...hand, count: 1 };
+  return pickPsu(circuitQty(ck, c) * c.wattPerM, c.psuOptions, c.loadFactor);
+}
+
+/** A smaller SWP that is just over the load limit (at most 90 %): someone may confirm it by hand. */
+export function nearFitPsu(watts: number, options: PsuOption[], load = 0.8): PsuOption | null {
+  const fits = (o: PsuOption) => o.watt * load >= watts - 1e-9;
+  return (
+    options
+      .filter((o) => !o.waterproof && !fits(o) && watts <= o.watt * 0.9 + 1e-9)
+      .sort((a, b) => b.watt - a.watt)[0] ?? null
+  );
 }
 
 /** Reads a block config back from the LED material note. */
@@ -367,6 +476,16 @@ export function psuDimOf(s: SkuLite): DimType | null {
   return "NON-DIM";
 }
 
+/** Output of a PSU: volts, "CC" for constant current (350–700 mA), null when the SKU doesn't say. */
+export function psuVoltOf(s: SkuLite): number | "CC" | null {
+  const t = txt(s);
+  if (/\d\s*mA\b|(^|[-_\s])CC([-_\s]|$)/i.test(t)) return "CC";
+  const v = t.match(/(?<![\d.-])(\d{1,2})\s*V(?:dc)?\b/i);
+  if (v) return Number(v[1]);
+  const m = t.match(/-CV-[^\s]*?-(\d{2})-/i) ?? t.match(/\b[A-Z]{2,5}-\d{2,4}[A-Z]*-(\d{2})[A-Z]*\b/i);
+  return m ? Number(m[1]) : null;
+}
+
 export type PsuSkip = { id: string; code: string; name: string; reason: string };
 
 /** PSUs usable for a dimming type, plus the ones in the category that were skipped and why. */
@@ -388,6 +507,24 @@ export function psuReport(psus: SkuLite[], d: DimType): { options: PsuOption[]; 
   return { options, skipped };
 }
 
+/** PSUs for a 24V LED: other voltages and constant-current units are skipped, with the reason. */
+export function psu24Report(psus: SkuLite[], d: DimType): { options: PsuOption[]; skipped: PsuSkip[] } {
+  const is24 = (s: SkuLite) => {
+    const v = psuVoltOf(s);
+    return v === null || v === 24;
+  };
+  const r = psuReport(psus.filter(is24), d === "1-10V" ? "NON-DIM" : d);
+  const wet = new Set(psus.filter((s) => /\bIP\s*6\d/i.test(txt(s))).map((s) => s.id));
+  const options = r.options
+    .map((o) => (wet.has(o.skuId) ? { ...o, waterproof: true } : o))
+    .sort((a, b) => a.watt - b.watt);
+  const other = psus.filter((s) => !is24(s)).map((s) => {
+    const v = psuVoltOf(s);
+    return { id: s.id, code: s.code, name: s.name, reason: v === "CC" ? "เป็น constant current ไม่ใช่ 24V" : `เป็น ${v}V ไม่ใช่ 24V` };
+  });
+  return { options, skipped: [...r.skipped, ...other] };
+}
+
 /** SKU options per part, by stock category (หมวดในหน้าสต๊อก); names only split sub-types. */
 export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
   const jackets = inCategory(skus, "LED jacket");
@@ -407,5 +544,9 @@ export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
     psus,
     psuFor: (d: DimType): PsuOption[] => psuReport(psus, d).options,
     psuReport: (d: DimType) => psuReport(psus, d),
+    dimmers: inCategory(skus, "Dimmer / controller"),
+    /** LED linear / neon run on 24V: leaves out 12V, 15V and constant-current units; 1-10V uses non-dim units */
+    psu24Report: (d: DimType) => psu24Report(psus, d),
+    psu24For: (d: DimType): PsuOption[] => psu24Report(psus, d).options,
   };
 }

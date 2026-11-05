@@ -255,7 +255,8 @@ export function BoqGrid({
       const priced = blockRows.find((x) => x.kind === "priced");
       setLinTarget({
         mode: "edit",
-        config: lin,
+        // a number typed in the grid wins over the saved one
+        config: { ...lin, itemNo: blockRows[0]?.item_no ?? lin.itemNo ?? null },
         option: blockRows[0]?.option_name ?? null,
         zone: blockRows[0]?.zone ?? null,
         discount: Number(priced?.discount_percent ?? 0),

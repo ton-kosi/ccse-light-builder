@@ -88,7 +88,7 @@ export function NeonDialog({
       name: f ? defaultNeonName(f) : "",
       wattPerM: f?.wattPerM ?? 0,
       dim: "NON-DIM",
-      psuOptions: lin.psuFor("NON-DIM"),
+      psuOptions: lin.psu24For("NON-DIM"),
       loadFactor: 0.8,
       endCapSkuId: null,
       mountSkuId: null,
@@ -101,7 +101,7 @@ export function NeonDialog({
   // PSU choices follow the dimming type
   useEffect(() => {
     if (!c || !skus) return;
-    const opts = lin.psuFor(c.dim);
+    const opts = lin.psu24For(c.dim);
     if (JSON.stringify(opts) !== JSON.stringify(c.psuOptions)) setC({ ...c, psuOptions: opts });
   }, [c, skus, lin]);
 

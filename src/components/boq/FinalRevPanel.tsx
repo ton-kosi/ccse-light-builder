@@ -4,9 +4,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useMeasurements } from "@/hooks/useMeasurements";
+import { useProduction } from "@/hooks/useProduction";
 import { formatCutLengths } from "@/lib/boq";
 import { formatQty, formatTHB } from "@/lib/format";
-import { compareLine, compareTotals, isMeasurable } from "@/lib/measure";
+import { compareLine, compareTotals, finalQty, isMeasurable } from "@/lib/measure";
 
 type Line = {
   id: string;
@@ -44,7 +45,9 @@ export function FinalRevPanel({
 }) {
   const qc = useQueryClient();
   const { data: measured } = useMeasurements(projectId);
+  const { lines: production, ready: productionReady } = useProduction(projectId);
   const [open, setOpen] = useState(false);
+  const cutOf = new Map(production.filter((p) => p.stepCm).map((p) => [p.id, p.totals.ledM]));
 
   const included = (l: Line) =>
     !(l.option_name ?? "").trim() || (l.option_name ?? "").trim() === (selectedOption ?? "").trim();
@@ -52,19 +55,28 @@ export function FinalRevPanel({
     .filter((l) => isMeasurable(l.kind) && measured?.has(l.id))
     .map((l) => {
       const m = measured!.get(l.id)!;
-      const mq = m.measured_qty != null ? Number(m.measured_qty) : Number(l.qty ?? 0);
+      const typed = m.measured_qty != null ? Number(m.measured_qty) : Number(l.qty ?? 0);
+      const mq = finalQty(typed, cutOf.get(l.id), !!m.cut_lengths?.length);
       const cmp = {
         contractQty: Number(l.qty ?? 0),
         measuredQty: mq,
         unitPrice: Number(l.unit_price ?? 0),
         discountPercent: Number(l.discount_percent ?? 0),
       };
-      return { l, m, cmp, diff: compareLine(cmp), counted: included(l) && l.kind === "priced" };
+      return { l, m, cmp, typed, diff: compareLine(cmp), counted: included(l) && l.kind === "priced" };
     });
   const measurable = lines.filter((l) => isMeasurable(l.kind) && included(l)).length;
 
   const final = useMutation({
     mutationFn: async () => {
+      // the final Rev takes measured_qty: LED lines bill what production really cuts
+      for (const r of rows.filter((x) => x.cmp.measuredQty !== x.typed)) {
+        const { error } = await supabase
+          .from("site_measurements")
+          .update({ measured_qty: r.cmp.measuredQty })
+          .eq("quote_line_id", r.l.id);
+        if (error) throw error;
+      }
       const { error } = await supabase.rpc("create_final_revision", { _project_id: projectId });
       if (error) throw error;
     },
@@ -115,7 +127,7 @@ export function FinalRevPanel({
           {canEdit ? (
             <Button
               size="sm"
-              disabled={final.isPending}
+              disabled={final.isPending || !productionReady}
               onClick={() => {
                 if (
                   confirm(
@@ -125,7 +137,7 @@ export function FinalRevPanel({
                   final.mutate();
               }}
             >
-              สร้าง Rev สุดท้ายจากค่าที่วัด
+              {productionReady ? "สร้าง Rev สุดท้ายจากค่าที่วัด" : "กำลังโหลดใบผลิต..."}
             </Button>
           ) : null}
         </div>
@@ -145,13 +157,18 @@ export function FinalRevPanel({
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ l, m, cmp, diff, counted }) => (
+              {rows.map(({ l, m, cmp, typed, diff, counted }) => (
                 <tr key={l.id} className={"border-b border-border align-top" + (counted ? "" : " opacity-50")}>
                   <td className="py-1 pr-2">{l.item_no}</td>
                   <td className="py-1 pr-2">
                     {l.customer_text?.split("\n")[0] || l.sales_components?.name || "—"}
                     {m.cut_lengths?.length ? (
                       <div className="text-muted-foreground">ตัด {m.cut_spec || formatCutLengths(m.cut_lengths)}</div>
+                    ) : null}
+                    {cmp.measuredQty !== typed ? (
+                      <div className="text-muted-foreground">
+                        วัด {formatQty(typed)} → ตัดจริง {formatQty(cmp.measuredQty)} ตามใบผลิต
+                      </div>
                     ) : null}
                     {m.note ? <div className="text-muted-foreground">{m.note}</div> : null}
                     {!counted ? <div className="text-muted-foreground">(ไม่นับในยอด)</div> : null}

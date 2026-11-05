@@ -56,6 +56,7 @@ export function useWorkSheet(projectId: string) {
     project: project.data,
     header: header.data,
     lines: lines.data ?? [],
+    linesLoaded: lines.isSuccess,
     pick: pick.data ?? [],
     isLoading: project.isLoading,
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { compareLine, compareTotals, isLengthUnit, isMeasurable, measurementFromInput } from "./measure.ts";
+import { compareLine, compareTotals, finalQty, isLengthUnit, isMeasurable, measurementFromInput } from "./measure.ts";
 
 describe("site measurement input", () => {
   it("only measures real work lines", () => {
@@ -83,4 +83,11 @@ describe("contract vs measured", () => {
       ]),
     ).toEqual({ amountDiff: 170, changed: 2 });
   });
+});
+
+it("final Rev bills the production cut of a measured LED line", () => {
+  expect(finalQty(3.43, 3.4, true)).toBe(3.4); // rounded down in production
+  expect(finalQty(3.43, 3.45, true)).toBe(3.45); // rounded up
+  expect(finalQty(3.43, null, true)).toBe(3.43); // not an LED line
+  expect(finalQty(5, 3.4, false)).toBe(5); // quantity typed, no cut lengths
 });
