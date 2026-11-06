@@ -315,6 +315,16 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
   SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
   production sheet; it has its own section there (below).
+  - **Pieces by hand (all Canoe types):** type the L / M / S / SS counts in the builder's table when someone
+    decides differently; it isn't held to the +5 / −10 cm limit, shows "กำหนดเอง" on the production sheet,
+    and a different measured length goes back to automatic.
+  - **เปลี่ยนไฟในตัวเรือนเดิม (retrofit, SALA BANG PAIN):** new LED inside a housing already on site.
+    Pieces of 50 cm, optionally 40 / 30 cm, with the usual **2 mm per joint** in case they elongate
+    (automatic for 29.50 m: 58 L + 1 M). Rail: **4/8 for every Canoe**.
+    Separate priced lines: LED (metres), heat sink + single / double jacket (metres), and one set of
+    engraved acrylic + diffuser + IP68 cable **per piece**; existing housing and power supply print as
+    "existing" with no price. Parts go to the line recipes (tag `CNO`). The production sheet shows pieces,
+    LED cuts and the number of sets. Needs a SKU for the acrylic set.
   - **Stainless housing** (spec sheets WSS.3150 / WSS.3155UB / WSS.3550SB, 23 Dec 2025): instead of
     L / M / S / SS housings, a **continuous SS housing** cut from **2.4 m bars welded on site** plus an
     **acrylic cover in 2.4 m pieces** joined end to end — whole bars / covers per straight run (each side
@@ -569,6 +579,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 06/11/2026 | **Canoe retrofit:** "เปลี่ยนไฟในตัวเรือนเดิม" in the Canoe builder, following SALA BANG PAIN QC25-54-304, 2 mm per joint, 4/8 rail; piece counts can be set by hand on any Canoe; item number on Canoe blocks kept on re-save. |
 | 06/11/2026 | **Clipso standard (owner):** per SET pricing by default (1 LOT by switch), total cut length rounded up once at 5 cm, power supply count not printed, "NOTE : NO SERVICE TRACK.". Price lines are presented so the client feels the price is not high. |
 | 06/11/2026 | **Clipso fixes from the sample BOQs:** power supply of the LED's kind (12V, 15V or 700 mA units could be picked for any LED); no "x 0" line; "308T" instead of "308T width"; lumens text; extra lines in the lighting set; item numbers kept on re-save. Same voltage rule offered to all LED kinds through `psuForLed`. |
 | 05/11/2026 | Owner's answers: BOQ rounds up (COB is cut full, ≤ 120 dots can fold); the final Rev bills an LED line at the production sheet's cut length, so a piece rounded down in production comes down in the last payment; FO default 8 m per point. ALIEN sample set to 8 m. |

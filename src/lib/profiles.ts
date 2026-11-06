@@ -158,6 +158,9 @@ export function railNeeded(model: ProfileModel | null, ezClip: boolean): RailSiz
   return model?.rail ?? null;
 }
 
+/** Every Canoe uses the 4/8 rail. */
+export const CANOE_RAIL: RailSize = "4/8";
+
 export function railOf(s: SkuLite): RailSize | null {
   const saved = tag(s, "ราง");
   if (saved === "3/8" || saved === "4/8") return saved;

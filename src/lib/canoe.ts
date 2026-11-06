@@ -77,6 +77,8 @@ export type CanoeFit = {
   /** measured − built: + = shorter than measured (เหลือ), − = longer (เกิน) */
   diffM: number;
   ok: boolean;
+  /** pieces set by hand: someone decided, so it is not held to the +5 / −10 cm limit */
+  manual?: boolean;
 };
 
 const zero = (): PieceCounts => ({ L: 0, M: 0, S: 0, SS: 0 });
@@ -116,7 +118,48 @@ export function fitRun(lengthM: number, lengths: Lengths): CanoeFit | null {
   return best ?? closest;
 }
 
+/** A run with its pieces chosen by a person (e.g. 59 × 50 cm where automatic says 58 + 1 M). */
+export function manualFit(lengthM: number, lengths: Lengths, counts: PieceCounts): CanoeFit {
+  const used = zero();
+  for (const k of CANOE_SIZES) if (lengths[k]) used[k] = Math.max(0, Math.round(counts[k] ?? 0));
+  const pieces = CANOE_SIZES.reduce((n, k) => n + used[k], 0);
+  const totalM = round(CANOE_SIZES.reduce((s, k) => s + used[k] * ((lengths[k] ?? 0) + JOINT_M), 0));
+  return { counts: used, pieces, totalM, diffM: round(lengthM - totalM), ok: pieces > 0, manual: true };
+}
+
 export type CanoeRun = { length: number; sets: number; label?: string };
+
+/*
+ * Retrofit — new LED inside a housing already on site (SALA BANG PAIN QC25-54-304). Sealed pieces of
+ * 50 cm, optionally 40 / 30 cm, with the usual 2 mm per joint because they can elongate. Each piece needs
+ * one set of engraved acrylic + diffuser + IP68 cable. Housing and power supply stay as they are.
+ * Rail: 4/8 for every Canoe (owner, 06/11/2026).
+ */
+export const RETRO_SIZES: CanoeSize[] = ["L", "M", "S"];
+
+export type RetroOptions = {
+  /** printed before the length, e.g. SWX-1 (STRAIGHT) */
+  runName: string;
+  jacket: "SINGLE" | "DOUBLE";
+  diffuser: (typeof DIFFUSERS)[number];
+  heatsinkSkuId: string;
+  jacketSkuId: string;
+  /** one per piece: engraved acrylic, diffuser, IP68 cable */
+  kitSkuId: string;
+  housingText: string;
+  existingPsu: boolean;
+};
+
+export const defaultRetro = (): RetroOptions => ({
+  runName: "",
+  jacket: "DOUBLE",
+  diffuser: "Jedi",
+  heatsinkSkuId: "",
+  jacketSkuId: "",
+  kitSkuId: "",
+  housingText: "EXISTING SS 316L HOUSING (t = 1 mm)",
+  existingPsu: true,
+});
 
 /*
  * Stainless (SS) Canoe — spec sheets WSS.3150 / WSS.3155UB / WSS.3550SB (23 Dec 2025).
@@ -171,24 +214,30 @@ export function ssSectionText(ss: SsOptions): string {
 export type CanoeConfig = {
   v: 1;
   blockId: string;
+  /** item number printed on the heading */
+  itemNo?: string | null;
   code: string;
   title: string;
   ledSkuId: string;
   double: boolean;
   /** housing SKU per piece size (single or double housings, as chosen) — aluminium housing */
   housing: Partial<Record<CanoeSize, string>>;
-  /** "ss" = continuous stainless housing + acrylic cover (older sets: aluminium) */
-  housingType?: "alu" | "ss";
+  /** "ss" = continuous stainless housing + acrylic cover; "retrofit" = housing already on site (older sets: aluminium) */
+  housingType?: "alu" | "ss" | "retrofit";
   ss?: SsOptions;
+  retro?: RetroOptions;
   runs: CanoeRun[];
   /** the lengths as typed ("2.49x2 + 4.18"), kept so the window reopens with the same text */
   spec?: string;
+  /** pieces set by hand, by run length ("29.5"); a different measured length goes back to automatic */
+  manualFits?: Record<string, PieceCounts>;
   rowIds: string[];
 };
 
 export type CanoeRow = {
+  item_no?: string | null;
   id: string;
-  kind: "heading" | "priced";
+  kind: "heading" | "priced" | "existing" | "display";
   customer_text: string;
   qty: number | null;
   unit: string | null;
@@ -201,18 +250,129 @@ export const CNO_TAG = "CNO ";
 export const isCanoeNote = (n: string | null | undefined) => !!n && n.startsWith(CNO_TAG);
 
 /** All runs of a block: pieces per run, totals per size, LED metres. */
-export function planCanoe(c: Pick<CanoeConfig, "double" | "runs">, led: SkuLite | undefined) {
-  const lengths = led ? canoeLengths(led, c.double) : null;
+export function planCanoe(
+  c: Pick<CanoeConfig, "double" | "runs" | "housingType" | "manualFits">,
+  led: SkuLite | undefined,
+) {
+  const retrofit = c.housingType === "retrofit";
+  const all = led ? canoeLengths(led, c.double) : null;
+  const lengths =
+    all && retrofit ? (Object.fromEntries(RETRO_SIZES.filter((k) => all[k]).map((k) => [k, all[k]])) as Lengths) : all;
   const runs = c.runs
     .filter((r) => r.length > 0 && r.sets > 0)
-    .map((r) => ({ ...r, fit: lengths ? fitRun(r.length, lengths) : null, bars: barsFor(r.length) }));
+    .map((r) => {
+      const hand = c.manualFits?.[String(r.length)];
+      const fit = !lengths ? null : hand ? manualFit(r.length, lengths, hand) : fitRun(r.length, lengths);
+      return { ...r, fit, bars: barsFor(r.length) };
+    });
   // stainless housing: 2.4 m bars and 2.4 m acrylic covers per run
   const ssBars = runs.reduce((n, r) => n + r.bars * r.sets, 0);
   const totals = zero();
   for (const r of runs) if (r.fit) for (const k of CANOE_SIZES) totals[k] += r.fit.counts[k] * r.sets;
   const ledM = round(CANOE_SIZES.reduce((m, k) => m + totals[k] * NOMINAL[k], 0) * (c.double ? 2 : 1));
   const runM = round(runs.reduce((m, r) => m + r.length * r.sets, 0));
-  return { lengths, runs, totals, ledM, runM, ssBars, ssCovers: ssBars };
+  const pieces = CANOE_SIZES.reduce((n, k) => n + totals[k], 0);
+  return { lengths, runs, totals, pieces, ledM, runM, ssBars, ssCovers: ssBars };
+}
+
+/** Retrofit rows, as on the SALA quotation: LED, heat sink + jacket and piece sets priced on their own lines. */
+function buildRetrofit(
+  c: CanoeConfig,
+  led: SkuLite | undefined,
+  prices: Map<string, PartPrice>,
+  newId: () => string,
+) {
+  const r = c.retro ?? defaultRetro();
+  const tag = (role: string) => `${CNO_TAG}${c.blockId} ${role}`;
+  const plan = planCanoe(c, led);
+  const problems: string[] = [];
+  const missing = new Set<string>();
+  let list = 0;
+  let allowed = 0;
+  const part = (id: string, qty: number) => {
+    if (!id || !(qty > 0)) return 0;
+    const p = prices.get(id);
+    if (!p) missing.add(id);
+    const amount = (p?.unitPrice ?? 0) * qty;
+    list += amount;
+    allowed += (amount * (p?.maxDiscount ?? 0)) / 100;
+    return amount;
+  };
+  if (!c.ledSkuId) problems.push("เลือกไฟ LED");
+  else if (!plan.lengths) problems.push("ไฟรุ่นนี้ยังไม่มีขนาดท่อน Canoe");
+  if (!plan.runs.length) problems.push("ใส่ความยาวอย่างน้อย 1 ช่วง");
+  for (const x of plan.runs)
+    if (x.fit && !x.fit.ok) problems.push(`ช่วง ${m(x.length)} ม. ต่อท่อนให้ได้ในระยะ +5 / −10 ซม. ไม่ได้`);
+  if (!r.kitSkuId) problems.push("เลือก SKU ชุดอะคริลิก + สาย IP68");
+
+  const base = { qty: null, unit: null, unit_price: null, cut_lengths: null, recipes: [] };
+  const code = c.code.trim() ? `${c.code.trim()} : ` : "";
+  const name = r.runName.trim() ? `${r.runName.trim()} : ` : "";
+  const lens = plan.runs.map((x) => `${m(x.length)}M${x.sets > 1 ? ` x ${x.sets}` : ""}`).join(" + ");
+  const perRun = (amount: number) => (plan.runM > 0 ? round2(amount / plan.runM) : 0);
+  const ledAmount = part(c.ledSkuId, plan.ledM);
+  const railQty = round(plan.runM * (c.double ? 2 : 1));
+  const railAmount = part(r.heatsinkSkuId, railQty) + part(r.jacketSkuId, railQty);
+  const kitAmount = part(r.kitSkuId, plan.pieces);
+  const rows: CanoeRow[] = [
+    { ...base, id: newId(), kind: "heading", customer_text: `${code}${c.title.trim() || "CANOE LIGHT"}` },
+    {
+      id: newId(),
+      kind: "priced",
+      customer_text: `- ${name}L = ${lens}`,
+      qty: plan.runM,
+      unit: "M.",
+      unit_price: perRun(ledAmount),
+      cut_lengths: null,
+      recipes: c.ledSkuId && plan.ledM > 0 ? [{ sku_id: c.ledSkuId, qty: plan.ledM, note: tag("LED") }] : [],
+    },
+    {
+      id: newId(),
+      kind: "priced",
+      customer_text: `- ALUMINIUM HEAT DISSIPATION & ${r.jacket} JACKET`,
+      qty: plan.runM,
+      unit: "M.",
+      unit_price: perRun(railAmount),
+      cut_lengths: null,
+      recipes: [
+        ...(r.heatsinkSkuId ? [{ sku_id: r.heatsinkSkuId, qty: railQty, note: tag("HEATSINK") }] : []),
+        ...(r.jacketSkuId ? [{ sku_id: r.jacketSkuId, qty: railQty, note: tag("JACKET") }] : []),
+      ],
+    },
+    {
+      id: newId(),
+      kind: "priced",
+      customer_text: `- WATERPROOF ENGRAVED ACRYLIC & ${r.diffuser.toUpperCase()} ACRYLIC DIFFUSER w/ IP68 CABLE`,
+      qty: plan.pieces,
+      unit: "SET",
+      unit_price: plan.pieces ? round2(kitAmount / plan.pieces) : 0,
+      cut_lengths: null,
+      recipes: r.kitSkuId && plan.pieces ? [{ sku_id: r.kitSkuId, qty: plan.pieces, note: tag("KIT") }] : [],
+    },
+    { ...base, id: newId(), kind: "existing", customer_text: `- ${r.housingText.trim() || "EXISTING HOUSING"}` },
+    ...(r.existingPsu
+      ? [{ ...base, id: newId(), kind: "existing" as const, customer_text: "- EXISTING POWER SUPPLY 24V" }]
+      : []),
+    {
+      ...base,
+      id: newId(),
+      kind: "display",
+      customer_text: "NOTE : STANDARD LENGTH = 500 MM/PC., OPTION LENGTH 300 MM, 400 MM.",
+    },
+  ];
+  rows[0]!.item_no = c.itemNo?.trim() || null;
+  const config: CanoeConfig = { ...c, rowIds: rows.map((x) => x.id) };
+  const first = rows.flatMap((x) => x.recipes)[0];
+  if (first) first.note = `${first.note} ${JSON.stringify(config)}`;
+  return {
+    rows,
+    config,
+    plan,
+    list: round2(rows.reduce((s, x) => s + (x.qty ?? 0) * (x.unit_price ?? 0), 0)),
+    maxDiscount: list > 0 ? Math.floor((allowed / list) * 1000) / 10 : 0,
+    missing: [...missing],
+    problems: [...new Set(problems)],
+  };
 }
 
 /** BOQ rows for a Canoe block: a heading and one line priced per metre of run. */
@@ -224,6 +384,7 @@ export function buildCanoe(
   /** unit of a SKU ("m" → housing / cover counted in metres, else in pieces) */
   unitOf: (skuId: string) => string | undefined = () => undefined,
 ) {
+  if (c.housingType === "retrofit") return buildRetrofit(c, led, prices, newId);
   const tag = (role: string) => `${CNO_TAG}${c.blockId} ${role}`;
   const ss = c.housingType === "ss" ? (c.ss ?? defaultSs()) : null;
   const plan = planCanoe(c, led);
@@ -305,6 +466,7 @@ export function buildCanoe(
       recipes,
     },
   ];
+  rows[0]!.item_no = c.itemNo?.trim() || null;
   const config: CanoeConfig = { ...c, rowIds: rows.map((r) => r.id) };
   const first = rows.flatMap((r) => r.recipes)[0];
   if (first) first.note = `${first.note} ${JSON.stringify(config)}`;

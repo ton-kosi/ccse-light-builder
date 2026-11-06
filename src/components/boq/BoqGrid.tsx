@@ -209,7 +209,8 @@ export function BoqGrid({
       const priced = blockRows.find((x) => x.kind === "priced");
       setCnoTarget({
         mode: "edit",
-        config: cno,
+        // a number typed in the grid wins over the saved one
+        config: { ...cno, itemNo: blockRows[0]?.item_no ?? cno.itemNo ?? null },
         option: blockRows[0]?.option_name ?? null,
         zone: blockRows[0]?.zone ?? null,
         discount: Number(priced?.discount_percent ?? 0),

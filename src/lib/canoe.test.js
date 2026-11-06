@@ -97,6 +97,52 @@ test("a joined run is not fitted as one long piece row", async () => {
   expect(plan.runM).toBe(1.4);
 });
 
+test("retrofit in an existing housing, like SALA BANG PAIN: 2 mm joints, 59 pieces, 59 sets", () => {
+  const prices = new Map([
+    ["led", { unitPrice: 1000, maxDiscount: 10 }],
+    ["alu", { unitPrice: 100, maxDiscount: 0 }],
+    ["jk", { unitPrice: 50, maxDiscount: 0 }],
+    ["kit", { unitPrice: 800, maxDiscount: 0 }],
+  ]);
+  const c = {
+    v: 1, blockId: "r1", itemNo: "1", code: "LE3", title: "LED JEDI CANOE IP68", ledSkuId: "led", double: false, housing: {},
+    housingType: "retrofit", runs: [{ length: 29.5, sets: 1 }], rowIds: [],
+    retro: { runName: "SWX-1 (STRAIGHT)", jacket: "DOUBLE", diffuser: "Jedi", heatsinkSkuId: "alu", jacketSkuId: "jk", kitSkuId: "kit", housingText: "EXISTING SS 316L HOUSING (t = 1 mm)", existingPsu: true },
+  };
+  let n = 0;
+  const b = buildCanoe(c, led14, prices, () => `x${++n}`);
+  // with 2 mm per joint 59 L is 11.8 cm too long, so automatic takes 58 L + 1 M = 29.518 m
+  expect(b.plan.totals).toEqual({ L: 58, M: 1, S: 0, SS: 0 });
+  expect(b.plan.runs[0].fit.totalM).toBe(29.518);
+  expect(b.rows.map((r) => [r.kind, r.customer_text, r.qty, r.unit])).toEqual([
+    ["heading", "LE3 : LED JEDI CANOE IP68", null, null],
+    ["priced", "- SWX-1 (STRAIGHT) : L = 29.50M", 29.5, "M."],
+    ["priced", "- ALUMINIUM HEAT DISSIPATION & DOUBLE JACKET", 29.5, "M."],
+    ["priced", "- WATERPROOF ENGRAVED ACRYLIC & JEDI ACRYLIC DIFFUSER w/ IP68 CABLE", 59, "SET"],
+    ["existing", "- EXISTING SS 316L HOUSING (t = 1 mm)", null, null],
+    ["existing", "- EXISTING POWER SUPPLY 24V", null, null],
+    ["display", "NOTE : STANDARD LENGTH = 500 MM/PC., OPTION LENGTH 300 MM, 400 MM.", null, null],
+  ]);
+  expect(b.rows[0].item_no).toBe("1");
+  expect(b.rows[1].unit_price).toBe(Math.round(((29.4 * 1000) / 29.5) * 100) / 100); // LED 29.4 m over 29.5 m of run
+  expect(b.rows[2].unit_price).toBe(150);
+  expect(b.rows[3].unit_price).toBe(800);
+  expect(b.problems).toEqual([]);
+  expect(parseCanoe(b.rows[1].recipes[0].note).housingType).toBe("retrofit");
+  expect(b.rows.flatMap((r) => r.recipes).map((r) => [r.sku_id, r.qty])).toEqual([["led", 29.4], ["alu", 29.5], ["jk", 29.5], ["kit", 59]]);
+  // no 20 cm piece: 0.70 m = 40 + 30, never 50 + 20
+  expect(planCanoe({ double: false, housingType: "retrofit", runs: [{ length: 0.7, sets: 1 }] }, led14).totals).toEqual({ L: 0, M: 1, S: 1, SS: 0 });
+  // a person decides: 59 × 50 cm, over the limit but allowed, LED follows
+  const hand = buildCanoe({ ...c, manualFits: { "29.5": { L: 59, M: 0, S: 0, SS: 0 } } }, led14, prices, () => `h${++n}`);
+  expect(hand.plan.runs[0].fit).toMatchObject({ manual: true, ok: true, pieces: 59, totalM: 29.618 });
+  expect(hand.plan.ledM).toBe(29.5);
+  expect(hand.problems).toEqual([]);
+  // a different measured length goes back to automatic
+  expect(planCanoe({ double: false, housingType: "retrofit", manualFits: { "29.5": { L: 59, M: 0, S: 0, SS: 0 } }, runs: [{ length: 10, sets: 1 }] }, led14).runs[0].fit.manual).toBeUndefined();
+  // no kit SKU chosen: refused
+  expect(buildCanoe({ ...c, retro: { ...c.retro, kitSkuId: "" } }, led14, prices, () => "y").problems.join()).toContain("อะคริลิก");
+});
+
 test("stainless Canoe: 2.4 m bars + acrylic covers per run, custom section surcharge", async () => {
   const { buildCanoe, barsFor, ssSectionText, defaultSs } = await import("./canoe.ts");
   expect(barsFor(2.4)).toBe(1);

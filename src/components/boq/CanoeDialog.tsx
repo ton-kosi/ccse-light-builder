@@ -12,6 +12,7 @@ import {
   buildCanoe,
   CANOE_SIZES,
   canoeLengths,
+  defaultRetro,
   defaultSs,
   DIFFUSERS,
   runsFromSpec,
@@ -19,10 +20,12 @@ import {
   SS_MODELS,
   type CanoeConfig,
   type CanoeSize,
+  type RetroOptions,
   type SsOptions,
 } from "@/lib/canoe";
 import { parseCutSpec } from "@/lib/cutSpec";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { CANOE_RAIL, railOf } from "@/lib/profiles";
 import { categoryOf, SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 import { useSkuPrices } from "@/lib/skuPrices";
 
@@ -86,6 +89,19 @@ export function CanoeDialog({
   const [disc, setDisc] = useState(editing ? String(editing.discount) : "0");
   const set = (p: Partial<CanoeConfig>) => setC((o) => ({ ...o, ...p }));
   const isSS = c.housingType === "ss";
+  const isRetro = c.housingType === "retrofit";
+  const retro = c.retro ?? defaultRetro();
+  const setRetro = (p: Partial<RetroOptions>) => setC((o) => ({ ...o, retro: { ...(o.retro ?? defaultRetro()), ...p } }));
+  const inCat = (name: string) => (skus ?? []).filter((s) => categoryOf(s) === name);
+  const rails = inCat("LED heat sink").filter((s) => railOf(s) === CANOE_RAIL);
+  /** type a piece count: this run stops being automatic */
+  const setPieces = (length: number, counts: Record<CanoeSize, number>, k: CanoeSize, v: number) =>
+    set({ manualFits: { ...c.manualFits, [String(length)]: { ...counts, [k]: v } } });
+  const autoPieces = (length: number) => {
+    const rest = { ...c.manualFits };
+    delete rest[String(length)];
+    set({ manualFits: rest });
+  };
   const ss = c.ss ?? defaultSs();
   const setSs = (p: Partial<SsOptions>) => setC((o) => ({ ...o, ss: { ...(o.ss ?? defaultSs()), ...p } }));
   // stainless housing bars / acrylic covers: anything named SS / stainless, acrylic / cover
@@ -123,6 +139,7 @@ export function CanoeDialog({
         unit: r.unit,
         unit_price: r.unit_price,
         discount_percent: r.kind === "priced" ? discNum : 0,
+        item_no: r.item_no ?? null,
         option_name: option.trim() || null,
         zone: i === 0 ? zone.trim() || null : null,
         component_id: null,
@@ -156,8 +173,9 @@ export function CanoeDialog({
           <div className="space-y-5">
             <Block title="1. ไฟและแบบ">
               <div className="grid gap-2 text-sm">
-                <Row label="รหัสแบบ · ชื่อ">
+                <Row label="ข้อที่ · รหัสแบบ · ชื่อ">
                   <div className="flex gap-2">
+                    <Input className="w-14" placeholder="1" value={c.itemNo ?? ""} onChange={(e) => set({ itemNo: e.target.value })} />
                     <Input className="w-28" placeholder="CN 01" value={c.code} onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
                     <Input value={c.title} onChange={(e) => set({ title: e.target.value.toUpperCase() })} />
                   </div>
@@ -222,12 +240,27 @@ export function CanoeDialog({
                         <td className="tabular-nums">× {r.sets}</td>
                         {CANOE_SIZES.map((k) => (
                           <td key={k} className="text-right tabular-nums">
-                            {r.fit?.counts[k] || ""}
+                            {r.fit && plan.lengths?.[k] ? (
+                              <Input
+                                className={"ml-auto h-7 w-12 px-1 text-right text-xs " + (r.fit.manual ? "border-warning" : "")}
+                                inputMode="numeric"
+                                title="แก้จำนวนท่อนเอง"
+                                value={r.fit.counts[k] || ""}
+                                onChange={(e) => setPieces(r.length, r.fit!.counts, k, Math.max(0, Math.round(toNumber(e.target.value) ?? 0)))}
+                              />
+                            ) : (
+                              ""
+                            )}
                           </td>
                         ))}
                         <td className="text-right tabular-nums">{r.fit ? `${formatQty(r.fit.totalM)} ม.` : "—"}</td>
                         <td className={"text-right tabular-nums " + (r.fit && !r.fit.ok ? "font-semibold text-destructive" : "")}>
                           {r.fit ? `${r.fit.diffM >= 0 ? "เหลือ" : "เกิน"} ${cm(Math.abs(r.fit.diffM))}` : ""}
+                          {r.fit?.manual ? (
+                            <button type="button" className="ml-1 text-primary underline" onClick={() => autoPieces(r.length)}>
+                              อัตโนมัติ
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -247,21 +280,82 @@ export function CanoeDialog({
                 </table>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
-                ระบบเลือกท่อนให้น้อยที่สุด โดยยาวเกินได้ไม่เกิน 5 ซม. และสั้นกว่าได้ไม่เกิน 10 ซม. · ช่วงที่ต่อกัน
-                [a+b] เช่น มุม L หรือขั้นบันไดสระ คิดท่อนแยกทีละด้าน
+                ระบบเลือกท่อนให้น้อยที่สุด โดยยาวเกินได้ไม่เกิน 5 ซม. และสั้นกว่าได้ไม่เกิน 10 ซม. · แก้จำนวนท่อนในตารางเองได้
+                ถ้าหน้างานต้องตัดสินใจเอง · ช่วงที่ต่อกัน [a+b] เช่น มุม L หรือขั้นบันไดสระ คิดท่อนแยกทีละด้าน
               </p>
             </Block>
 
             <Block title="3. ตัวเรือน Canoe">
               <div className="mb-3 flex flex-wrap gap-1.5 text-sm">
-                <Choice on={!isSS} onClick={() => set({ housingType: "alu" })}>
+                <Choice on={!isSS && !isRetro} onClick={() => set({ housingType: "alu" })}>
                   อลูมิเนียม (ท่อน L / M / S / SS)
                 </Choice>
                 <Choice on={isSS} onClick={() => set({ housingType: "ss", ss })}>
                   สแตนเลส (ต่อเนื่อง เชื่อมหน้างาน)
                 </Choice>
+                <Choice
+                  on={isRetro}
+                  onClick={() =>
+                    set({
+                      housingType: "retrofit",
+                      retro: { ...retro, heatsinkSkuId: retro.heatsinkSkuId || (rails[0]?.id ?? "") },
+                    })
+                  }
+                >
+                  เปลี่ยนไฟในตัวเรือนเดิม
+                </Choice>
               </div>
-              {isSS ? (
+              {isRetro ? (
+                <div className="grid gap-2 text-sm">
+                  <Row label="ชื่อช่วงในใบ">
+                    <Input placeholder="SWX-1 (STRAIGHT)" value={retro.runName} onChange={(e) => setRetro({ runName: e.target.value.toUpperCase() })} />
+                  </Row>
+                  <Row label="Jacket">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Choice on={retro.jacket === "DOUBLE"} onClick={() => setRetro({ jacket: "DOUBLE" })}>
+                        Double
+                      </Choice>
+                      <Choice on={retro.jacket === "SINGLE"} onClick={() => setRetro({ jacket: "SINGLE" })}>
+                        Single
+                      </Choice>
+                    </div>
+                  </Row>
+                  <Row label={`ราง alu. (${CANOE_RAIL}")`}>
+                    <SkuSelect value={retro.heatsinkSkuId} preferred={rails.length ? rails : inCat("LED heat sink")} category={`LED heat sink ขนาด ${CANOE_RAIL}`} all={skus ?? []} noneLabel="— ไม่เลือก —" onChange={(id) => setRetro({ heatsinkSkuId: id })} />
+                  </Row>
+                  <Row label="Jacket ที่เบิก">
+                    <SkuSelect value={retro.jacketSkuId} preferred={inCat("LED jacket")} category="LED jacket" all={skus ?? []} noneLabel="— ไม่เลือก —" onChange={(id) => setRetro({ jacketSkuId: id })} />
+                  </Row>
+                  <Row label="Diffuser">
+                    <div className="flex flex-wrap gap-1.5">
+                      {DIFFUSERS.map((d) => (
+                        <Choice key={d} on={retro.diffuser === d} onClick={() => setRetro({ diffuser: d })}>
+                          {d}
+                        </Choice>
+                      ))}
+                    </div>
+                  </Row>
+                  <Row label="ชุดอะคริลิก + สาย IP68 (ต่อท่อน)">
+                    <SkuSelect value={retro.kitSkuId} preferred={covers} category="ชุดอะคริลิก" all={skus ?? []} onChange={(id) => setRetro({ kitSkuId: id })} />
+                  </Row>
+                  <Row label="ตัวเรือนเดิม (พิมพ์ในใบ)">
+                    <Input value={retro.housingText} onChange={(e) => setRetro({ housingText: e.target.value.toUpperCase() })} />
+                  </Row>
+                  <Row label="หม้อแปลง">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Choice on={retro.existingPsu} onClick={() => setRetro({ existingPsu: true })}>
+                        ของเดิม
+                      </Choice>
+                      <Choice on={!retro.existingPsu} onClick={() => setRetro({ existingPsu: false })}>
+                        ไม่พิมพ์ (เพิ่มบรรทัดเอง)
+                      </Choice>
+                    </div>
+                  </Row>
+                  <p className="text-xs text-muted-foreground">
+                    ใช้ท่อน 50 / 40 / 30 ซม. รวม {plan?.pieces ?? 0} ท่อน = ชุดอะคริลิก {plan?.pieces ?? 0} ชุด
+                  </p>
+                </div>
+              ) : isSS ? (
                 <div className="grid gap-2 text-sm">
                   <Row label="หน้าตัด">
                     <div className="flex flex-wrap items-center gap-1.5">
