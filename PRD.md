@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 05/11/2026
+> Last updated: 06/11/2026
 
 ## 1. Overview
 
@@ -288,7 +288,15 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (no joining offcuts); all lines of one roll family share one price per metre.
 - ✅ **Fibre-optic sets** — sizes S / M / L default to plain 0.50 / 0.75 / 1.00 mm cable, 8 m per point
   (editable).
-- ✅ **Clipso stretch ceiling** — 3.4/5.1 m × 50 m rolls, +10 cm per side,
+- ✅ **Clipso stretch ceiling** — power supplies of the LED's own kind (24V, 12V or constant current
+  700 mA, not any unit that is big enough), printed per size ("POWER SUPPLY 24V 75W DALI-DIM") or by
+  current ("POWER SUPPLY 700mA NON-DIM"); counted per opening for stock, **the count is not printed**.
+  **Pricing standard (owner, 06/11/2026):** fabric and lighting are priced per SET, one per opening, so
+  several openings show a smaller price each (total unchanged); a switch makes it 1 LOT. Only the **total**
+  cut length is rounded up (5 cm by default; 25.64 → 25.65 M), never each piece. Without a service track the
+  line reads "NOTE : NO SERVICE TRACK.". A special price (e.g. using a spare piece) is an exception for that job; lumens text and extra lines
+  (TOUCH PANEL, INTERNAL WIRING; with a SKU they are priced and go to stock); item number on the block,
+  lines 2.1, 2.2. 3.4/5.1 m × 50 m rolls, +10 cm per side,
   strips across the roll width, track in 2 m lengths, optional LED above.
 - ✅ **Privacy film (PDLC)** — per m² on cutting size, max sheet 1.5 × 3 m,
   busbar per piece, transformers per location by watts.
@@ -561,6 +569,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 06/11/2026 | **Clipso standard (owner):** per SET pricing by default (1 LOT by switch), total cut length rounded up once at 5 cm, power supply count not printed, "NOTE : NO SERVICE TRACK.". Price lines are presented so the client feels the price is not high. |
+| 06/11/2026 | **Clipso fixes from the sample BOQs:** power supply of the LED's kind (12V, 15V or 700 mA units could be picked for any LED); no "x 0" line; "308T" instead of "308T width"; lumens text; extra lines in the lighting set; item numbers kept on re-save. Same voltage rule offered to all LED kinds through `psuForLed`. |
 | 05/11/2026 | Owner's answers: BOQ rounds up (COB is cut full, ≤ 120 dots can fold); the final Rev bills an LED line at the production sheet's cut length, so a piece rounded down in production comes down in the last payment; FO default 8 m per point. ALIEN sample set to 8 m. |
 | 04/11/2026 | Owner's answers: LED quantity rounded up to the cut step per piece (≤ 120 dots/m and COB); automatic PSU stays at 80 % and prefers SWP, with a hint for a slightly smaller unit; mini dimmer 1:1 with the power supply; FO S / M / L = 0.50 / 0.75 / 1.00 mm. |
 | 04/11/2026 | **LED linear builder fixes from THE PANO:** profile no longer tied to IP; "w/ EZ-CLIP" wording; only 24V power supplies (12V / 15V / 700 mA could be chosen before, also in Jedi flex); sold-as watts and "SWITCHING POWER SUPPLY" wording; PSU picked by hand or shared with another item; 1-10V with mini dimmer; item numbers kept when a block is re-saved. Older saved blocks keep their old profile rule. |

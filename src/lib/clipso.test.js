@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { cutSize, layout, bestLayout, trackPieces, ledMeters, buildClipso, parseClipso, spacingFor } from "./clipso.ts";
+import { cutSize, layout, bestLayout, trackPieces, ledMeters, buildClipso, parseClipso, spacingFor, fabricTypeOf } from "./clipso.ts";
 
 const R = (w, l, qty = 1, extra = {}) => ({ shape: "rect", w, l, qty, ...extra });
 
@@ -71,12 +71,12 @@ test("combined block = one SET line like VN-01", () => {
     "- OPENING SIZE : 1.42M x 9.42M x 4PCS.",
     "- OPENING SIZE : 1.42M x 7.90M x 4PCS.",
     "- OPENING SIZE : 1.42M x 7.76M x 8PCS.",
-    "- CALCULATION SIZE : 3.24M x 67.60M",
+    "- CALCULATION SIZE : 3.24M x 67.30M",
     '- CEILING PROFILE "CW"',
   ]);
-  // 3.4 x 67.6 = 229.84 m² x 1500 + track (4x11 + 4x10 + 8x10 = 164) x 400
-  expect(b.rows[0].unit_price).toBe(229.84 * 1500 + 164 * 400);
-  expect(b.rows[0].recipes.map((r) => [r.sku_id, r.qty])).toEqual([["f34", 229.84], ["cw", 164]]);
+  // exact 67.28 → total rounded once to 67.30; 3.4 x 67.3 = 228.82 m² x 1500 + track 164 x 400
+  expect(b.rows[0].unit_price).toBe(228.82 * 1500 + 164 * 400);
+  expect(b.rows[0].recipes.map((r) => [r.sku_id, r.qty])).toEqual([["f34", 228.82], ["cw", 164]]);
   expect(parseClipso(b.rows[0].recipes[0].note).panels.length).toBe(3);
 });
 
@@ -116,7 +116,7 @@ test("luminous ceiling adds the LED set", () => {
   // no service track chosen yet → can't be saved
   expect(b.problems.join()).toContain("service track");
   const led = b.rows[2];
-  expect(led.customer_text).toContain("- POWER SUPPLY NON-DIM x 1"); // 22.2 m x 4.8 W = 106.6 W ≤ 120
+  expect(led.customer_text).toContain("- POWER SUPPLY NON-DIM"); // 22.2 m x 4.8 W = 106.6 W ≤ 120
   expect(led.unit_price).toBe(22.2 * 300 + 1000);
 });
 
@@ -158,7 +158,53 @@ test("single piece: calculation size keeps the opening's orientation", () => {
   expect(b.rows[0].customer_text).toContain("- CALCULATION SIZE : 1.80M x 3.90M");
 });
 
-test("service track: priced or EXCLUDED", () => {
+test("power supply follows the LED's kind; no x 0; extras, lumens, item numbers", () => {
+  const light = {
+    kind: "module", depthCm: 20, spacingCm: 30, ledSkuId: "led", wattPerM: 4.8, cct: "2200K - 5000K",
+    lumens: "approx 4,200 lm/sq.m", psuLabel: "24V", dim: "DALI", loadFactor: 0.8, miscSkuId: null,
+    psuOptions: [{ skuId: "psu", watt: 76.8 }],
+    extras: [{ text: "TOUCH PANEL", qty: 1, skuId: null }, { text: "", qty: 1, skuId: null }],
+    service: { skuId: null, qty: 1, unit: "SET", excluded: true },
+  };
+  const b = buildClipso({ ...base, itemNo: "2", panels: [{ shape: "rect", w: 0.6, l: 0.6, qty: 1 }], light }, PRICES, () => crypto.randomUUID());
+  const led = b.rows.find((r) => r.customer_text.startsWith("LED ABOVE"));
+  expect(led.customer_text).toContain("- LED MODULE (2200K - 5000K, approx 4,200 lm/sq.m)");
+  expect(led.customer_text).toContain("- POWER SUPPLY 24V 75W DALI-DIM\n"); // the count is not printed
+  expect(led.customer_text).toContain("- TOUCH PANEL x 1");
+  expect(led.customer_text.match(/ x 1/g)).toHaveLength(1); // the empty extra is left out
+  expect(b.rows.filter((r) => r.item_no).map((r) => r.item_no)).toEqual(["2", "2.1", "2.2"]);
+  const cc = buildClipso({ ...base, panels: [{ shape: "rect", w: 0.6, l: 0.6, qty: 3 }], light: { ...light, psuLabel: "700mA", dim: "NON-DIM" } }, PRICES, () => crypto.randomUUID());
+  expect(cc.rows.find((r) => r.customer_text.startsWith("LED ABOVE")).customer_text).toContain("- POWER SUPPLY 700mA NON-DIM\n");
+  const none = buildClipso({ ...base, panels: [{ shape: "rect", w: 0.6, l: 0.6, qty: 1 }], light: { ...light, psuOptions: [] } }, PRICES, () => crypto.randomUUID());
+  expect(none.rows.find((r) => r.customer_text.startsWith("LED ABOVE")).customer_text).not.toContain("POWER SUPPLY");
+  expect(none.problems.join()).toContain("ไม่มีหม้อแปลง");
+  expect(fabricTypeOf({ id: "f", code: "Clipso-Fabric-308T-White-3.4", name: "Clipso 308T 3.4m width" })).toBe("308T");
+});
+
+test("only the total cut length is rounded (ASVAINTRA: 25.64 → 25.65)", () => {
+  const panels = [1.7, 2.25, 2.46, 1.97, 1.89, 1.98, 1.93, 2.53, 2.34, 2.34, 2.05].map((l) => R(3, l));
+  const lay = layout(panels, 3.4, 50, 0.05);
+  expect(lay.length).toBe(25.65);
+  expect(lay.usedWidth).toBe(3.2);
+});
+
+test("price per SET (one per opening) or 1 LOT: same total, stock unchanged", () => {
+  const panels = [R(1, 1, 2), R(1, 2, 2)];
+  const light = { kind: "strip", depthCm: 20, spacingCm: 30, ledSkuId: "led", wattPerM: 4.8, cct: "TBD", dim: "NON-DIM", psuOptions: [{ skuId: "psu", watt: 150 }], loadFactor: 0.8, miscSkuId: null, service: { skuId: null, qty: 1, unit: "SET", excluded: true } };
+  const set = buildClipso({ ...base, panels, light, priceBy: "set" }, PRICES, ids);
+  const lot = buildClipso({ ...base, panels, light, priceBy: "lot" }, PRICES, ids);
+  const fab = (b) => b.rows.find((r) => r.customer_text.startsWith("CLIPSO FABRIC\n"));
+  const led = (b) => b.rows.find((r) => r.customer_text.startsWith("LED ABOVE"));
+  expect([fab(set).qty, fab(set).unit, led(set).qty, led(set).unit]).toEqual([4, "SET", 4, "SET"]);
+  expect([fab(lot).qty, fab(lot).unit, led(lot).qty, led(lot).unit]).toEqual([1, "LOT", 1, "LOT"]);
+  expect(fab(set).unit_price * 4).toBeCloseTo(fab(lot).unit_price, 1);
+  expect(led(set).unit_price * 4).toBeCloseTo(led(lot).unit_price, 1);
+  expect(led(set).recipes.map((r) => r.qty)).toEqual(led(lot).recipes.map((r) => r.qty));
+  // one opening stays 1 SET
+  expect(buildClipso({ ...base, panels: [R(1, 1)], priceBy: "set" }, PRICES, ids).rows[0]).toMatchObject({ qty: 1, unit: "SET" });
+});
+
+test("service track: priced or none", () => {
   const light = { kind: "strip", depthCm: 20, spacingCm: 30, ledSkuId: "led", wattPerM: 4.8, cct: "TBD", dim: "NON-DIM", psuOptions: [{ skuId: "psu", watt: 150 }], loadFactor: 0.8, miscSkuId: null };
   const prices = new Map([...PRICES, ["svc", { unitPrice: 3500, maxDiscount: 0 }]]);
   const priced = buildClipso({ ...base, panels: [R(1.6, 3.7)], light: { ...light, service: { skuId: "svc", qty: 2, unit: "SET", excluded: false } } }, prices, ids);
@@ -167,6 +213,6 @@ test("service track: priced or EXCLUDED", () => {
   expect(sv.recipes).toEqual([{ sku_id: "svc", qty: 2, note: "CLP c1 SERVICE" }]);
   expect(priced.problems).toEqual([]);
   const ex = buildClipso({ ...base, panels: [R(1.6, 3.7)], light: { ...light, service: { skuId: null, qty: 1, unit: "SET", excluded: true } } }, prices, ids);
-  expect(ex.rows.at(-1)).toMatchObject({ kind: "display", customer_text: "SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)", qty: null });
+  expect(ex.rows.at(-1)).toMatchObject({ kind: "display", customer_text: "NOTE : NO SERVICE TRACK.", qty: null });
   expect(ex.problems).toEqual([]);
 });

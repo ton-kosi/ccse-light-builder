@@ -451,7 +451,8 @@ export function wattOfPsu(s: SkuLite): number | null {
   const t = txt(s);
   const mm = t.match(/(\d+(?:\.\d+)?)\s*(?:W|วัตต์)(?![a-zA-Z/])/i);
   if (mm) return Number(mm[1]);
-  const mw = t.match(/\b[A-Z]{2,5}-(\d{2,4})[A-Z]*-(?:12|24|36|48)[A-Z]*\b/i);
+  // Mean Well style: HLG-150H-24A, ELG-100-700A
+  const mw = t.match(/\b[A-Z]{2,5}-(\d{2,4})[A-Z]*-\d{2,4}[A-Z]*\b/i);
   return mw ? Number(mw[1]) : null;
 }
 export function wattPerMOf(s: SkuLite | undefined): number | null {
@@ -507,23 +508,30 @@ export function psuReport(psus: SkuLite[], d: DimType): { options: PsuOption[]; 
   return { options, skipped };
 }
 
-/** PSUs for a 24V LED: other voltages and constant-current units are skipped, with the reason. */
-export function psu24Report(psus: SkuLite[], d: DimType): { options: PsuOption[]; skipped: PsuSkip[] } {
-  const is24 = (s: SkuLite) => {
+/** PSUs for an LED of this kind (volts or constant current): the others are skipped, with the reason. */
+export function psuKindReport(
+  psus: SkuLite[],
+  d: DimType,
+  want: number | "CC",
+): { options: PsuOption[]; skipped: PsuSkip[] } {
+  const fits = (s: SkuLite) => {
     const v = psuVoltOf(s);
-    return v === null || v === 24;
+    return v === null || v === want;
   };
-  const r = psuReport(psus.filter(is24), d === "1-10V" ? "NON-DIM" : d);
+  const words = (v: number | "CC" | null) => (v === "CC" ? "constant current" : `${v}V`);
+  const r = psuReport(psus.filter(fits), d === "1-10V" ? "NON-DIM" : d);
   const wet = new Set(psus.filter((s) => /\bIP\s*6\d/i.test(txt(s))).map((s) => s.id));
   const options = r.options
     .map((o) => (wet.has(o.skuId) ? { ...o, waterproof: true } : o))
     .sort((a, b) => a.watt - b.watt);
-  const other = psus.filter((s) => !is24(s)).map((s) => {
+  const other = psus.filter((s) => !fits(s)).map((s) => {
     const v = psuVoltOf(s);
-    return { id: s.id, code: s.code, name: s.name, reason: v === "CC" ? "เป็น constant current ไม่ใช่ 24V" : `เป็น ${v}V ไม่ใช่ 24V` };
+    return { id: s.id, code: s.code, name: s.name, reason: `เป็น ${words(v)} ไม่ใช่ ${words(want)}` };
   });
   return { options, skipped: [...r.skipped, ...other] };
 }
+
+export const psu24Report = (psus: SkuLite[], d: DimType) => psuKindReport(psus, d, 24);
 
 /** SKU options per part, by stock category (หมวดในหน้าสต๊อก); names only split sub-types. */
 export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
@@ -548,5 +556,8 @@ export function linearSkuGroups<T extends SkuLite>(skus: T[]) {
     /** LED linear / neon run on 24V: leaves out 12V, 15V and constant-current units; 1-10V uses non-dim units */
     psu24Report: (d: DimType) => psu24Report(psus, d),
     psu24For: (d: DimType): PsuOption[] => psu24Report(psus, d).options,
+    /** for any LED: its own kind of supply (a LED that doesn't say is taken as 24V) */
+    psuForLed: (led: SkuLite | undefined, d: DimType): PsuOption[] =>
+      psuKindReport(psus, d, (led ? psuVoltOf(led) : null) ?? 24).options,
   };
 }

@@ -16,7 +16,7 @@ import type { GridLine } from "@/components/boq/BoqGrid";
 import { Block, SkuSelect, type Sku } from "@/components/boq/FoSetDialog";
 import { Choice, Row } from "@/components/boq/LinearDialog";
 import { SKU_OPTIONS_KEY, inCategory } from "@/lib/skuCategory";
-import { DIM_TYPES, linearSkuGroups, wattPerMOf, type DimType } from "@/lib/linear";
+import { DIM_TYPES, linearSkuGroups, psuVoltOf, wattPerMOf, type DimType } from "@/lib/linear";
 import {
   bestLayout,
   buildClipso,
@@ -95,7 +95,8 @@ export function ClipsoDialog({
       trackLength: g.trackLength(track),
       panels: [newPanel()],
       combined: true,
-      lengthStep: 0.1,
+      lengthStep: 0.05,
+      priceBy: "set",
       light: null,
       rowIds: [],
     });
@@ -153,13 +154,17 @@ export function ClipsoDialog({
   const tooHigh = !!built && discNum > built.maxDiscount + 1e-9;
   const net = built ? Math.round(built.list * (1 - discNum / 100) * 100) / 100 : 0;
 
-  // PSU choices follow the dimming type
+  // PSU choices follow the dimming type and the kind of LED (24V, 12V or constant current)
   useEffect(() => {
     if (!c?.light) return;
-    const opts = lin.psuFor(c.light.dim);
-    if (JSON.stringify(opts) !== JSON.stringify(c.light.psuOptions))
-      setC({ ...c, light: { ...c.light, psuOptions: opts } });
-  }, [c, lin]);
+    const led = byId.get(c.light.ledSkuId);
+    const opts = lin.psuForLed(led, c.light.dim);
+    const kind = led ? psuVoltOf(led) : null;
+    const ma = led ? `${led.code} ${led.name}`.match(/(\d{3,4})\s*mA/i)?.[1] : null;
+    const psuLabel = kind === "CC" ? (ma ? `${ma}mA` : "CC") : `${kind ?? 24}V`;
+    if (JSON.stringify(opts) !== JSON.stringify(c.light.psuOptions) || psuLabel !== c.light.psuLabel)
+      setC({ ...c, light: { ...c.light, psuOptions: opts, psuLabel } });
+  }, [c, lin, byId]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -182,6 +187,7 @@ export function ClipsoDialog({
         unit: r.unit,
         unit_price: r.unit_price,
         discount_percent: r.kind === "priced" ? discNum : 0,
+        item_no: r.item_no ?? null,
         option_name: option.trim() || null,
         zone: i === 0 ? zone.trim() || null : null,
         component_id: null,
@@ -224,7 +230,7 @@ export function ClipsoDialog({
         wattPerM: wattPerMOf(led) ?? 0,
         cct: CCT,
         dim: "NON-DIM",
-        psuOptions: lin.psuFor("NON-DIM"),
+        psuOptions: lin.psuForLed(led, "NON-DIM"),
         loadFactor: 0.8,
         miscSkuId: null,
         service: { skuId: g.services[0]?.id ?? null, qty: 1, unit: "SET", excluded: false },
@@ -261,13 +267,21 @@ export function ClipsoDialog({
             <div className="space-y-5">
               <Block title="1. ผ้า">
                 <div className="grid gap-2 text-sm">
-                  <Row label="รหัสแบบ">
-                    <Input
-                      className="w-32"
-                      placeholder="VN-01"
-                      value={c.code}
-                      onChange={(e) => set({ code: e.target.value.toUpperCase() })}
-                    />
+                  <Row label="ข้อที่ · รหัสแบบ">
+                    <div className="flex gap-2">
+                      <Input
+                        className="w-16"
+                        placeholder="2"
+                        value={c.itemNo ?? ""}
+                        onChange={(e) => set({ itemNo: e.target.value })}
+                      />
+                      <Input
+                        className="w-32"
+                        placeholder="VN-01"
+                        value={c.code}
+                        onChange={(e) => set({ code: e.target.value.toUpperCase() })}
+                      />
+                    </div>
                   </Row>
                   <Row label="รุ่นผ้า">
                     {typeNames.length ? (
@@ -437,7 +451,7 @@ export function ClipsoDialog({
                     </Choice>
                   </span>
                   <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                    ปัดความยาวตัดขึ้นทีละ
+                    ปัดความยาวรวมขึ้นทีละ
                     <Input
                       className="h-8 w-16"
                       inputMode="decimal"
@@ -557,6 +571,13 @@ export function ClipsoDialog({
                         <Input value={L.cct} onChange={(e) => setL({ cct: e.target.value })} />
                       </div>
                     </Row>
+                    <Row label="ความสว่าง (พิมพ์ในใบ)">
+                      <Input
+                        placeholder="approx 2,350 lm/sq.m"
+                        value={L.lumens ?? ""}
+                        onChange={(e) => setL({ lumens: e.target.value })}
+                      />
+                    </Row>
                     <Row label="ระบบดิม">
                       <div className="flex flex-wrap gap-1.5">
                         {DIM_TYPES.map((d) => (
@@ -576,6 +597,62 @@ export function ClipsoDialog({
                         onChange={(id) => setL({ miscSkuId: id || null })}
                       />
                     </Row>
+                    <Row label="อุปกรณ์อื่นในชุดไฟ">
+                      <div className="space-y-1.5">
+                        {(L.extras ?? []).map((x, i) => {
+                          const list = L.extras ?? [];
+                          const setX = (p: Partial<typeof x>) =>
+                            setL({ extras: list.map((e, j) => (j === i ? { ...e, ...p } : e)) });
+                          return (
+                            <div key={i} className="flex flex-wrap items-center gap-2">
+                              <Input
+                                className="w-40"
+                                value={x.text}
+                                onChange={(e) => setX({ text: e.target.value.toUpperCase() })}
+                              />
+                              <Input
+                                className="w-14"
+                                inputMode="numeric"
+                                title="จำนวน"
+                                value={x.qty ? String(x.qty) : ""}
+                                onChange={(e) => setX({ qty: toNumber(e.target.value) ?? 0 })}
+                              />
+                              <div className="min-w-48 flex-1">
+                                <SkuSelect
+                                  value={x.skuId}
+                                  preferred={skus ?? []}
+                                  category="ทุกหมวด"
+                                  all={skus ?? []}
+                                  noneLabel="— ไม่มี SKU (แสดงชื่ออย่างเดียว) —"
+                                  onChange={(id) => setX({ skuId: id || null })}
+                                />
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setL({ extras: list.filter((_, j) => j !== i) })}
+                              >
+                                ลบ
+                              </Button>
+                            </div>
+                          );
+                        })}
+                        <div className="flex flex-wrap gap-1.5">
+                          {["TOUCH PANEL", "INTERNAL WIRING", ""].map((t) => (
+                            <Button
+                              key={t}
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setL({ extras: [...(L.extras ?? []), { text: t, qty: 1, skuId: null }] })
+                              }
+                            >
+                              + {t || "อื่นๆ"}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </Row>
                     <Row label="Service track">
                       {(() => {
                         const sv = L.service ?? { skuId: null, qty: 1, unit: "SET", excluded: false };
@@ -587,12 +664,12 @@ export function ClipsoDialog({
                                 คิดราคา
                               </Choice>
                               <Choice on={sv.excluded} onClick={() => setSv({ excluded: true })}>
-                                ไม่รวม (EXCLUDED)
+                                ไม่มี service track
                               </Choice>
                             </div>
                             {sv.excluded ? (
                               <p className="text-xs text-muted-foreground">
-                                ขึ้นในใบว่า SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)
+                                ขึ้นในใบว่า NOTE : NO SERVICE TRACK.
                               </p>
                             ) : (
                               <div className="flex flex-wrap items-center gap-2">
@@ -635,6 +712,13 @@ export function ClipsoDialog({
                               </li>
                             );
                           })}
+                        {(() => {
+                          const n = (built?.rows ?? [])
+                            .flatMap((r) => r.recipes)
+                            .filter((x) => x.note.endsWith(" PSU"))
+                            .reduce((s, x) => s + x.qty, 0);
+                          return n ? <li>หม้อแปลงรวม {n} ตัว (เบิกของตามนี้ · ไม่พิมพ์จำนวนในใบ)</li> : null;
+                        })()}
                         {!L.psuOptions.length ? (
                           <li className="text-destructive">ไม่มีหม้อแปลง {L.dim} ในหมวด Power supply</li>
                         ) : null}
@@ -656,6 +740,14 @@ export function ClipsoDialog({
                       value={zone}
                       onChange={(e) => setZone(e.target.value.toUpperCase())}
                     />
+                  </div>
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                    <Choice on={c.priceBy !== "lot"} onClick={() => set({ priceBy: "set" })}>
+                      ราคาต่อ SET (ต่อช่อง)
+                    </Choice>
+                    <Choice on={c.priceBy === "lot"} onClick={() => set({ priceBy: "lot" })}>
+                      รวม 1 LOT
+                    </Choice>
                   </div>
                   {zone ? <div className="font-bold">{zone}</div> : null}
                   {(built?.rows ?? []).map((r) => (

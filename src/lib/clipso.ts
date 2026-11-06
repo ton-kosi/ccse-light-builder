@@ -8,13 +8,15 @@
  *  - pieces are laid out across the roll width in "strips"; several pieces share a strip when
  *    their widths fit side by side; the customer pays for roll width × length cut, so the
  *    selvage left over on the side is included
+ *  - only the total cut length is rounded up (5 cm by default), never each piece
  *  - the width (3.4 / 5.1) that costs least is used unless one is forced
  * Track (CC / CW): 2 m lengths, per opening ceil(perimeter / 2) — offcuts are paid for.
  * Lighting above (optional): LED rows spaced at 1.5 × cavity depth (20 cm → 30 cm),
- *   PSU per opening at 80 % load for the chosen dimming.
+ *   PSU per opening at 80 % load for the chosen dimming, of the LED's own kind
+ *   (24V / 12V / constant current).
  */
 import type { PartPrice } from "./fo";
-import { pickPsu, dimLabel, type DimType, type PsuOption } from "./linear";
+import { pickPsu, dimLabel, nominalWatt, type DimType, type PsuOption } from "./linear";
 import { inCategory, readTags } from "./skuCategory";
 
 export type Shape = "rect" | "circle";
@@ -31,9 +33,14 @@ export type Panel = {
 export type FabricOption = { skuId: string; width: number; rollLength: number };
 export type TrackType = "CC" | "CW";
 
+/** Printed in the lighting set, e.g. TOUCH PANEL x 1; with a SKU it is priced and goes to stock. */
+export type LightExtra = { text: string; qty: number; skuId: string | null };
+
 export type ClipsoConfig = {
   v: 1;
   blockId: string;
+  /** item number of the block; its lines print as <item>.1, <item>.2 … */
+  itemNo?: string | null;
   code: string;
   /** fabric name the customer sees, e.g. 308T */
   fabricName: string;
@@ -47,8 +54,13 @@ export type ClipsoConfig = {
   panels: Panel[];
   /** true: one SET line, pieces laid out together; false: one line per opening size */
   combined: boolean;
-  /** cut length rounded up per strip (m), e.g. 0.1 */
+  /** total cut length rounded up to this (m), e.g. 0.05 */
   lengthStep: number;
+  /**
+   * How the fabric and lighting lines are priced. "set" (standard): one SET per opening, so several
+   * openings show a smaller price each; "lot": 1 LOT for the whole block; absent (older blocks): 1 SET.
+   */
+  priceBy?: "set" | "lot";
   light: null | {
     /** strip: rows along the long side · module: grid of modules in both directions (x and y) */
     kind?: "strip" | "module";
@@ -58,6 +70,11 @@ export type ClipsoConfig = {
     /** strip: W per metre · module: W per module */
     wattPerM: number;
     cct: string;
+    /** printed after the colour, e.g. approx 2,350 lm/sq.m */
+    lumens?: string;
+    /** the LED's supply as printed: "24V", "12V", "700mA"; absent on older blocks */
+    psuLabel?: string;
+    extras?: LightExtra[];
     dim: DimType;
     psuOptions: PsuOption[];
     loadFactor: number;
@@ -94,7 +111,7 @@ export type Strip = { length: number; used: number; items: { across: number; alo
 export type Layout = {
   width: number;
   strips: Strip[];
-  /** total length cut (m, after rounding each strip) */
+  /** total length cut (m), rounded up once */
   length: number;
   /** widest use of the roll width (m) — the "calculation size" width */
   usedWidth: number;
@@ -156,10 +173,8 @@ function packOnce(
       strips.push({ length: t.along, used: t.across, items: [{ ...t, panel: it.panel }] });
     }
   }
-  for (const s of strips) {
-    s.length = r3(ceilTo(s.length, step));
+  for (const s of strips)
     if (s.length > rollLength + 1e-9) problems.push(`ชิ้นยาว ${m(s.length)} เกินความยาวม้วน ${rollLength}M`);
-  }
   // rolls needed: strips can't be split between rolls (first fit, longest first)
   const rolls: number[] = [];
   for (const len of strips.map((s) => s.length).sort((x, y) => y - x)) {
@@ -167,7 +182,7 @@ function packOnce(
     if (i >= 0) rolls[i] = r3(rolls[i]! - len);
     else rolls.push(r3(rollLength - len));
   }
-  const length = r3(strips.reduce((s, x) => s + x.length, 0));
+  const length = r3(ceilTo(r3(strips.reduce((s, x) => s + x.length, 0)), step));
   return {
     width,
     strips,
@@ -257,6 +272,7 @@ export function lightFor(p: Panel, L: NonNullable<ClipsoConfig["light"]>) {
 
 export type ClpRecipe = { sku_id: string; qty: number; note: string };
 export type ClpRow = {
+  item_no?: string | null;
   id: string;
   kind: "heading" | "priced" | "display";
   customer_text: string;
@@ -277,7 +293,7 @@ function calcSize(lay: Layout, group: Panel[]): string {
   if (only) {
     const [a] = cutSize(group[only.panel]!);
     const turned = Math.abs(only.across - a) > 1e-9; // laid with its length across the roll
-    const len = lay.strips[0]!.length;
+    const len = lay.length;
     return turned ? `${m(len)} x ${m(only.across)}` : `${m(only.across)} x ${m(len)}`;
   }
   return `${m(lay.usedWidth)} x ${m(lay.length)}`;
@@ -307,6 +323,12 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
   const rows: ClpRow[] = [];
   const profileLine = `- CEILING PROFILE "${c.track}"`;
   const pieces = (p: Panel) => trackPieces(p, c.trackLength || 2);
+  const openings = panels.reduce((s, p) => s + p.qty, 0);
+  /** qty / unit / price of a whole-block line, following priceBy */
+  const blockPrice = (amount: number) =>
+    c.priceBy === "set" && openings > 0
+      ? { qty: openings, unit: "SET", unit_price: r2(amount / openings) }
+      : { qty: 1, unit: c.priceBy === "lot" ? "LOT" : "SET", unit_price: r2(amount) };
 
   /** fabric + track for one set made of `group`; the BOQ line has `mult` sets */
   const fabricPart = (group: Panel[], mult: number) => {
@@ -357,9 +379,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
         id: newId(),
         kind: "priced",
         customer_text: lines.join("\n"),
-        qty: 1,
-        unit: "SET",
-        unit_price: r2(f.amount),
+        ...blockPrice(f.amount),
         recipes: f.recipes,
       });
     }
@@ -402,13 +422,30 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
     let amount = ledM * price(L.ledSkuId);
     add(ledM * price(L.ledSkuId), L.ledSkuId);
     const recipes: ClpRecipe[] = [{ sku_id: L.ledSkuId, qty: ledM, note: tag("LED") }];
+    const psuLines: string[] = [];
+    const label = L.psuLabel?.trim();
+    const volts = !!label && label.endsWith("V");
     let totalPsu = 0;
     for (const [skuId, v] of psuCount) {
       amount += v.count * price(skuId);
       add(v.count * price(skuId), skuId);
       recipes.push({ sku_id: skuId, qty: v.count, note: tag("PSU") });
       totalPsu += v.count;
+      // volts: each size on its own line; constant current is known by its mA only (no count printed)
+      if (volts) psuLines.push(`- POWER SUPPLY ${label} ${nominalWatt(v.watt)}W ${dimLabel(L.dim)}`);
     }
+    if (!volts && totalPsu > 0)
+      psuLines.push(`- POWER SUPPLY ${label ? `${label} ` : ""}${dimLabel(L.dim)}`);
+    const extraLines: string[] = [];
+    for (const x of L.extras ?? []) {
+      if (!x.text.trim() || !(x.qty > 0)) continue;
+      const each = price(x.skuId);
+      amount += each * x.qty;
+      add(each * x.qty, x.skuId);
+      if (x.skuId) recipes.push({ sku_id: x.skuId, qty: x.qty, note: tag("EXTRA") });
+      extraLines.push(`- ${x.text.trim()} x ${x.qty}`);
+    }
+    const look = [L.cct.trim() || "TBD", L.lumens?.trim()].filter(Boolean).join(", ");
     if (L.miscSkuId) {
       amount += price(L.miscSkuId);
       add(price(L.miscSkuId), L.miscSkuId);
@@ -419,13 +456,12 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
       kind: "priced",
       customer_text: [
         `LED ABOVE THE FABRIC (ceiling to clipso ${L.depthCm}cm.)`,
-        `- ${L.kind === "module" ? "LED MODULE" : "LED STRIP"} (${L.cct.trim() || "TBD"})`,
-        `- POWER SUPPLY ${dimLabel(L.dim)} x ${totalPsu}`,
+        `- ${L.kind === "module" ? "LED MODULE" : "LED STRIP"} (${look})`,
+        ...psuLines,
+        ...extraLines,
         ...(L.miscSkuId ? ["- MISCELLANEOUS x 1"] : []),
       ].join("\n"),
-      qty: 1,
-      unit: "SET",
-      unit_price: r2(amount),
+      ...blockPrice(amount),
       recipes,
     });
 
@@ -435,7 +471,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
       rows.push({
         id: newId(),
         kind: "display",
-        customer_text: "SERVICE TRACK w/ MILLED ACRYLIC (EXCLUDED)",
+        customer_text: "NOTE : NO SERVICE TRACK.",
         qty: null,
         unit: null,
         unit_price: null,
@@ -455,6 +491,14 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
         recipes: sv.skuId ? [{ sku_id: sv.skuId, qty: sv.qty, note: tag("SERVICE") }] : [],
       });
     }
+  }
+
+  // item number: on the first row; with a heading, the lines under it are <item>.1, <item>.2 …
+  const itemNo = c.itemNo?.trim();
+  if (itemNo && rows.length) {
+    rows[0]!.item_no = itemNo;
+    if (rows[0]!.kind === "heading")
+      rows.filter((r) => r.kind === "priced").forEach((r, i) => (r.item_no = `${itemNo}.${i + 1}`));
   }
 
   // remember the config on the first fabric material so the block can be reopened
@@ -505,7 +549,7 @@ export function fabricTypeOf(s: SkuLite): string {
   if (saved) return saved;
   return s.name
     .replace(/\b[35][.,][14]0?\s*m\b/i, "")
-    .replace(/clipso|fabric|ผ้า/gi, "")
+    .replace(/clipso|fabric|width|ผ้า/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }

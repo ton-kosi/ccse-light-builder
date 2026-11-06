@@ -11,6 +11,7 @@ import {
   wattOfPsu,
   psuReport,
   psu24Report,
+  psuKindReport,
   psuVoltOf,
   nominalWatt,
   roundUpStep,
@@ -202,6 +203,22 @@ test("mini dimmer 1:1 with the power supply", () => {
   const mini = rows.find((r) => r.customer_text.includes("MINI DIMMER"));
   expect(mini.qty).toBe(3);
   expect(mini.recipes[0].qty).toBe(3);
+});
+
+test("power supply of the LED's own kind: 12V, constant current", () => {
+  const p = (code, name) => ({ id: code, code, name });
+  const psus = [p("A", "SWP 12V 75W"), p("B", "SWP 24V 100W"), p("C", "ELG-100-700A, (350mA-700mA), IP65")];
+  expect(wattOfPsu(psus[2])).toBe(100);
+  const g = linearSkuGroups(psus.map((s) => ({ ...s, notes: "[หมวด: Power supply]" })));
+  const ids = (led) => g.psuForLed(led, "NON-DIM").map((o) => o.skuId);
+  expect(ids(p("Aristo-CC-2.1", "Penta Wide IV CC, 2.1W, 700mA, 4000K"))).toEqual(["C"]);
+  expect(ids(p("Aristo-CV-2.5", "Penta Wide Twin CV, 2.5W, 12Vdc, 3000K"))).toEqual(["A"]);
+  expect(ids(p("LED-Top-12", "12W/m, 24Vdc, COB, 4000K"))).toEqual(["B"]);
+  expect(ids(p("LED-X", "strip"))).toEqual(["B"]); // doesn't say: 24V
+  expect(psuKindReport(psus, "NON-DIM", "CC").skipped.map((x) => x.reason)).toEqual([
+    "เป็น 12V ไม่ใช่ constant current",
+    "เป็น 24V ไม่ใช่ constant current",
+  ]);
 });
 
 test("item number: heading + circuits, survives without circuit numbers", () => {
