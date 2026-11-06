@@ -2007,6 +2007,62 @@ export type Database = {
           },
         ]
       }
+      sku_components: {
+        Row: {
+          component_sku_id: string
+          created_at: string
+          id: string
+          kit_sku_id: string
+          note: string | null
+          qty: number
+        }
+        Insert: {
+          component_sku_id: string
+          created_at?: string
+          id?: string
+          kit_sku_id: string
+          note?: string | null
+          qty: number
+        }
+        Update: {
+          component_sku_id?: string
+          created_at?: string
+          id?: string
+          kit_sku_id?: string
+          note?: string | null
+          qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_components_component_sku_id_fkey"
+            columns: ["component_sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_components_component_sku_id_fkey"
+            columns: ["component_sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_components_kit_sku_id_fkey"
+            columns: ["kit_sku_id"]
+            isOneToOne: false
+            referencedRelation: "sku_on_hand"
+            referencedColumns: ["sku_id"]
+          },
+          {
+            foreignKeyName: "sku_components_kit_sku_id_fkey"
+            columns: ["kit_sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sku_costs: {
         Row: {
           sku_id: string
@@ -2043,42 +2099,15 @@ export type Database = {
           },
         ]
       }
-      sku_components: {
-        Row: {
-          component_sku_id: string
-          created_at: string
-          id: string
-          kit_sku_id: string
-          note: string | null
-          qty: number
-        }
-        Insert: {
-          component_sku_id: string
-          created_at?: string
-          id?: string
-          kit_sku_id: string
-          note?: string | null
-          qty: number
-        }
-        Update: {
-          component_sku_id?: string
-          created_at?: string
-          id?: string
-          kit_sku_id?: string
-          note?: string | null
-          qty?: number
-        }
-        Relationships: []
-      }
       skus: {
         Row: {
           barcodes: string[]
-          kit_mode: string
           code: string
           created_at: string
           cut_step_cm: number | null
           id: string
           is_roll: boolean
+          kit_mode: string
           lead_time_days: number
           max_piece_m: number | null
           min_stock: number
@@ -2092,12 +2121,12 @@ export type Database = {
         }
         Insert: {
           barcodes?: string[]
-          kit_mode?: string
           code: string
           created_at?: string
           cut_step_cm?: number | null
           id?: string
           is_roll?: boolean
+          kit_mode?: string
           lead_time_days?: number
           max_piece_m?: number | null
           min_stock?: number
@@ -2111,12 +2140,12 @@ export type Database = {
         }
         Update: {
           barcodes?: string[]
-          kit_mode?: string
           code?: string
           created_at?: string
           cut_step_cm?: number | null
           id?: string
           is_roll?: boolean
+          kit_mode?: string
           lead_time_days?: number
           max_piece_m?: number | null
           min_stock?: number
@@ -2414,12 +2443,12 @@ export type Database = {
       }
     }
     Functions: {
-      cancel_billing_doc: {
-        Args: { _id: string; _reason: string }
-        Returns: undefined
-      }
       assemble_kit: {
         Args: { _kit_sku_id: string; _note?: string; _qty: number }
+        Returns: undefined
+      }
+      cancel_billing_doc: {
+        Args: { _id: string; _reason: string }
         Returns: undefined
       }
       confirm_material_issue: {
