@@ -2043,37 +2043,8 @@ export type Database = {
           },
         ]
       }
-      sku_components: {
-        Row: {
-          component_sku_id: string
-          created_at: string
-          id: string
-          kit_sku_id: string
-          note: string | null
-          qty: number
-        }
-        Insert: {
-          component_sku_id: string
-          created_at?: string
-          id?: string
-          kit_sku_id: string
-          note?: string | null
-          qty: number
-        }
-        Update: {
-          component_sku_id?: string
-          created_at?: string
-          id?: string
-          kit_sku_id?: string
-          note?: string | null
-          qty?: number
-        }
-        Relationships: []
-      }
       skus: {
         Row: {
-          barcodes: string[]
-          kit_mode: string
           code: string
           created_at: string
           cut_step_cm: number | null
@@ -2091,8 +2062,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          barcodes?: string[]
-          kit_mode?: string
           code: string
           created_at?: string
           cut_step_cm?: number | null
@@ -2110,8 +2079,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          barcodes?: string[]
-          kit_mode?: string
           code?: string
           created_at?: string
           cut_step_cm?: number | null
@@ -2416,10 +2383,6 @@ export type Database = {
     Functions: {
       cancel_billing_doc: {
         Args: { _id: string; _reason: string }
-        Returns: undefined
-      }
-      assemble_kit: {
-        Args: { _kit_sku_id: string; _note?: string; _qty: number }
         Returns: undefined
       }
       confirm_material_issue: {
