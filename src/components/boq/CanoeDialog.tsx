@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,11 @@ export function CanoeDialog({
   const setRetro = (p: Partial<RetroOptions>) => setC((o) => ({ ...o, retro: { ...(o.retro ?? defaultRetro()), ...p } }));
   const inCat = (name: string) => (skus ?? []).filter((s) => categoryOf(s) === name);
   const rails = inCat("LED heat sink").filter((s) => railOf(s) === CANOE_RAIL);
+  // every Canoe has the 4/8 rail inside
+  const firstRail = rails[0]?.id;
+  useEffect(() => {
+    if (firstRail && !c.railSkuId) setC((o) => ({ ...o, railSkuId: firstRail }));
+  }, [firstRail, c.railSkuId]);
   /** type a piece count: this run stops being automatic */
   const setPieces = (length: number, counts: Record<CanoeSize, number>, k: CanoeSize, v: number) =>
     set({ manualFits: { ...c.manualFits, [String(length)]: { ...counts, [k]: v } } });
@@ -128,6 +133,7 @@ export function CanoeDialog({
       if (!built) throw new Error("ยังโหลดข้อมูลไม่เสร็จ");
       if (specError) throw new Error(specError);
       if (built.problems.length) throw new Error(built.problems.join(" · "));
+      if (!isRetro && !c.railSkuId) throw new Error(`เลือกราง alu. ${CANOE_RAIL}"`);
       if (built.missing.length)
         throw new Error(`ยังไม่มีราคาขายของ ${built.missing.map((id) => byId.get(id)?.code ?? id).join(", ")}`);
       if (tooHigh) throw new Error(`ส่วนลดสูงสุดของชุดนี้คือ ${built.maxDiscount}%`);
@@ -288,10 +294,10 @@ export function CanoeDialog({
             <Block title="3. ตัวเรือน Canoe">
               <div className="mb-3 flex flex-wrap gap-1.5 text-sm">
                 <Choice on={!isSS && !isRetro} onClick={() => set({ housingType: "alu" })}>
-                  อลูมิเนียม (ท่อน L / M / S / SS)
+                  Canoe อะคริลิก (ท่อน L / M / S / SS)
                 </Choice>
                 <Choice on={isSS} onClick={() => set({ housingType: "ss", ss })}>
-                  สแตนเลส (ต่อเนื่อง เชื่อมหน้างาน)
+                  ตัวเรือนสแตนเลส (ต่อเนื่อง เชื่อมหน้างาน)
                 </Choice>
                 <Choice
                   on={isRetro}
@@ -305,6 +311,22 @@ export function CanoeDialog({
                   เปลี่ยนไฟในตัวเรือนเดิม
                 </Choice>
               </div>
+              {isRetro ? null : (
+                <div className="mb-2 text-sm">
+                  <Row label={`ราง alu. ${CANOE_RAIL}" (ในตัว Canoe)`}>
+                    <SkuSelect
+                      value={c.railSkuId ?? ""}
+                      preferred={rails.length ? rails : inCat("LED heat sink")}
+                      category={`LED heat sink ขนาด ${CANOE_RAIL}`}
+                      all={skus ?? []}
+                      onChange={(id) => set({ railSkuId: id || null })}
+                    />
+                  </Row>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    เบิกเท่าความยาว LED {formatQty(plan?.ledM ?? 0)} ม. และรวมในราคาต่อเมตร
+                  </p>
+                </div>
+              )}
               {isRetro ? (
                 <div className="grid gap-2 text-sm">
                   <Row label="ชื่อช่วงในใบ">
@@ -414,19 +436,19 @@ export function CanoeDialog({
               ) : (
               <div className="grid gap-2 text-sm">
                 {CANOE_SIZES.map((k: CanoeSize) => (
-                  <Row key={k} label={`ท่อน ${k}${c.double ? " (Double)" : ""}`}>
+                  <Row key={k} label={`ท่อนอะคริลิก ${k}${c.double ? " (Double)" : ""}`}>
                     <SkuSelect
                       value={c.housing[k] ?? ""}
                       preferred={housings}
-                      category="Canoe (ตัวเรือน)"
+                      category="Canoe (ท่อนอะคริลิก)"
                       all={skus ?? []}
-                      noneLabel="— เลือก SKU ตัวเรือน —"
+                      noneLabel="— เลือก SKU ท่อน Canoe —"
                       onChange={(id) => set({ housing: { ...c.housing, [k]: id || undefined } })}
                     />
                   </Row>
                 ))}
                 <p className="text-xs text-muted-foreground">
-                  ยังไม่มี SKU ตัวเรือน Canoe? เพิ่มที่หน้า SKU ก่อน (เช่น CANOE-L-SINGLE) แล้วตั้งราคาขาย
+                  ยังไม่มี SKU ท่อน Canoe? เพิ่มที่หน้า SKU ก่อน (เช่น CANOE-L-SINGLE) แล้วตั้งราคาขาย
                 </p>
               </div>
               )}

@@ -97,6 +97,31 @@ test("a joined run is not fitted as one long piece row", async () => {
   expect(plan.runM).toBe(1.4);
 });
 
+test("4/8 rail inside every Canoe: metres = LED metres, in the price per metre", () => {
+  const prices = new Map([
+    ["led", { unitPrice: 1000, maxDiscount: 0 }],
+    ["rail", { unitPrice: 100, maxDiscount: 0 }],
+    ["pl", { unitPrice: 500, maxDiscount: 0 }],
+    ["ssh", { unitPrice: 2000, maxDiscount: 0 }],
+    ["cov", { unitPrice: 300, maxDiscount: 0 }],
+  ]);
+  const c = { v: 1, blockId: "a", code: "", title: "", ledSkuId: "led", railSkuId: "rail", double: false, housing: { L: "pl" }, runs: [{ length: 2.49, sets: 1 }], rowIds: [] };
+  let n = 0;
+  const id = () => `x${++n}`;
+  const acrylic = buildCanoe(c, led14, prices, id);
+  const rail = (b) => b.rows[1].recipes.find((r) => r.sku_id === "rail");
+  expect(rail(acrylic).qty).toBe(2.5); // 5 L
+  expect(acrylic.list).toBeCloseTo(2500 + 250 + 2500, 0);
+  // double: one rail per strip
+  expect(rail(buildCanoe({ ...c, double: true, housing: { L: "pl", M: "pl", S: "pl", SS: "pl" } }, led14, prices, id)).qty).toBe(acrylic.plan.ledM * 2);
+  // stainless housing: the rail is still inside
+  const ss = buildCanoe({ ...c, housingType: "ss", ss: { model: "3150", customW: 0, customH: 0, grade: "SS304", diffuser: "Opal", housingSkuId: "ssh", coverSkuId: "cov", surcharge: 0 } }, led14, prices, id);
+  expect(rail(ss).qty).toBe(2.5);
+  expect(ss.problems).toEqual([]);
+  // older sets without a rail keep their parts until reopened
+  expect(buildCanoe({ ...c, railSkuId: null }, led14, prices, id).rows[1].recipes.some((r) => r.sku_id === "rail")).toBe(false);
+});
+
 test("retrofit in an existing housing, like SALA BANG PAIN: 2 mm joints, 59 pieces, 59 sets", () => {
   const prices = new Map([
     ["led", { unitPrice: 1000, maxDiscount: 10 }],
@@ -125,11 +150,11 @@ test("retrofit in an existing housing, like SALA BANG PAIN: 2 mm joints, 59 piec
   ]);
   expect(b.rows[0].item_no).toBe("1");
   expect(b.rows[1].unit_price).toBe(Math.round(((29.4 * 1000) / 29.5) * 100) / 100); // LED 29.4 m over 29.5 m of run
-  expect(b.rows[2].unit_price).toBe(150);
+  expect(b.rows[2].unit_price).toBe(Math.round(((29.4 * 150) / 29.5) * 100) / 100); // rail + jacket follow the LED metres
   expect(b.rows[3].unit_price).toBe(800);
   expect(b.problems).toEqual([]);
   expect(parseCanoe(b.rows[1].recipes[0].note).housingType).toBe("retrofit");
-  expect(b.rows.flatMap((r) => r.recipes).map((r) => [r.sku_id, r.qty])).toEqual([["led", 29.4], ["alu", 29.5], ["jk", 29.5], ["kit", 59]]);
+  expect(b.rows.flatMap((r) => r.recipes).map((r) => [r.sku_id, r.qty])).toEqual([["led", 29.4], ["alu", 29.4], ["jk", 29.4], ["kit", 59]]);
   // no 20 cm piece: 0.70 m = 40 + 30, never 50 + 20
   expect(planCanoe({ double: false, housingType: "retrofit", runs: [{ length: 0.7, sets: 1 }] }, led14).totals).toEqual({ L: 0, M: 1, S: 1, SS: 0 });
   // a person decides: 59 × 50 cm, over the limit but allowed, LED follows

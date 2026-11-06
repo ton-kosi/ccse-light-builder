@@ -131,7 +131,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
                     </td>
                   ))}
                   <td colSpan={2} className="text-right">
-                    LED {formatQty(b.plan.ledM)} ม.
+                    LED {formatQty(b.plan.ledM)} ม. · ราง 4/8 {formatQty(b.plan.ledM)} ม.
                   </td>
                   {b.ss ? <td className="text-right tabular-nums">{b.plan.ssBars} / {b.plan.ssCovers}</td> : null}
                 </tr>
@@ -141,7 +141,7 @@ export function CanoeProduction({ projectId, print = false }: { projectId: strin
               <thead className={print ? "" : "text-xs text-muted-foreground"}>
                 <tr>
                   <th className="px-1 text-left">ท่อน</th>
-                  {b.ss || b.retrofit ? null : <th className="px-1 text-right">ตัวเรือน (ซม.)</th>}
+                  {b.ss || b.retrofit ? null : <th className="px-1 text-right">ท่อน Canoe (ซม.)</th>}
                   <th className="px-1 text-right">LED ด้านนอก</th>
                   {b.config.double ? <th className="px-1 text-right">LED ด้านใน</th> : null}
                   <th className="px-1 text-right">จำนวน</th>

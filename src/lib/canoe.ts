@@ -4,6 +4,8 @@
 // Owner rules (04/11/2026): a run may end up to 5 cm longer or 10 cm shorter than measured; when
 // several combinations fit, use the fewest pieces (then the closest); sold per metre of run;
 // a Double Canoe has LED on both sides (2 × LED).
+// The Canoe piece itself is acrylic with a 4/8 aluminium rail inside, one rail per LED strip, so every
+// Canoe draws rail metres = LED metres; stainless is only the outer housing (owner, 06/11/2026).
 
 import type { PartPrice } from "@/lib/fo";
 import { readTags } from "@/lib/skuCategory";
@@ -133,7 +135,6 @@ export type CanoeRun = { length: number; sets: number; label?: string };
  * Retrofit — new LED inside a housing already on site (SALA BANG PAIN QC25-54-304). Sealed pieces of
  * 50 cm, optionally 40 / 30 cm, with the usual 2 mm per joint because they can elongate. Each piece needs
  * one set of engraved acrylic + diffuser + IP68 cable. Housing and power supply stay as they are.
- * Rail: 4/8 for every Canoe (owner, 06/11/2026).
  */
 export const RETRO_SIZES: CanoeSize[] = ["L", "M", "S"];
 
@@ -220,7 +221,9 @@ export type CanoeConfig = {
   title: string;
   ledSkuId: string;
   double: boolean;
-  /** housing SKU per piece size (single or double housings, as chosen) — aluminium housing */
+  /** 4/8 rail inside the Canoe (retrofit: retro.heatsinkSkuId); absent on older sets */
+  railSkuId?: string | null;
+  /** SKU per piece size (acrylic Canoe, single or double, as chosen) */
   housing: Partial<Record<CanoeSize, string>>;
   /** "ss" = continuous stainless housing + acrylic cover; "retrofit" = housing already on site (older sets: aluminium) */
   housingType?: "alu" | "ss" | "retrofit";
@@ -311,7 +314,7 @@ function buildRetrofit(
   const lens = plan.runs.map((x) => `${m(x.length)}M${x.sets > 1 ? ` x ${x.sets}` : ""}`).join(" + ");
   const perRun = (amount: number) => (plan.runM > 0 ? round2(amount / plan.runM) : 0);
   const ledAmount = part(c.ledSkuId, plan.ledM);
-  const railQty = round(plan.runM * (c.double ? 2 : 1));
+  const railQty = plan.ledM;
   const railAmount = part(r.heatsinkSkuId, railQty) + part(r.jacketSkuId, railQty);
   const kitAmount = part(r.kitSkuId, plan.pieces);
   const rows: CanoeRow[] = [
@@ -408,6 +411,10 @@ export function buildCanoe(
   if (c.ledSkuId && plan.ledM > 0) {
     recipes.push({ sku_id: c.ledSkuId, qty: plan.ledM, note: tag("LED") });
     add(c.ledSkuId, plan.ledM);
+  }
+  if (c.railSkuId && plan.ledM > 0) {
+    recipes.push({ sku_id: c.railSkuId, qty: plan.ledM, note: tag("RAIL") });
+    add(c.railSkuId, plan.ledM);
   }
   if (ss) {
     const inM = (id: string) => /^m\.?$|เมตร/i.test(unitOf(id) ?? "");

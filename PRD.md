@@ -315,12 +315,15 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
   SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
   production sheet; it has its own section there (below).
+  - **Rail:** the Canoe piece is acrylic with a **4/8 aluminium rail inside**; stainless is only the outer
+    housing. Every Canoe type draws rail metres = LED metres (one rail per strip, so ×2 for Double), priced
+    into the line. Older saved sets get the rail when reopened and saved.
   - **Pieces by hand (all Canoe types):** type the L / M / S / SS counts in the builder's table when someone
     decides differently; it isn't held to the +5 / −10 cm limit, shows "กำหนดเอง" on the production sheet,
     and a different measured length goes back to automatic.
   - **เปลี่ยนไฟในตัวเรือนเดิม (retrofit, SALA BANG PAIN):** new LED inside a housing already on site.
     Pieces of 50 cm, optionally 40 / 30 cm, with the usual **2 mm per joint** in case they elongate
-    (automatic for 29.50 m: 58 L + 1 M). Rail: **4/8 for every Canoe**.
+    (automatic for 29.50 m: 58 L + 1 M).
     Separate priced lines: LED (metres), heat sink + single / double jacket (metres), and one set of
     engraved acrylic + diffuser + IP68 cable **per piece**; existing housing and power supply print as
     "existing" with no price. Parts go to the line recipes (tag `CNO`). The production sheet shows pieces,
@@ -579,6 +582,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 06/11/2026 | **Canoe rail:** every Canoe type now draws a 4/8 rail equal to its LED metres and prices it in (acrylic piece with the rail inside; stainless is the outer housing). Builder wording changed from "aluminium" to acrylic Canoe. |
 | 06/11/2026 | **Canoe retrofit:** "เปลี่ยนไฟในตัวเรือนเดิม" in the Canoe builder, following SALA BANG PAIN QC25-54-304, 2 mm per joint, 4/8 rail; piece counts can be set by hand on any Canoe; item number on Canoe blocks kept on re-save. |
 | 06/11/2026 | **Clipso standard (owner):** per SET pricing by default (1 LOT by switch), total cut length rounded up once at 5 cm, power supply count not printed, "NOTE : NO SERVICE TRACK.". Price lines are presented so the client feels the price is not high. |
 | 06/11/2026 | **Clipso fixes from the sample BOQs:** power supply of the LED's kind (12V, 15V or 700 mA units could be picked for any LED); no "x 0" line; "308T" instead of "308T width"; lumens text; extra lines in the lighting set; item numbers kept on re-save. Same voltage rule offered to all LED kinds through `psuForLed`. |
