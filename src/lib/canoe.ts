@@ -8,6 +8,7 @@
 // Canoe draws rail metres = LED metres; stainless is only the outer housing (owner, 06/11/2026).
 
 import type { PartPrice } from "@/lib/fo";
+import { pickPsu, type PsuOption } from "@/lib/linear";
 import { readTags } from "@/lib/skuCategory";
 
 export const CANOE_SIZES = ["L", "M", "S", "SS"] as const;
@@ -223,6 +224,13 @@ export type CanoeConfig = {
   double: boolean;
   /** 4/8 rail inside the Canoe (retrofit: retro.heatsinkSkuId); absent on older sets */
   railSkuId?: string | null;
+  jacketSkuId?: string | null;
+  /** stainless: engraved acrylic + IP68 cable, one per piece */
+  kitSkuId?: string | null;
+  /** 24V power supplies to size from; empty / absent = no power supply in this set */
+  psuOptions?: PsuOption[];
+  /** waterproof box, one per power supply */
+  wpSkuId?: string | null;
   /** SKU per piece size (acrylic Canoe, single or double, as chosen) */
   housing: Partial<Record<CanoeSize, string>>;
   /** "ss" = continuous stainless housing + acrylic cover; "retrofit" = housing already on site (older sets: aluminium) */
@@ -378,6 +386,19 @@ function buildRetrofit(
   };
 }
 
+/** Power supplies for the set: all its LED on 24V at 80 % load (FAIRMONT: 65.5 m x 14.4 W → 3 x 451 W). */
+export function canoePsu(c: Pick<CanoeConfig, "psuOptions">, led: SkuLite | undefined, ledM: number) {
+  const w = led ? wattOfLed(led) : null;
+  return w && c.psuOptions?.length ? pickPsu(w * ledM, c.psuOptions, 0.8) : null;
+}
+
+/** The WP box listed for a power supply: "ACC-WPbox-PS-8.8,14.6" fits "...-24-14.6". */
+export function wpBoxFor<T extends { code: string; name: string }>(psu: { code: string } | undefined, boxes: T[]): T | null {
+  const amps = psu?.code.match(/-(\d+(?:\.\d+)?)(?:-IP)?$/)?.[1];
+  if (!amps) return null;
+  return boxes.find((b) => /wp\s*-?box.*-PS-/i.test(b.code) && b.code.split("-PS-")[1]!.split(",").includes(amps)) ?? null;
+}
+
 /** BOQ rows for a Canoe block: a heading and one line priced per metre of run. */
 export function buildCanoe(
   c: CanoeConfig,
@@ -415,6 +436,23 @@ export function buildCanoe(
   if (c.railSkuId && plan.ledM > 0) {
     recipes.push({ sku_id: c.railSkuId, qty: plan.ledM, note: tag("RAIL") });
     add(c.railSkuId, plan.ledM);
+  }
+  if (c.jacketSkuId && plan.ledM > 0) {
+    recipes.push({ sku_id: c.jacketSkuId, qty: plan.ledM, note: tag("JACKET") });
+    add(c.jacketSkuId, plan.ledM);
+  }
+  if (ss && c.kitSkuId && plan.pieces > 0) {
+    recipes.push({ sku_id: c.kitSkuId, qty: plan.pieces, note: tag("KIT") });
+    add(c.kitSkuId, plan.pieces);
+  }
+  const psu = canoePsu(c, led, plan.ledM);
+  if (psu) {
+    recipes.push({ sku_id: psu.skuId, qty: psu.count, note: tag("PSU") });
+    add(psu.skuId, psu.count);
+    if (c.wpSkuId) {
+      recipes.push({ sku_id: c.wpSkuId, qty: psu.count, note: tag("WP BOX") });
+      add(c.wpSkuId, psu.count);
+    }
   }
   if (ss) {
     const inM = (id: string) => /^m\.?$|เมตร/i.test(unitOf(id) ?? "");
@@ -463,9 +501,10 @@ export function buildCanoe(
     {
       id: newId(),
       kind: "priced",
-      customer_text: ss
+      customer_text: (ss
         ? `${c.double ? "DOUBLE CANOE" : "CANOE"} ${ss.grade} ${ssSectionText(ss)}, ${ss.diffuser.toUpperCase()} DIFFUSER${led ? ` - ${led.name}` : ""}`
-        : `${c.double ? "DOUBLE CANOE" : "CANOE"}${led ? ` - ${led.name}` : ""}`,
+        : `${c.double ? "DOUBLE CANOE" : "CANOE"}${led ? ` - ${led.name}` : ""}`) +
+        (psu ? `\n- INCLUDING POWER SUPPLY${c.wpSkuId ? " w/ WP BOX" : ""}` : ""),
       qty: plan.runM,
       unit: "M.",
       unit_price: perM,

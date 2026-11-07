@@ -12,12 +12,15 @@ import {
   buildCanoe,
   CANOE_SIZES,
   canoeLengths,
+  canoePsu,
   defaultRetro,
   defaultSs,
   DIFFUSERS,
+  planCanoe,
   runsFromSpec,
   SS_GRADES,
   SS_MODELS,
+  wpBoxFor,
   type CanoeConfig,
   type CanoeSize,
   type RetroOptions,
@@ -25,6 +28,7 @@ import {
 } from "@/lib/canoe";
 import { parseCutSpec } from "@/lib/cutSpec";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
+import { linearSkuGroups } from "@/lib/linear";
 import { CANOE_RAIL, railOf } from "@/lib/profiles";
 import { categoryOf, SKU_OPTIONS_KEY } from "@/lib/skuCategory";
 import { useSkuPrices } from "@/lib/skuPrices";
@@ -113,12 +117,22 @@ export function CanoeDialog({
   const ssHousings = useMemo(() => (skus ?? []).filter((s) => /\bSS\b|SS[-\s]?3\d\d|stainless|สแตนเลส/i.test(`${s.code} ${s.name}`)), [skus]);
   const covers = useMemo(() => (skus ?? []).filter((s) => /acrylic|cover|อะคริลิก|ฝาครอบ/i.test(`${s.code} ${s.name}`)), [skus]);
 
+  // power supply from the LED load; new sets include one, its WP box follows the size chosen
+  const psu24 = useMemo(() => linearSkuGroups(skus ?? []).psu24For("NON-DIM"), [skus]);
+  const [withPsu, setWithPsu] = useState(editing ? !!editing.config.psuOptions?.length : true);
+  const [withWp, setWithWp] = useState(editing ? !!editing.config.wpSkuId : true);
+
   const parsed = spec.trim() ? parseCutSpec(spec) : null;
   const specError = parsed && "error" in parsed ? parsed.error : null;
   // each side of a joined run [a+b] (L-shape, pool steps) gets its own pieces
   const runs = parsed && !("error" in parsed) ? runsFromSpec(parsed.runs) : [];
-  const cfg: CanoeConfig = { ...c, runs, spec };
   const led = byId.get(c.ledSkuId);
+  const wpBoxes = useMemo(() => (skus ?? []).filter((s) => /wp\s*-?box/i.test(s.code)), [skus]);
+  const base: CanoeConfig = { ...c, runs, spec, psuOptions: withPsu && !isRetro ? psu24 : [] };
+  const ledMNow = withPsu && !isRetro ? planCanoe(base, led).ledM : 0;
+  const psuNow = canoePsu(base, led, ledMNow);
+  const wpNow = psuNow && withWp ? wpBoxFor(byId.get(psuNow.skuId), wpBoxes) : null;
+  const cfg: CanoeConfig = { ...base, wpSkuId: wpNow?.id ?? null };
   const built = useMemo(
     () => (prices ? buildCanoe(cfg, led, prices, () => crypto.randomUUID(), (id) => byId.get(id)?.unit) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,6 +339,46 @@ export function CanoeDialog({
                   <p className="mt-1 text-xs text-muted-foreground">
                     เบิกเท่าความยาว LED {formatQty(plan?.ledM ?? 0)} ม. และรวมในราคาต่อเมตร
                   </p>
+                  <div className="mt-2 grid gap-2">
+                    <Row label="Jacket">
+                      <SkuSelect value={c.jacketSkuId ?? ""} preferred={inCat("LED jacket")} category="LED jacket" all={skus ?? []} noneLabel="— ไม่ใช้ —" onChange={(id) => set({ jacketSkuId: id || null })} />
+                    </Row>
+                    {isSS ? (
+                      <Row label="อะคริลิก + สาย IP68 (ต่อท่อน)">
+                        <SkuSelect value={c.kitSkuId ?? ""} preferred={covers} category="ชุดอะคริลิก" all={skus ?? []} noneLabel="— ไม่ใช้ —" onChange={(id) => set({ kitSkuId: id || null })} />
+                      </Row>
+                    ) : null}
+                    <Row label="หม้อแปลง">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Choice on={withPsu} onClick={() => setWithPsu(true)}>
+                          รวม
+                        </Choice>
+                        <Choice on={!withPsu} onClick={() => setWithPsu(false)}>
+                          ไม่รวม
+                        </Choice>
+                        {withPsu ? (
+                          <span className="text-xs text-muted-foreground">
+                            {psuNow ? `${psuNow.count} × ${byId.get(psuNow.skuId)?.code ?? ""} (โหลดไม่เกิน 80%)` : "ใส่ไฟและความยาวก่อน"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </Row>
+                    {withPsu ? (
+                      <Row label="กล่องกันน้ำ">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Choice on={withWp} onClick={() => setWithWp(true)}>
+                            รวม
+                          </Choice>
+                          <Choice on={!withWp} onClick={() => setWithWp(false)}>
+                            ไม่รวม
+                          </Choice>
+                          {withWp ? (
+                            <span className="text-xs text-muted-foreground">{wpNow ? wpNow.code : psuNow ? "ไม่พบกล่องของหม้อแปลงรุ่นนี้" : ""}</span>
+                          ) : null}
+                        </div>
+                      </Row>
+                    ) : null}
+                  </div>
                 </div>
               )}
               {isRetro ? (

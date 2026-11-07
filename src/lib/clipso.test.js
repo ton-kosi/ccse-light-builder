@@ -71,12 +71,12 @@ test("combined block = one SET line like VN-01", () => {
     "- OPENING SIZE : 1.42M x 9.42M x 4PCS.",
     "- OPENING SIZE : 1.42M x 7.90M x 4PCS.",
     "- OPENING SIZE : 1.42M x 7.76M x 8PCS.",
-    "- CALCULATION SIZE : 3.24M x 67.30M",
+    "- CALCULATION SIZE : 3.40M x 67.30M",
     '- CEILING PROFILE "CW"',
   ]);
   // exact 67.28 → total rounded once to 67.30; 3.4 x 67.3 = 228.82 m² x 1500 + track 164 x 400
   expect(b.rows[0].unit_price).toBe(228.82 * 1500 + 164 * 400);
-  expect(b.rows[0].recipes.map((r) => [r.sku_id, r.qty])).toEqual([["f34", 228.82], ["cw", 164]]);
+  expect(b.rows[0].recipes.map((r) => [r.sku_id, r.qty])).toEqual([["f34", 67.3], ["cw", 164]]);
   expect(parseClipso(b.rows[0].recipes[0].note).panels.length).toBe(3);
 });
 
@@ -89,10 +89,10 @@ test("separate sizes: one line per opening, price per set", () => {
   expect(b.rows.map((r) => r.customer_text.split("\n")[0])).toEqual(['CLIPSO FABRIC "308T"', "SIZE : DIA : 2.16M"]);
   const line = b.rows[1];
   expect(line.qty).toBe(2);
-  expect(line.customer_text).toContain("- CALCULATION SIZE 2.36M x 2.40M");
+  expect(line.customer_text).toContain("- CALCULATION SIZE 3.40M x 2.40M");
   // per set: 3.4 x 2.4 = 8.16 m² x 1500 + 4 track x 400
   expect(line.unit_price).toBe(8.16 * 1500 + 1600);
-  expect(line.recipes.map((r) => r.qty)).toEqual([16.32, 8]);
+  expect(line.recipes.map((r) => r.qty)).toEqual([4.8, 8]);
 });
 
 test("luminous ceiling adds the LED set", () => {
@@ -152,10 +152,10 @@ test("luminous ceiling with modules", () => {
   expect(led.unit_price).toBe(78 * 300 + 1000);
 });
 
-test("single piece: calculation size keeps the opening's orientation", () => {
+test("single piece: calculation size is the roll width x length charged", () => {
   const b = buildClipso({ ...base, code: "", fabricName: "", panels: [R(1.6, 3.7)] }, PRICES, ids);
-  // laid across a 5.1 roll (3.90 across, 1.80 along) but shown as width x length
-  expect(b.rows[0].customer_text).toContain("- CALCULATION SIZE : 1.80M x 3.90M");
+  // cheapest here: across a 5.1 roll (3.90 across, 1.80 along)
+  expect(b.rows[0].customer_text).toContain("- CALCULATION SIZE : 5.10M x 1.80M");
 });
 
 test("power supply follows the LED's kind; no x 0; extras, lumens, item numbers", () => {

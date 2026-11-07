@@ -10,6 +10,8 @@
  *    selvage left over on the side is included
  *  - only the total cut length is rounded up (5 cm by default), never each piece
  *  - the width (3.4 / 5.1) that costs least is used unless one is forced
+ *  - price and cost comparison are per sq.m (the SKU's selling price is per sq.m); stock is cut in
+ *    metres of that roll width, so the recipe qty is metres, not sq.m
  * Track (CC / CW): 2 m lengths, per opening ceil(perimeter / 2) — offcuts are paid for.
  * Lighting above (optional): LED rows spaced at 1.5 × cavity depth (20 cm → 30 cm),
  *   PSU per opening at 80 % load for the chosen dimming, of the LED's own kind
@@ -284,20 +286,8 @@ export type ClpRow = {
 
 export const CLP_TAG = "CLP ";
 
-/**
- * "Calculation size" for the quotation: a single piece is shown the same way round as its opening
- * (width x length, with the rounded cut length); several pieces show roll width used x total length.
- */
-function calcSize(lay: Layout, group: Panel[]): string {
-  const only = lay.strips.length === 1 && lay.strips[0]!.items.length === 1 ? lay.strips[0]!.items[0]! : null;
-  if (only) {
-    const [a] = cutSize(group[only.panel]!);
-    const turned = Math.abs(only.across - a) > 1e-9; // laid with its length across the roll
-    const len = lay.length;
-    return turned ? `${m(len)} x ${m(only.across)}` : `${m(only.across)} x ${m(len)}`;
-  }
-  return `${m(lay.usedWidth)} x ${m(lay.length)}`;
-}
+/** "Calculation size": roll width x total length, which is what is charged (rolls are 3.40 / 5.10 m). */
+const calcSize = (lay: Layout) => `${m(lay.width)} x ${m(lay.length)}`;
 const sizeText = (p: Panel) =>
   p.shape === "circle" ? `DIA : ${m(p.w)}` : `${m(p.w)} x ${m(p.l)}`;
 
@@ -344,7 +334,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
     add(fab * mult, pick.fabric.skuId);
     add(trk * mult, c.trackSkuId);
     const recipes: ClpRecipe[] = [
-      { sku_id: pick.fabric.skuId, qty: r3(pick.lay.area * mult), note: tag("FABRIC") },
+      { sku_id: pick.fabric.skuId, qty: r3(pick.lay.length * mult), note: tag("FABRIC") },
     ];
     if (c.trackSkuId) recipes.push({ sku_id: c.trackSkuId, qty: trackQty * mult, note: tag("TRACK") });
     return { pick, amount: fab + trk, recipes };
@@ -372,7 +362,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
           (p) =>
             `- OPENING SIZE : ${sizeText(p)}${p.qty > 1 ? ` x ${p.qty}PCS.` : ""}`,
         ),
-        `- CALCULATION SIZE : ${calcSize(f.pick.lay, panels)}`,
+        `- CALCULATION SIZE : ${calcSize(f.pick.lay)}`,
         profileLine,
       ];
       rows.push({
@@ -393,7 +383,7 @@ export function buildClipso(c: ClipsoConfig, prices: Map<string, PartPrice>, new
         kind: "priced",
         customer_text: [
           `SIZE : ${sizeText(p)}`,
-          `- CALCULATION SIZE ${calcSize(lay, [p])}`,
+          `- CALCULATION SIZE ${calcSize(lay)}`,
           profileLine,
         ].join("\n"),
         qty: p.qty,

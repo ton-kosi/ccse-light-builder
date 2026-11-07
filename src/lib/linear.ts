@@ -129,7 +129,8 @@ export function circuitQty(ck: Circuit, c: Pick<LinearConfig, "cutStepCm">): num
     ck.lengths.reduce((s, x) => s + (x > 0 ? (Math.ceil((x * 100) / step - 1e-6) * step) / 100 : 0), 0),
   );
 }
-const m = (x: number) => `${x.toFixed(2)}M`;
+// keeps millimetres when they were typed: 3.20M, 2.848M
+const m = (x: number) => `${x.toFixed(Number.isInteger(Math.round(x * 1000) / 10) ? 2 : 3)}M`;
 
 export function dimLabel(d: DimType): string {
   return d === "NON-DIM" ? "NON-DIM" : d === "0-10V" || d === "1-10V" ? `${d} DIM` : `${d}-DIM`;

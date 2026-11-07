@@ -221,6 +221,11 @@ test("power supply of the LED's own kind: 12V, constant current", () => {
   ]);
 });
 
+test("lengths keep the millimetres typed", () => {
+  const { rows } = buildLinear({ ...base, circuits: [{ ckt: "A", lengths: [2.848, 3.2] }] }, PRICES, ids);
+  expect(rows.find((r) => r.customer_text.startsWith("- L =")).customer_text).toBe("- L = 2.848M + 3.20M");
+});
+
 test("item number: heading + circuits, survives without circuit numbers", () => {
   const { rows } = buildLinear({ ...base, itemNo: "3" }, PRICES, ids);
   expect(rows.filter((r) => r.item_no).map((r) => r.item_no)).toEqual(["3", "3.1", "3.2"]);

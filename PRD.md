@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 06/11/2026
+> Last updated: 07/11/2026
 
 ## 1. Overview
 
@@ -291,7 +291,9 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ **Clipso stretch ceiling** — power supplies of the LED's own kind (24V, 12V or constant current
   700 mA, not any unit that is big enough), printed per size ("POWER SUPPLY 24V 75W DALI-DIM") or by
   current ("POWER SUPPLY 700mA NON-DIM"); counted per opening for stock, **the count is not printed**.
-  **Pricing standard (owner, 06/11/2026):** fabric and lighting are priced per SET, one per opening, so
+  Calculation size = **roll width** × total length (rolls are 3.40 / 5.10 m; the 3.20 m in older quotations was
+  the old roll). **Fabric is priced per sq.m but stock is cut in metres of that roll width** (owner, 07/11/2026): the
+  fabric SKU's selling price is per sq.m, its unit, stock and purchase cost are per metre, and the WOS shows the metres to cut. Power supplies stay **per light box**. **Pricing standard (owner, 06/11/2026):** fabric and lighting are priced per SET, one per opening, so
   several openings show a smaller price each (total unchanged); a switch makes it 1 LOT. Only the **total**
   cut length is rounded up (5 cm by default; 25.64 → 25.65 M), never each piece. Without a service track the
   line reads "NOTE : NO SERVICE TRACK.". A special price (e.g. using a spare piece) is an exception for that job; lumens text and extra lines
@@ -315,6 +317,10 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (tag `CNO`), so material demand and the store issue get the LED and the housing pieces. Housing
   SKUs (one per size, single or double) must exist in the SKU list. Canoe LED is kept off the strip
   production sheet; it has its own section there (below).
+  - **Power supply and parts:** acrylic and stainless sets include 24V power supplies for the whole set at 80 % load
+    (switchable) with the WP box listed for that size, a jacket, and for stainless an acrylic + IP68 cable set per
+    piece. The customer still sees one line per metre with "INCLUDING POWER SUPPLY w/ WP BOX"; the WOS and stock get
+    separate lines. Pieces default to fewest, so mostly 50 cm; other sizes by hand.
   - **Rail:** the Canoe piece is acrylic with a **4/8 aluminium rail inside**; stainless is only the outer
     housing. Every Canoe type draws rail metres = LED metres (one rail per strip, so ×2 for Double), priced
     into the line. Older saved sets get the rail when reopened and saved.
@@ -474,6 +480,13 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   Monday–Friday from install start to handover, minus public holidays — as the
   quotations say) and moves the project from 6–8 to **9 ส่งมอบ**,
   which makes "งานแล้วเสร็จ" payment terms due.
+- ✅ **ใบ Work (WOS) print: real materials.** Builder lines sold as one SET or per metre (Clipso, fibre optic,
+  acrylic / stainless Canoe) are printed with separate rows and real quantities from their stock lines: actual
+  LED model, modules and grid ("7 × 5 = 35 ชิ้น"), profile metres, cable metres per size, end finishing, power
+  supply model, WP box. The customer's quotation keeps its short lines and prices. **Every** line is on the
+  WOS: by-buyer lines say "by buyer", existing ones "ของเดิม", so the team is firm on what they don't prepare.
+  **WOS date = quotation date.** A หมายเหตุหลังบ้าน (`internal` line) prints in the หมายเหตุ column of the line above
+  it, typed with its date ("8/3/68 : พี่ป๊อปสั่งพับ SS"); at the very top it is a row of its own.
 - ✅ **ใบ Work (WOS) print** (`/print/wos/$projectId`) in the CCSE layout: DATE /
   SUBJ: WORK ORDER SHEET / PROJ / ATTN, P/J NO + ref, contacts (ติดต่อ) and schedule
   note from the project, items without prices with "- L = (0.682M x 2SETS) + …",
@@ -582,6 +595,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 07/11/2026 | **Clipso fabric:** stock lines now draw metres cut from the roll width (1.70 m of 3.40 m) instead of sq.m; the price is still sq.m × selling price. WOS shows the metres and the roll width. |
+| 06/11/2026 | **WOS matched to TARA / FAIRMONT / WYNN:** material breakdown with real quantities, all lines shown (by buyer / ของเดิม), date = quotation date, internal notes in the remark column, fixed double dashes, 0 qty and collapsed lines. Clipso calculation width = roll. Canoe: jacket, acrylic set, power supply and WP box. |
 | 06/11/2026 | **Canoe rail:** every Canoe type now draws a 4/8 rail equal to its LED metres and prices it in (acrylic piece with the rail inside; stainless is the outer housing). Builder wording changed from "aluminium" to acrylic Canoe. |
 | 06/11/2026 | **Canoe retrofit:** "เปลี่ยนไฟในตัวเรือนเดิม" in the Canoe builder, following SALA BANG PAIN QC25-54-304, 2 mm per joint, 4/8 rail; piece counts can be set by hand on any Canoe; item number on Canoe blocks kept on re-save. |
 | 06/11/2026 | **Clipso standard (owner):** per SET pricing by default (1 LOT by switch), total cut length rounded up once at 5 cm, power supply count not printed, "NOTE : NO SERVICE TRACK.". Price lines are presented so the client feels the price is not high. |

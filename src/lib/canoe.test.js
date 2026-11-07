@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { buildCanoe, canoeLengths, dotsOfLed, fitRun, parseCanoe, planCanoe } from "./canoe.ts";
+import { buildCanoe, canoeLengths, dotsOfLed, fitRun, parseCanoe, planCanoe, wpBoxFor } from "./canoe.ts";
 
 const led14 = { code: "LED-Top-14.4-60-3000N", name: "14.4W/m, 24Vdc, 60dots, 3000K, CRI90 Nichia" };
 const led96 = { code: "LED-Top-9.6-120-3000", name: "9.6W/m, 24Vdc, 120dots, 3000K, CRI90" };
@@ -120,6 +120,24 @@ test("4/8 rail inside every Canoe: metres = LED metres, in the price per metre",
   expect(ss.problems).toEqual([]);
   // older sets without a rail keep their parts until reopened
   expect(buildCanoe({ ...c, railSkuId: null }, led14, prices, id).rows[1].recipes.some((r) => r.sku_id === "rail")).toBe(false);
+});
+
+test("FAIRMONT stainless: jacket, acrylic per piece, power supply and WP box; customer keeps one line", () => {
+  const prices = new Map(["led", "rail", "jk", "kit", "ssh", "cov", "sw", "wp"].map((k) => [k, { unitPrice: 100, maxDiscount: 0 }]));
+  const c = {
+    v: 1, blockId: "s", code: "UW500", title: "LED CANOE", ledSkuId: "led", railSkuId: "rail", jacketSkuId: "jk", kitSkuId: "kit", double: false, housing: {},
+    housingType: "ss", ss: { model: "3150", customW: 0, customH: 0, grade: "SS316L", diffuser: "Jedi", housingSkuId: "ssh", coverSkuId: "cov", surcharge: 0 },
+    psuOptions: [{ skuId: "sw", watt: 451.2 }], wpSkuId: "wp", runs: [{ length: 65.8, sets: 1 }], rowIds: [],
+  };
+  const b = buildCanoe(c, led14, prices, () => crypto.randomUUID(), () => "m");
+  expect(b.rows.length).toBe(2);
+  expect(b.rows[1].customer_text).toContain("- INCLUDING POWER SUPPLY w/ WP BOX");
+  const q = Object.fromEntries(b.rows[1].recipes.map((r) => [r.sku_id, r.qty]));
+  expect([q.led, q.rail, q.jk, q.kit, q.sw, q.wp]).toEqual([65.5, 65.5, 65.5, 131, 3, 3]);
+  // no power supply chosen: the line stays as before
+  expect(buildCanoe({ ...c, psuOptions: [] }, led14, prices, () => "z", () => "m").rows[1].customer_text).not.toContain("POWER SUPPLY");
+  expect(wpBoxFor({ code: "ACC-PS-MW-CV-N-24-14.6" }, [{ code: "ACC-WPbox-PS-18.8", name: "" }, { code: "ACC-WPbox-PS-8.8,14.6", name: "" }])?.code).toBe("ACC-WPbox-PS-8.8,14.6");
+  expect(wpBoxFor({ code: "ACC-PS-MW-CV-N-24-150-IP" }, [{ code: "ACC-WPbox-PS-18.8", name: "" }])).toBeNull();
 });
 
 test("retrofit in an existing housing, like SALA BANG PAIN: 2 mm joints, 59 pieces, 59 sets", () => {

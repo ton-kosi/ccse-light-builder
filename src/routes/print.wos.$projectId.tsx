@@ -11,6 +11,7 @@ import { quotationRevisionSuffix } from "@/lib/boq";
 import { formatCutSpecWos, parseCutSpec, runsFromPieces } from "@/lib/cutSpec";
 import { formatQty } from "@/lib/format";
 import { buildA4Pdf } from "@/lib/pdf";
+import { attachNotes, blockConfigs, explodeLine, type WosRecipe, type WosSku } from "@/lib/wos";
 
 export const Route = createFileRoute("/print/wos/$projectId")({
   ssr: false,
@@ -60,14 +61,44 @@ function PrintWos() {
     queryKey: ["quotation", projectId, "wos"],
     enabled: !!header?.quotation_id,
     queryFn: async () => {
-      const { data } = await supabase.from("quotations").select("company_id").eq("id", header!.quotation_id).maybeSingle();
+      const { data } = await supabase.from("quotations").select("company_id, date").eq("id", header!.quotation_id).maybeSingle();
       return data;
+    },
+  });
+  // real materials of builder lines: quantities for the team, not on the customer's quotation
+  const lineIds = lines.map((l) => l.id);
+  const { data: parts } = useQuery({
+    queryKey: ["wos_parts", projectId, lineIds.join(",")],
+    enabled: lineIds.length > 0,
+    queryFn: async () => {
+      const { data: rec, error } = await supabase
+        .from("line_recipes")
+        .select("quote_line_id, sku_id, qty, note")
+        .in("quote_line_id", lineIds);
+      if (error) throw error;
+      const ids = [...new Set((rec ?? []).map((r) => r.sku_id))];
+      const { data: sk, error: e2 } = ids.length
+        ? await supabase.from("skus").select("id, code, name, unit").in("id", ids)
+        : { data: [] as WosSku[], error: null };
+      if (e2) throw e2;
+      const byLine = new Map<string, WosRecipe[]>();
+      for (const r of rec ?? []) byLine.set(r.quote_line_id, [...(byLine.get(r.quote_line_id) ?? []), r]);
+      return { byLine, all: (rec ?? []) as WosRecipe[], skus: new Map((sk ?? []).map((s) => [s.id, s as WosSku])) };
     },
   });
 
   if (isLoading || !p) return <p className="p-6 text-sm text-muted-foreground">กำลังโหลด…</p>;
   const co = companyOf(companies, q?.company_id);
-  const rows = lines.filter((l) => l.kind !== "internal");
+  // internal notes go in the remark column of the line above; WOS only, never on the quotation
+  const { rows, notes } = attachNotes(lines);
+  const configs = blockConfigs(parts?.all ?? []);
+  const skuOf = (id: string) => parts?.skus.get(id);
+  const noteLines = (id: string) =>
+    (notes.get(id) ?? []).map((t, i) => (
+      <div key={i} className="whitespace-pre-line text-destructive">
+        {t}
+      </div>
+    ));
   const cell = "border-x border-foreground px-1.5 py-0.5 align-top";
   const deposit = p.released_by === "deposit";
   const ceo = p.released_by === "ceo";
@@ -95,7 +126,7 @@ function PrintWos() {
           <div className="space-y-0.5">
             <div className="grid grid-cols-[14mm_1fr]">
               <b>DATE:</b>
-              <span>{enDate(new Date())}</span>
+              <span>{enDate(q?.date ? new Date(q.date) : new Date())}</span>
             </div>
             <div className="grid grid-cols-[14mm_1fr]">
               <b>SUBJ:</b>
@@ -142,18 +173,41 @@ function PrintWos() {
             {rows.map((l) => {
               const m = measured?.get(l.id);
               const name = l.component_name ?? l.heading_text ?? "";
-              if (l.kind === "heading")
+              const zoneRow = l.zone?.trim() ? (
+                <tr className="font-bold">
+                  <td className={cell} />
+                  <td className={cell} colSpan={5}>
+                    {l.zone}
+                  </td>
+                </tr>
+              ) : null;
+              if (l.kind === "internal")
                 return (
-                  <tr key={l.id} className="font-bold">
-                    <td className={cell + " text-center"}>{l.item_no}</td>
-                    <td className={cell} colSpan={3}>
-                      {name}
-                      {l.zone ? ` · ${l.zone}` : ""}
-                    </td>
-                    <td className={cell}>{l.circuit_note}</td>
+                  <tr key={l.id} className="font-semibold text-destructive">
                     <td className={cell} />
+                    <td className={cell + " whitespace-pre-line"} colSpan={5}>
+                      {name}
+                    </td>
                   </tr>
                 );
+              if (l.kind === "heading")
+                return (
+                  <Fragment key={l.id}>
+                    {zoneRow}
+                    <tr className="font-bold">
+                      <td className={cell + " text-center"}>{l.item_no}</td>
+                      <td className={cell + " whitespace-pre-line"} colSpan={3}>
+                        {name}
+                      </td>
+                      <td className={cell + " font-normal"}>
+                        {l.circuit_note}
+                        {noteLines(l.id)}
+                      </td>
+                      <td className={cell} />
+                    </tr>
+                  </Fragment>
+                );
+              const ex = explodeLine(name, parts?.byLine.get(l.id) ?? [], skuOf, configs);
               const spec = m?.cut_spec ? parseCutSpec(m.cut_spec) : null;
               // measured notation → measured pieces → contract pieces
               const pieces = m?.cut_lengths?.length ? m.cut_lengths : l.cut_lengths;
@@ -164,18 +218,23 @@ function PrintWos() {
                     ? formatCutSpecWos(runsFromPieces(pieces.map(Number)))
                     : "";
               const changed = m?.measured_qty != null && Number(m.measured_qty) !== Number(l.qty ?? 0);
-              const site = l.kind === "by_buyer" || l.kind === "existing";
+              const siteWord = l.kind === "by_buyer" ? "by buyer" : l.kind === "existing" ? "ของเดิม" : null;
+              const noQty = l.kind === "display" || !ex.lineQty;
+              const intro = ex.intro;
               return (
                 <Fragment key={l.id}>
+                  {zoneRow}
                   <tr>
                     <td className={cell + " text-center"}>{l.item_no}</td>
-                    <td className={cell}>
-                      {l.item_no ? name : `- ${name}`}
+                    <td className={cell + " whitespace-pre-line"}>
+                      {intro}
                       {specText ? <div>- L = {specText}</div> : null}
                     </td>
                     <td className={cell + " text-right tabular-nums"}>
-                      {site ? (
-                        "by buyer"
+                      {siteWord ? (
+                        <b>{siteWord}</b>
+                      ) : noQty ? (
+                        ""
                       ) : changed ? (
                         <>
                           <s className="text-muted-foreground">{formatQty(Number(l.qty ?? 0))}</s>{" "}
@@ -185,17 +244,29 @@ function PrintWos() {
                         formatQty(Number(l.qty ?? 0))
                       )}
                     </td>
-                    <td className={cell}>{site ? "" : l.unit}</td>
+                    <td className={cell}>{siteWord || noQty ? "" : l.unit}</td>
                     <td className={cell}>
+                      {ex.remark ? <div>{ex.remark}</div> : null}
                       {l.circuit_note ? <div>{l.circuit_note}</div> : null}
                       {m ? (
                         <div className="text-destructive">
                           {thaiShort(m.measured_at)} : วัดหน้างานจริง{m.note ? ` — ${m.note}` : ""}
                         </div>
                       ) : null}
+                      {noteLines(l.id)}
                     </td>
                     <td className={cell} />
                   </tr>
+                  {ex.parts.map((x, i) => (
+                    <tr key={i}>
+                      <td className={cell} />
+                      <td className={cell + " whitespace-pre-wrap"}>{x.text}</td>
+                      <td className={cell + " text-right tabular-nums"}>{x.qty != null ? formatQty(x.qty) : ""}</td>
+                      <td className={cell}>{x.unit ?? ""}</td>
+                      <td className={cell}>{x.remark ?? ""}</td>
+                      <td className={cell} />
+                    </tr>
+                  ))}
                 </Fragment>
               );
             })}
