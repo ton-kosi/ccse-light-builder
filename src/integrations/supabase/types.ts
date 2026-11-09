@@ -405,6 +405,30 @@ export type Database = {
         }
         Relationships: []
       }
+      doc_counters: {
+        Row: {
+          company_id: string
+          kind: string
+          last_no: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          company_id?: string
+          kind: string
+          last_no?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          kind?: string
+          last_no?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       handovers: {
         Row: {
           created_at: string
@@ -2447,6 +2471,7 @@ export type Database = {
         Args: { _kit_sku_id: string; _note?: string; _qty: number }
         Returns: undefined
       }
+      assign_job_no: { Args: { _project_id: string }; Returns: string }
       cancel_billing_doc: {
         Args: { _id: string; _reason: string }
         Returns: undefined
@@ -2489,6 +2514,7 @@ export type Database = {
           sku_id: string
         }[]
       }
+      next_quote_ref: { Args: { _company_id: string }; Returns: string }
       payment_quote: {
         Args: { _project_id?: string }
         Returns: {
@@ -2536,6 +2562,16 @@ export type Database = {
       plan_rolls: { Args: { _project_id: string }; Returns: undefined }
       refresh_sku_cost_from_purchases: {
         Args: { _sku: string }
+        Returns: undefined
+      }
+      replace_quote_block: {
+        Args: {
+          _lines: Json
+          _old_ids: string[]
+          _order: Json
+          _quotation_id: string
+          _recipes: Json
+        }
         Returns: undefined
       }
       sync_quotation_clauses: { Args: { _qid: string }; Returns: undefined }
