@@ -259,14 +259,14 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   or by the "ออกเลข P/J" button from status 4 when a job starts on the PO; it replaces the project code. The last P/J number
   used is set in ตั้งค่า. **Parts of a job** (owner's files: 68-013/1 FAIRMONT LANDSCAPE, 69-037/1 WYNN INDIAN
   BRASSERIE): "+ งานย่อย" on a project with a P/J creates 69-037/1, /2 … with the same customer, ATTN, site and contacts
-  and its own quotation (new QC / QO ref), revisions and bills. Only admin types a number by hand. Migration `0034_doc_numbers` pending in Lovable.
+  and its own quotation (new QC / QO ref), revisions and bills. Only admin types a number by hand. Applied by Lovable as `0036_doc_numbers` on 09/11/2026 and tested.
 - ✅ **Safe builder save:** a builder window replaces its lines and materials in one database step — all or nothing
-  (`replace_quote_block`, migration `0035_quote_safety` pending in Lovable). Until it is applied the new lines are
-  written first and the old ones removed last, so a failed save never loses the block.
+  (`replace_quote_block`, applied as `0037_quote_safety` on 09/11/2026; a save with a bad material was refused and
+  the old line stayed). Should the step be missing, the new lines are written first and the old ones removed last.
 - ✅ **Billed quotation is locked:** once a bill (not cancelled) is issued from a quotation, its lines and money settings
   (discount, VAT, adjustments, company, ref) can't change — the BOQ shows why and points to "สร้าง Rev ใหม่"; the bill keeps
   pointing at the version it was issued from. Materials and site measurements stay editable. Enforced in the database by
-  triggers (migration `0035_quote_safety`) as well as on screen.
+  triggers (`0037_quote_safety`) as well as on screen. Not yet tested: it needs a real bill.
 - ✅ **Builder lines stay with their materials:** quantity, unit, price, discount, type and text of a builder line only
   change through its builder window; deleting one of its lines deletes the whole block (after asking). A plain line's own
   materials follow when its quantity is changed by hand. Blocks in a new Rev reopen correctly (they used to add a second copy).
@@ -618,6 +618,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 09/11/2026 | Lovable applied the numbering and safety migrations (0036, 0037). Tested on a throwaway project (deleted, counters set back to 0): QO26-11-09-001, Rev R.01, P/J by button and automatically at status 6, one-step save refused a bad material without losing the old line. |
 | 09/11/2026 | **Safe builder save** (one step, all or nothing) and **billed quotation locked** (changes through a new Rev). Migration `0035_quote_safety` pending in Lovable. |
 | 09/11/2026 | Quotation ref count restarts every day (owner): QC26-11-09-001. **Parts of a job:** "+ งานย่อย" creates 69-037/1, /2 … with its own quotation. |
 | 07/11/2026 | **Automatic numbers:** QC / QO ref with the date, R.01 revisions, P/J no at deposit or by button. Migration `0034_doc_numbers` pending in Lovable. |
