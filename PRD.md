@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 07/11/2026
+> Last updated: 09/11/2026
 
 ## 1. Overview
 
@@ -253,9 +253,21 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ Revisions (Rev): first revision "A" is hidden on print; later ones show.
   Creating a Rev copies lines, clauses, payment terms, billings, receipts and
   site measurements.
-- ✅ **Final Rev from measurements** (BOQ tab, quote editors): contract vs
-  measured per line with the +/- money before and after VAT; one button creates
-  a new Rev whose quantities and cut lengths are the measured ones, and marks the
+- ✅ **Automatic numbers (owner, 07/11/2026):** quotation ref **QC26-11-07-001** = QC (CCSE) or QO (One), year, month,
+  day, then the company's count for that day (restarts at 001 every day); a new Rev keeps the ref and is numbered R.01, R.02. **P/J no 69-048** =
+  Buddhist year + one running count for both companies, issued automatically at status 6 (deposit received / CEO approved)
+  or by the "ออกเลข P/J" button from status 4 when a job starts on the PO; it replaces the project code. The last P/J number
+  used is set in ตั้งค่า. **Parts of a job** (owner's files: 68-013/1 FAIRMONT LANDSCAPE, 69-037/1 WYNN INDIAN
+  BRASSERIE): "+ งานย่อย" on a project with a P/J creates 69-037/1, /2 … with the same customer, ATTN, site and contacts
+  and its own quotation (new QC / QO ref), revisions and bills. Only admin types a number by hand. Migration `0034_doc_numbers` pending in Lovable.
+- ✅ **Builder lines stay with their materials:** quantity, unit, price, discount, type and text of a builder line only
+  change through its builder window; deleting one of its lines deletes the whole block (after asking). A plain line's own
+  materials follow when its quantity is changed by hand. Blocks in a new Rev reopen correctly (they used to add a second copy).
+- ✅ **Final Rev from measurements** (BOQ tab, quote editors): comparison of additions and reductions line by line,
+  in money before and after VAT and in materials; a tick per line chooses the measured value or the contract for the last
+  payment. LED linear, Clipso and Canoe blocks are rebuilt from the measurements (metres, fabric, profile, rail, power supplies);
+  each row keeps the price level of its contract. Other lines scale their own materials with the quantity; Jedi flex rolls,
+  fibre optic and film are not rebuilt. The button creates a new Rev with what was chosen, and marks the
   last payment term as the balance. An LED line measured in cut lengths bills what
   production really cuts (its round down / up choice on the production sheet), not
   the raw site length.
@@ -273,6 +285,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   mounting/trim, 3/8 vs 4/8 rail, PCB > 10 mm not allowed in W13/45° Reverse).
   IP decides only the jacket (IP65 double, IP44 / IP54 single); **profile or bare strip is a separate
   choice**. A bare strip prints "w/ EZ-CLIP" and takes the 4/8 rail unless EZ clips are switched off.
+  **Lengths** are typed like the WOS ("2.848x2", "0.682x2 + [3.015+3.515]x2") and print as "- L = (2.848M x 2SETS)"; text it can't read shows an error and stops the save, it is never skipped.
   **BOQ quantity:** LEDs of 120 dots/m or fewer (spare LED can be folded) and COB (too dense to fold,
   cut full) are rounded up to the LED's cut step **piece by piece** (1.35 × 6 at 10 cm = 8.40 M); other
   dense strips stay as typed. The typed length stays in "- L = …"; LED, rail, jacket, profile, paint and
@@ -480,6 +493,8 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   Monday–Friday from install start to handover, minus public holidays — as the
   quotations say) and moves the project from 6–8 to **9 ส่งมอบ**,
   which makes "งานแล้วเสร็จ" payment terms due.
+- ✅ **Clipso measured sizes:** on วัดหน้างาน a Clipso fabric line asks for the real size of each opening ("1.96x1.60", "1.88x1.85x3"); the WOS and the ใบ Work tab show the contract size crossed out beside it, with the measured date. The final Rev then recalculates fabric, profile, lighting and price from them.
+- ✅ **ใบ Work tab** shows the same material rows as the printed WOS.
 - ✅ **ใบ Work (WOS) print: real materials.** Builder lines sold as one SET or per metre (Clipso, fibre optic,
   acrylic / stainless Canoe) are printed with separate rows and real quantities from their stock lines: actual
   LED model, modules and grid ("7 × 5 = 35 ชิ้น"), profile metres, cable metres per size, end finishing, power
@@ -578,6 +593,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 ## 9. Open questions / backlog
 
+- ⬜ **BOQ gaps found 07/11/2026:** saving a builder removes the old lines before writing the new ones, so a failed save can lose the block; a quotation can still be edited after bills are issued; saving from the builder windows has not been run because selling prices are not set.
 - ⬜ Restrict `user_roles` and `recipe_items` reads to users who have a role.
 - ⬜ Turn off public sign-ups in Supabase Auth (invite-only is intended).
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
@@ -589,12 +605,16 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - 🟡 Collections (Phase D) not yet tested with real data: it needs an issued bill, which cannot be deleted afterwards — check it with the first real overdue bill.
 - Warranty rules start empty; the existing app uses its default warranty months until settings are saved. No warranty seed rows were inserted by migration 0018.
 - Repair ticket numbers remain generated by the BEFORE INSERT trigger; an empty column default lets generated client types accept new tickets without a caller-supplied number.
-- ⬜ Final Rev: line recipes with fixed quantities (custom builder blocks) are copied as they are — re-open the builder if a measured length changes material, e.g. LED strip or profile pieces.
+- ⬜ Final Rev: Jedi flex rolls, fibre optic and film are not rebuilt from measurements; only their materials scale with the quantity.
 
 ## 10. Change log
 
 | Date | Change |
 |---|---|
+| 09/11/2026 | Quotation ref count restarts every day (owner): QC26-11-09-001. **Parts of a job:** "+ งานย่อย" creates 69-037/1, /2 … with its own quotation. |
+| 07/11/2026 | **Automatic numbers:** QC / QO ref with the date, R.01 revisions, P/J no at deposit or by button. Migration `0034_doc_numbers` pending in Lovable. |
+| 07/11/2026 | **Final Rev comparison:** additions and reductions per line with a choice of measured or contract; LED linear, Clipso and Canoe rebuilt from measurements keeping contract price levels. **Builder lines** can't be changed or deleted line by line; plain lines' materials follow their quantity; blocks in a new Rev reopen without doubling. |
+| 07/11/2026 | **LED lengths** typed as sets and joined pieces, printed in the WOS style, millimetres kept on reopening, unreadable text stops the save. **Clipso measured opening sizes** shown crossed out old → new on the WOS. **ใบ Work tab** shows the same material rows as the print. |
 | 07/11/2026 | **Clipso fabric:** stock lines now draw metres cut from the roll width (1.70 m of 3.40 m) instead of sq.m; the price is still sq.m × selling price. WOS shows the metres and the roll width. |
 | 06/11/2026 | **WOS matched to TARA / FAIRMONT / WYNN:** material breakdown with real quantities, all lines shown (by buyer / ของเดิม), date = quotation date, internal notes in the remark column, fixed double dashes, 0 qty and collapsed lines. Clipso calculation width = roll. Canoe: jacket, acrylic set, power supply and WP box. |
 | 06/11/2026 | **Canoe rail:** every Canoe type now draws a 4/8 rail equal to its LED metres and prices it in (acrylic piece with the rail inside; stainless is the outer housing). Builder wording changed from "aluminium" to acrylic Canoe. |

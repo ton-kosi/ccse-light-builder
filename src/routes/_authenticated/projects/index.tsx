@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import { nextQuoteRef, numbersNotReady } from "@/lib/docNumbers";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
 import { formatDate } from "@/lib/format";
 
@@ -28,13 +29,14 @@ export const Route = createFileRoute("/_authenticated/projects/")({
 });
 
 function ProjectsPage() {
-  const { canEditSales } = useMe();
+  const { canEditSales, isAdmin } = useMe();
   const queryClient = useQueryClient();
   const custName = useCustomerNames();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [form, setForm] = useState({
     code: "",
+    company_id: "ccse",
     name: "",
     customer_id: "",
     attn: "",
@@ -65,8 +67,20 @@ function ProjectsPage() {
 
   const create = useMutation({
     mutationFn: async () => {
+      // blank = the next quotation number; the P/J number replaces it when the job is won
+      const typed = form.code.trim();
+      let code = typed;
+      if (!typed) {
+        try {
+          code = await nextQuoteRef(form.company_id);
+        } catch (e) {
+          throw new Error(numbersNotReady((e as Error).message) ? "ยังออกเลขอัตโนมัติไม่ได้ (รอ Lovable รันไฟล์ docs/sql/doc_numbers.sql) — กรอกรหัสงานเองก่อน" : (e as Error).message);
+        }
+      }
+      const id = crypto.randomUUID();
       const { error } = await supabase.from("projects").insert({
-        code: form.code,
+        id,
+        code,
         name: form.name,
         customer_id: form.customer_id || null,
         attn: form.attn || null,
@@ -74,10 +88,16 @@ function ProjectsPage() {
         notes: form.notes || null,
       });
       if (error) throw error;
+      if (!typed) {
+        const { error: e2 } = await supabase
+          .from("quotations")
+          .insert({ project_id: id, ref_no: code, rev: "A", is_current: true, company_id: form.company_id });
+        if (e2) throw e2;
+      }
     },
     onSuccess: () => {
       toast.success("สร้างโปรเจกต์แล้ว");
-      setForm({ code: "", name: "", customer_id: "", attn: "", site_address: "", notes: "" });
+      setForm({ code: "", company_id: "ccse", name: "", customer_id: "", attn: "", site_address: "", notes: "" });
       setOpen(false);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
@@ -116,13 +136,21 @@ function ProjectsPage() {
             create.mutate();
           }}
         >
-          <Field label="รหัสงาน * (เช่น P-PANO)">
-            <Input
-              required
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
+          <Field label="บริษัทที่เสนอราคา">
+            <select
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={form.company_id}
+              onChange={(e) => setForm({ ...form, company_id: e.target.value })}
+            >
+              <option value="ccse">CCSE (QC)</option>
+              <option value="one">One Engineering (QO)</option>
+            </select>
           </Field>
+          {isAdmin ? (
+            <Field label="รหัสงาน (เว้นว่าง = ออกเลขอัตโนมัติ)">
+              <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+            </Field>
+          ) : null}
           <Field label="ชื่องาน *">
             <Input
               required

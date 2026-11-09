@@ -159,6 +159,53 @@ export function explodeLine(
   return { ...plain, remark: r ? named(r) : null };
 }
 
+/* ---------------------------------------------------------------- measured Clipso openings */
+
+const OPEN_TAG = "OPEN ";
+const OPENING_LINE = /^(\s*-?\s*(?:OPENING )?SIZE\s*:\s*)(.+)$/;
+
+/** The opening sizes printed in a Clipso fabric line, one per line of the text. */
+export const openingLines = (text: string) =>
+  text.split("\n").flatMap((l) => {
+    const m = l.match(OPENING_LINE);
+    return m ? [m[2]!.trim()] : [];
+  });
+
+const size = (n: string) => `${Number(n).toFixed(2)}M`;
+
+/** "1.88x1.85x3" → "1.88M x 1.85M x 3PCS."; "2.16" (circle) → "DIA : 2.16M". */
+export function formatOpeningInput(input: string): string | { error: string } {
+  const t = input.trim().toLowerCase().replace(/[×*]/g, "x").replace(/\s+/g, "");
+  const m = t.match(/^(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)(?:x(\d+))?$/);
+  if (m) {
+    const pcs = m[3] ? Number(m[3]) : 1;
+    return `${size(m[1]!)} x ${size(m[2]!)}${pcs > 1 ? ` x ${pcs}PCS.` : ""}`;
+  }
+  const dia = t.match(/^(?:dia:?)?(\d+(?:\.\d+)?)$/);
+  if (dia) return `DIA : ${size(dia[1]!)}`;
+  return { error: `อ่านขนาดไม่ออก: "${input.trim()}" (ตัวอย่าง 1.96x1.60 หรือ 1.88x1.85x3)` };
+}
+
+/** Back to what is typed in the box: "1.88M x 1.85M x 3PCS." → "1.88x1.85x3". */
+export const openingInputOf = (saved: string) => saved.replace(/DIA : /, "").replace(/PCS\./, "").replace(/M/g, "").replace(/\s+/g, "");
+
+/** Saved in site_measurements.cut_spec; the "OPEN" tag keeps it apart from cut lengths. An empty slot = unchanged. */
+export const encodeOpenings = (sizes: string[]) => `${OPEN_TAG}${sizes.join("; ")}`;
+export const decodeOpenings = (spec: string | null | undefined): string[] | null =>
+  spec?.startsWith(OPEN_TAG) ? spec.slice(OPEN_TAG.length).split(";").map((s) => s.trim()) : null;
+
+/** The line's text, with the measured size next to the contract size it replaces. */
+export function markOpenings(text: string, spec: string | null | undefined) {
+  const sizes = decodeOpenings(spec);
+  let i = 0;
+  return text.split("\n").map((line) => {
+    const m = line.match(OPENING_LINE);
+    if (!m) return { text: line, old: null as string | null, next: null as string | null };
+    const next = sizes?.[i++] || null;
+    return next ? { text: m[1]!, old: m[2]!.trim(), next } : { text: line, old: null, next: null };
+  });
+}
+
 /** Internal notes go in the remark column of the line above; with nothing above, they stay a row of their own. */
 export function attachNotes<T extends { id: string; kind: string; heading_text?: string | null; component_name?: string | null }>(
   lines: T[],

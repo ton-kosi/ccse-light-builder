@@ -26,7 +26,8 @@ import {
   LINEAR_DIM_TYPES,
   linearSkuGroups,
   nominalWatt,
-  parseLengths,
+  circuitRuns,
+  parseCircuitLengths,
   psuOfCircuit,
   usesEz,
   usesProfile,
@@ -53,6 +54,7 @@ import {
   type MountType,
 } from "@/lib/profiles";
 import { dotsOfLed } from "@/lib/canoe";
+import { formatCutSpec } from "@/lib/cutSpec";
 import { formatQty, formatTHB, toNumber } from "@/lib/format";
 import { useSkuPrices } from "@/lib/skuPrices";
 
@@ -120,7 +122,7 @@ export function LinearDialog({
   const [disc, setDisc] = useState(editing ? String(editing.discount) : "0");
   const [lenText, setLenText] = useState<string[]>(
     editing
-      ? editing.config.circuits.map((k) => k.lengths.map((x) => x.toFixed(2)).join("+"))
+      ? editing.config.circuits.map((k) => formatCutSpec(circuitRuns(k)))
       : [""],
   );
 
@@ -670,18 +672,22 @@ export function LinearDialog({
                           <td className="py-1 pr-2">
                             <Input
                               value={lenText[i] ?? ""}
-                              placeholder="3.20"
+                              placeholder="3.20 หรือ 2.848x2"
+                              title="x = จำนวนชุด, [ ] = ต่อกัน เช่น 0.682x2 + [3.015+3.515]x2"
                               onChange={(e) => {
                                 const t = [...lenText];
                                 t[i] = e.target.value;
                                 setLenText(t);
                                 set({
                                   circuits: c.circuits.map((x, j) =>
-                                    j === i ? { ...x, lengths: parseLengths(e.target.value) } : x,
+                                    j === i ? { ...x, lengths: parseCircuitLengths(e.target.value).lengths, runs: parseCircuitLengths(e.target.value).runs, billedM: undefined } : x,
                                   ),
                                 });
                               }}
                             />
+                            {parseCircuitLengths(lenText[i] ?? "").error ? (
+                              <div className="mt-0.5 text-xs text-destructive">{parseCircuitLengths(lenText[i] ?? "").error}</div>
+                            ) : null}
                           </td>
                           <td className="py-1 text-right tabular-nums">
                             {L ? formatQty(L) : "—"}
@@ -885,7 +891,10 @@ export function LinearDialog({
           <Button variant="outline" onClick={onClose}>
             ยกเลิก
           </Button>
-          <Button disabled={!c || !built || save.isPending} onClick={() => save.mutate()}>
+          <Button
+            disabled={!c || !built || save.isPending || lenText.some((t) => !!parseCircuitLengths(t).error)}
+            onClick={() => save.mutate()}
+          >
             {save.isPending ? "กำลังบันทึก..." : "บันทึกชุดไฟเส้น"}
           </Button>
         </DialogFooter>

@@ -9,6 +9,7 @@ import { formatCutLengths } from "@/lib/boq";
 import { formatDate, formatQty } from "@/lib/format";
 import { isMeasurable, measurementFromInput } from "@/lib/measure";
 import { measurementsKey, useMeasurements, type Measurement } from "@/hooks/useMeasurements";
+import { decodeOpenings, encodeOpenings, formatOpeningInput, openingInputOf, openingLines } from "@/lib/wos";
 
 /**
  * วัดหน้างาน: the current BOQ lines (no prices) with the measured quantity and cut lengths.
@@ -73,6 +74,10 @@ function MeasureRow({
     qty: m?.measured_qty != null ? String(Number(m.measured_qty)) : "",
     note: m?.note ?? "",
   });
+  // Clipso fabric lines are measured as opening sizes, not cut lengths
+  const openings = openingLines(l.component_name ?? l.heading_text ?? "");
+  const savedOpenings = decodeOpenings(m?.cut_spec);
+  const [open, setOpen] = useState<string[]>(openings.map((_, i) => (savedOpenings?.[i] ? openingInputOf(savedOpenings[i]!) : "")));
   const refresh = () => {
     qc.invalidateQueries({ queryKey: measurementsKey(projectId) });
     qc.invalidateQueries({ queryKey: ["wo_lines", projectId] });
@@ -80,7 +85,14 @@ function MeasureRow({
 
   const save = useMutation({
     mutationFn: async () => {
-      const v = measurementFromInput({ qty: f.qty, cuts: f.cuts, unit: l.unit });
+      let v: ReturnType<typeof measurementFromInput>;
+      if (openings.length) {
+        const sizes = open.map((t) => (t.trim() ? formatOpeningInput(t) : ""));
+        const bad = sizes.find((s) => typeof s !== "string");
+        if (bad) throw new Error((bad as { error: string }).error);
+        if (sizes.every((s) => !s)) throw new Error("ใส่ขนาดช่องเปิดจริงอย่างน้อย 1 ช่อง");
+        v = { measured_qty: null, cut_lengths: null, cut_spec: encodeOpenings(sizes as string[]) };
+      } else v = measurementFromInput({ qty: f.qty, cuts: f.cuts, unit: l.unit });
       if ("error" in v) throw new Error(v.error);
       const { error } = await supabase.from("site_measurements").upsert(
         {
@@ -143,7 +155,25 @@ function MeasureRow({
           </div>
         </div>
       </div>
-      <div className="mt-2 grid gap-2 sm:grid-cols-[2fr_1fr_2fr_auto] sm:items-start">
+      {openings.length ? (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {openings.map((size, i) => (
+            <label key={i} className="text-xs">
+              <span className="text-muted-foreground">ขนาดจริงของช่อง {size} (กว้างxยาว หรือ กว้างxยาวxจำนวนช่อง)</span>
+              <Input
+                className="mt-0.5 h-9"
+                value={open[i] ?? ""}
+                disabled={!canEdit}
+                placeholder="เช่น 1.96x1.60 หรือ 1.88x1.85x3"
+                onChange={(e) => setOpen(open.map((t, j) => (j === i ? e.target.value : t)))}
+              />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className={"mt-2 grid gap-2 sm:items-start " + (openings.length ? "sm:grid-cols-[1fr_auto]" : "sm:grid-cols-[2fr_1fr_2fr_auto]")}>
+        {openings.length ? null : (
+        <>
         <label className="text-xs">
           <span className="text-muted-foreground">ความยาวที่วัด/ตัดจริง (ม.) · x = จำนวนชุด · [ ] = ต่อกัน</span>
           <Input
@@ -170,6 +200,8 @@ function MeasureRow({
             </span>
           ) : null}
         </label>
+        </>
+        )}
         <label className="text-xs">
           <span className="text-muted-foreground">หมายเหตุ</span>
           <Input

@@ -16,8 +16,7 @@ import {
   nominalWatt,
   roundUpStep,
   circuitQty,
-  nearFitPsu,
-} from "./linear.ts";
+  nearFitPsu, lengthText, parseCircuitLengths } from "./linear.ts";
 
 const PRICES = new Map([
   ["led18", { unitPrice: 900, maxDiscount: 20 }],
@@ -82,7 +81,7 @@ test("rows follow THE PANO layout", () => {
     "- INDUSTRIAL SPRAY PAINTING (BLACK)",
     "- POWER SUPPLY 24V 75W DALI-DIM",
     "CKT. NO. BRA-07",
-    "- L = 0.70M + 0.70M",
+    "- L = (0.70M x 2SETS)",
     "- ALUMINIUM HEAT DISSIPATION & SINGLE JACKET",
     "- ALUMINIUM V2.13 PROFILE & ACRYLIC DIFFUSER w/ MOUNTING",
     "- INDUSTRIAL SPRAY PAINTING (BLACK)",
@@ -345,4 +344,20 @@ test("no circuit number = no CKT. NO. line", () => {
   );
   expect(rows.some((r) => r.customer_text.startsWith("CKT"))).toBe(false);
   expect(rows.filter((r) => r.customer_text.startsWith("- L =")).length).toBe(2);
+});
+
+test("length box takes sets and joined pieces; prints like the WOS; bad text is an error", () => {
+  const a = parseCircuitLengths("2.848x2");
+  expect(a.lengths).toEqual([2.848, 2.848]);
+  expect(lengthText(a)).toBe("(2.848M x 2SETS)");
+  const b = parseCircuitLengths("0.682x2 + [3.015+3.515]x2");
+  expect(b.lengths).toEqual([0.682, 0.682, 3.015, 3.515, 3.015, 3.515]);
+  expect(lengthText(b)).toBe("(0.682M x 2SETS) + ([3.015M + 3.515M] x 2SETS)");
+  expect(lengthText(parseCircuitLengths("3.2"))).toBe("3.20M");
+  expect(lengthText(parseCircuitLengths("0.7+0.7"))).toBe("(0.70M x 2SETS)");
+  expect(lengthText(parseCircuitLengths("0.7 0.7 1"))).toBe("(0.70M x 2SETS) + 1.00M");
+  expect(lengthText({ lengths: [2.848, 3.2] })).toBe("2.848M + 3.20M"); // older block, no runs
+  expect(parseCircuitLengths("").error).toBeUndefined();
+  expect(parseCircuitLengths("2.8x").error).toBeTruthy();
+  expect(parseCircuitLengths("abc").error).toBeTruthy();
 });

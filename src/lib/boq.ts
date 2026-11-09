@@ -185,5 +185,6 @@ export function sumCut(arr: number[] | null | undefined): number {
 
 /** Initial quotations use A internally; only subsequent revisions have a visible suffix. */
 export function quotationRevisionSuffix(rev: string): string {
-  return !rev || rev === "A" ? "" : ` Rev ${rev}`;
+  if (!rev || rev === "A") return "";
+  return rev.startsWith("R.") ? ` ${rev}` : ` Rev ${rev}`;
 }

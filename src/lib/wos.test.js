@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { attachNotes, blockConfigs, explodeLine, roleOf } from "./wos.ts";
+import { attachNotes, blockConfigs, decodeOpenings, encodeOpenings, explodeLine, formatOpeningInput, markOpenings, openingInputOf, openingLines, roleOf } from "./wos.ts";
 
 const SKUS = new Map(
   [
@@ -111,4 +111,23 @@ test("internal notes join the line above; first one stays its own row", () => {
   expect(rows.map((r) => r.id)).toEqual(["a", "b", "d"]);
   expect(notes.get("b")).toEqual(["6/10/69 : วัดหลุมจริง"]);
   expect(notes.get("d")).toEqual(["สั่งแล้ว", "ถึง 20/3"]);
+});
+
+test("Clipso: measured opening sits beside the contract size it replaces, like TARA", () => {
+  const text = "CLIPSO FABRIC\n- OPENING SIZE : 2.15M x 5.30M\n- OPENING SIZE : 0.90M x 1.80M x 18PCS.\n- CALCULATION SIZE : 3.40M x 5.90M";
+  expect(openingLines(text)).toEqual(["2.15M x 5.30M", "0.90M x 1.80M x 18PCS."]);
+  expect(openingLines("SIZE : DIA : 2.16M\n- CALCULATION SIZE 3.40M x 2.40M")).toEqual(["DIA : 2.16M"]);
+  expect(formatOpeningInput("1.88x1.85x3")).toBe("1.88M x 1.85M x 3PCS.");
+  expect(formatOpeningInput("1.96 x 1.6")).toBe("1.96M x 1.60M");
+  expect(formatOpeningInput("2.16")).toBe("DIA : 2.16M");
+  expect(formatOpeningInput("abc").error).toBeTruthy();
+  expect(openingInputOf("1.88M x 1.85M x 3PCS.")).toBe("1.88x1.85x3");
+  const spec = encodeOpenings(["1.88M x 1.85M x 3PCS.", ""]);
+  expect(decodeOpenings(spec)).toEqual(["1.88M x 1.85M x 3PCS.", ""]);
+  expect(decodeOpenings("0.682x2")).toBeNull();
+  const m = markOpenings(text, spec);
+  expect(m[1]).toEqual({ text: "- OPENING SIZE : ", old: "2.15M x 5.30M", next: "1.88M x 1.85M x 3PCS." });
+  expect(m[2].next).toBeNull(); // not measured: unchanged
+  expect(m[2].text).toBe("- OPENING SIZE : 0.90M x 1.80M x 18PCS.");
+  expect(markOpenings(text, "0.682x2").every((l) => !l.old)).toBe(true);
 });

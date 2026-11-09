@@ -11,6 +11,26 @@ import { formatCutLengths } from "@/lib/boq";
 import { RELEASE_MIN_STATUS, statusLabel } from "@/lib/erp";
 import { formatDate, formatQty } from "@/lib/format";
 import { useMeasurements } from "@/hooks/useMeasurements";
+import { useWosParts } from "@/hooks/useWosParts";
+import { explodeLine, markOpenings } from "@/lib/wos";
+
+/** A line's text; a measured Clipso opening shows beside the contract size it replaces. */
+export function LineText({ text, spec }: { text: string; spec?: string | null | undefined }) {
+  return (
+    <>
+      {markOpenings(text, spec).map((x, i) => (
+        <div key={i} className="whitespace-pre-wrap">
+          {x.text}
+          {x.old ? (
+            <>
+              <s className="text-muted-foreground">{x.old}</s> <b className="text-destructive">{x.next}</b>
+            </>
+          ) : null}
+        </div>
+      ))}
+    </>
+  );
+}
 
 /** Price-free work sheet. Reads only from wo_* database functions (no price columns). */
 export function useWorkSheet(projectId: string) {
@@ -69,6 +89,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
   const { project, header, lines, pick, isLoading } = useWorkSheet(projectId);
   // measured on site (วัดหน้างาน) wins over the contract lengths until the final Rev takes them in
   const { data: measured } = useMeasurements(projectId);
+  const { recipesOf, skuOf, configs } = useWosParts(projectId, lines.map((l) => l.id));
   const { has } = useMe();
   const qc = useQueryClient();
 
@@ -220,8 +241,10 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                     </td>
                   </tr>
                 ) : null}
-                {g.rows.map((l) =>
-                  l.kind === "internal" ? (
+                {g.rows.map((l) => {
+                  const ex = explodeLine(name(l), recipesOf(l.id), skuOf, configs);
+                  const noQty = l.kind === "display" || !ex.lineQty;
+                  return l.kind === "internal" ? (
                     <tr key={l.id} className="bg-accent/30 italic">
                       <td className={td}>{l.item_no}</td>
                       <td className={td} colSpan={5}>
@@ -232,15 +255,19 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                       </td>
                     </tr>
                   ) : (
-                    <tr key={l.id}>
+                    <Fragment key={l.id}>
+                    <tr>
                       <td className={td}>{l.item_no}</td>
                       <td className={td}>
-                        {name(l)}
+                        <LineText text={ex.intro} spec={measured?.get(l.id)?.cut_spec} />
                         {l.component_code ? (
                           <span className="text-muted-foreground"> ({l.component_code})</span>
                         ) : null}
                       </td>
-                      <td className={td}>{l.circuit_note}</td>
+                      <td className={td}>
+                        {l.circuit_note}
+                        {ex.remark ? <div className="text-xs text-muted-foreground">{ex.remark}</div> : null}
+                      </td>
                       <td className={td}>
                         {measured?.get(l.id)?.cut_lengths?.length ? (
                           <>
@@ -252,7 +279,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                         )}
                       </td>
                       <td className={td + " text-right tabular-nums"}>
-                        {measured?.get(l.id)?.measured_qty != null ? (
+                        {noQty ? null : measured?.get(l.id)?.measured_qty != null ? (
                           <>
                             <b>{formatQty(Number(measured.get(l.id)!.measured_qty))}</b>
                             {Number(measured.get(l.id)!.measured_qty) !== Number(l.qty ?? 0) ? (
@@ -265,10 +292,21 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                           formatQty(Number(l.qty ?? 0))
                         )}
                       </td>
-                      <td className={td}>{l.unit}</td>
+                      <td className={td}>{noQty ? "" : l.unit}</td>
                     </tr>
-                  ),
-                )}
+                    {ex.parts.map((x, i) => (
+                      <tr key={i}>
+                        <td className={td} />
+                        <td className={td + " whitespace-pre-wrap"}>{x.text}</td>
+                        <td className={td + " text-xs text-muted-foreground"}>{x.remark}</td>
+                        <td className={td} />
+                        <td className={td + " text-right tabular-nums"}>{x.qty != null ? formatQty(x.qty) : ""}</td>
+                        <td className={td}>{x.unit}</td>
+                      </tr>
+                    ))}
+                    </Fragment>
+                  );
+                })}
               </Fragment>
             ))}
             {prod.length === 0 ? (
@@ -291,7 +329,7 @@ export function WorkSheet({ projectId, print = false }: { projectId: string; pri
                     <td className={td + " w-16"}>{l.item_no}</td>
                     <td className={td}>{name(l)}</td>
                     <td className={td + " w-24"}>
-                      {l.kind === "by_buyer" ? "by buyer" : "existing"}
+                      {l.kind === "by_buyer" ? "by buyer" : "ของเดิม"}
                     </td>
                     <td className={td + " w-24 text-right"}>
                       {l.qty != null ? `${formatQty(Number(l.qty))} ${l.unit ?? ""}` : ""}

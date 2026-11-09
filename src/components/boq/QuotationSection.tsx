@@ -12,6 +12,8 @@ import { QuoteFooter } from "@/components/boq/QuoteFooter";
 import { FinalRevPanel } from "@/components/boq/FinalRevPanel";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
 import { useCurrentQuotation } from "@/hooks/useCurrentQuotation";
+import { useMe } from "@/hooks/useMe";
+import { isAutoRef, nextQuoteRef } from "@/lib/docNumbers";
 import {
   ADJUSTMENT_PRESETS,
   VAT_MODES,
@@ -57,6 +59,7 @@ export function QuotationSection({
     select: (d) => (d.length ? d.reduce((s, t) => s + Number(t.percent), 0) : null),
   });
   const { quotation, lines } = useCurrentQuotation(projectId, true);
+  const { isAdmin } = useMe();
 
   const { data: revisions } = useQuery({
     queryKey: ["quotation_revs", projectId],
@@ -100,9 +103,12 @@ export function QuotationSection({
 
   const createQuotation = useMutation({
     mutationFn: async () => {
+      // the project's number when it is still the quotation number, else a new one
+      let ref = projectCode;
+      if (!isAutoRef(projectCode)) ref = await nextQuoteRef("ccse").catch(() => projectCode);
       const { error } = await supabase
         .from("quotations")
-        .insert({ project_id: projectId, ref_no: projectCode, rev: "A", is_current: true });
+        .insert({ project_id: projectId, ref_no: ref, rev: "A", is_current: true });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -231,7 +237,8 @@ export function QuotationSection({
         <Field label="เลขที่อ้างอิง">
           <Input
             defaultValue={quotation.ref_no}
-            disabled={!canEdit}
+            disabled={!isAdmin}
+            title="ออกเลขอัตโนมัติ แก้เองได้เฉพาะ admin"
             onBlur={(e) => {
               const v = e.target.value.trim();
               if (v && v !== quotation.ref_no) updateQuotation.mutate({ ref_no: v });
@@ -254,7 +261,25 @@ export function QuotationSection({
             className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             value={quotation.company_id ?? "ccse"}
             disabled={!canEdit}
-            onChange={(e) => updateQuotation.mutate({ company_id: e.target.value })}
+            onChange={async (e) => {
+              const company_id = e.target.value;
+              // QC and QO count separately: an automatic ref moves to the other company's count
+              if (isAutoRef(quotation.ref_no)) {
+                try {
+                  const ref_no = await nextQuoteRef(company_id);
+                  updateQuotation.mutate({ company_id, ref_no });
+                  if (projectCode === quotation.ref_no) {
+                    await supabase.from("projects").update({ code: ref_no }).eq("id", projectId);
+                    queryClient.invalidateQueries({ queryKey: ["project"] });
+                  }
+                  return;
+                } catch (err) {
+                  toast.error((err as Error).message);
+                  return;
+                }
+              }
+              updateQuotation.mutate({ company_id });
+            }}
           >
             {companies.map((c) => (
               <option key={c.id} value={c.id}>

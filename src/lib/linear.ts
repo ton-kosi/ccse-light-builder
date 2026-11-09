@@ -22,6 +22,7 @@
  * full) are rounded up to the cut step, piece by piece, so 1.35 × 6 at a 10 cm step is 8.40 M. Other
  * dense strips stay as typed. Production may round down on site; the final Rev then bills that length.
  */
+import { parseCutSpec, runsFromPieces, type CutRun } from "./cutSpec";
 import type { PartPrice } from "@/lib/fo";
 import { inCategory, readTags } from "./skuCategory";
 import { jediPercent, profileModel, type Chip, type Diffuser, type MountType } from "./profiles";
@@ -45,7 +46,12 @@ export type PsuOption = {
 export type Extra = { skuId: string; perM: number };
 export type Circuit = {
   ckt: string;
+  /** every piece, sets written out: this is what is calculated */
   lengths: number[];
+  /** the lengths as typed (x sets, [ ] joined): this is what is printed; absent on older blocks */
+  runs?: CutRun[];
+  /** final Rev: the metres billed (what production really cuts); cleared when the lengths are typed again */
+  billedM?: number | undefined;
   /** power supply picked by hand (e.g. sized for a load shared with another item); absent = automatic */
   psuSkuId?: string | null;
   /** runs on another item's power supply, e.g. "ITEM 8.1": no PSU of its own, printed as a note */
@@ -123,6 +129,7 @@ export function roundUpStep(dots: string | null, cutStepCm: number | null | unde
 
 /** Metres quoted for a circuit: each piece rounded up to the LED's cut step. */
 export function circuitQty(ck: Circuit, c: Pick<LinearConfig, "cutStepCm">): number {
+  if (ck.billedM && ck.billedM > 0) return ck.billedM;
   if (!c.cutStepCm) return circuitLength(ck);
   const step = exactStep(c.cutStepCm);
   return r3(
@@ -254,10 +261,7 @@ export function buildLinear(c: LinearConfig, prices: Map<string, PartPrice>, new
     const led: LinRow = {
       id: newId(),
       kind: "priced",
-      customer_text: `- L = ${ck.lengths
-        .filter((x) => x > 0)
-        .map(m)
-        .join(" + ")}`,
+      customer_text: `- L = ${lengthText(ck)}`,
       qty: L,
       unit: "M.",
       unit_price: 0,
@@ -430,12 +434,44 @@ export function parseLinear(note: string | null | undefined): LinearConfig | nul
   }
 }
 
+/**
+ * What is typed in the length box, in the WOS notation: "3.2", "0.7+0.7", "0.7 0.7",
+ * "2.848x2" (sets), "[3.015+3.515]x2" (pieces joined). Anything it cannot read is an error,
+ * never skipped, so a length can't silently drop out of the quotation.
+ */
+export function parseCircuitLengths(text: string): { lengths: number[]; runs: CutRun[]; error?: string } {
+  const t = text.trim().replace(/(\d)\s+(?=[\d[])/g, "$1+");
+  if (!t) return { lengths: [], runs: [] };
+  const spec = parseCutSpec(t);
+  if ("error" in spec) return { lengths: [], runs: [], error: spec.error };
+  return { lengths: spec.pieces, runs: spec.runs };
+}
+
 /** "0.70+0.70" or "0.7 0.7" → [0.7, 0.7] */
 export function parseLengths(text: string): number[] {
-  return text
-    .split(/[+,\s]+/)
-    .map((x) => Number(x))
-    .filter((x) => x > 0);
+  return parseCircuitLengths(text).lengths;
+}
+
+/** The runs of a circuit with repeats next to each other folded (0.7 + 0.7 → 0.7 x 2). */
+export function circuitRuns(ck: Pick<Circuit, "lengths" | "runs">): CutRun[] {
+  const runs = ck.runs?.length ? ck.runs : runsFromPieces(ck.lengths.filter((x) => x > 0));
+  const out: CutRun[] = [];
+  for (const r of runs) {
+    const last = out[out.length - 1];
+    if (last && last.pieces.join() === r.pieces.join()) last.sets += r.sets;
+    else out.push({ pieces: [...r.pieces], sets: r.sets });
+  }
+  return out;
+}
+
+/** Printed length: "3.20M", "(2.848M x 2SETS) + ([3.015M + 3.515M] x 2SETS)". */
+export function lengthText(ck: Pick<Circuit, "lengths" | "runs">): string {
+  return circuitRuns(ck)
+    .map((r) => {
+      const body = r.pieces.length > 1 ? `[${r.pieces.map(m).join(" + ")}]` : m(r.pieces[0]!);
+      return r.sets > 1 ? `(${body} x ${r.sets}SETS)` : body;
+    })
+    .join(" + ");
 }
 
 /* ---------------------------------------------------------------- SKU suggestions */

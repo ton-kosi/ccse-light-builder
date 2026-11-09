@@ -1,3 +1,4 @@
+import { assignJobNo, isJobNo, jobBase, nextPartCode, nextQuoteRef, numbersNotReady } from "@/lib/docNumbers";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
@@ -274,6 +275,55 @@ function OverviewTab({
     actual !== null && max !== null ? Math.max(0, Number(actual) - Number(max)) : null;
   const overrun = overrunDays !== null ? overrunDays * Number(rate ?? 0) : null;
 
+  const issueJobNo = useMutation({
+    mutationFn: () => assignJobNo(project.id),
+    onSuccess: (no) => {
+      toast.success(`ออกเลข P/J ${no} แล้ว`);
+      qcFin.invalidateQueries({ queryKey: ["project"] });
+    },
+    onError: (e: Error) =>
+      toast.error(numbersNotReady(e.message) ? "ยังออกเลขไม่ได้ — ให้ Lovable รันไฟล์ docs/sql/doc_numbers.sql ก่อน" : e.message),
+  });
+
+  // a part of the job (another area / PO of the same site): same customer and site, own quotation and bills
+  const navigateTo = useNavigate();
+  const addPart = useMutation({
+    mutationFn: async (name: string) => {
+      const base = jobBase(project.code);
+      const { data: same, error: e1 } = await supabase.from("projects").select("code").like("code", `${base}%`);
+      if (e1) throw e1;
+      const code = nextPartCode(project.code, (same ?? []).map((p) => p.code));
+      const id = crypto.randomUUID();
+      const { error } = await supabase.from("projects").insert({
+        id,
+        code,
+        name,
+        status: 1,
+        customer_id: project.customer_id,
+        attn: project.attn,
+        site_address: project.site_address,
+        site_contacts: project.site_contacts,
+      });
+      if (error) throw error;
+      const company = quotation?.company_id ?? "ccse";
+      let ref = code;
+      try {
+        ref = await nextQuoteRef(company);
+      } catch {
+        /* numbering not applied yet: the quotation starts with the part's code */
+      }
+      const { error: e2 } = await supabase.from("quotations").insert({ project_id: id, ref_no: ref, rev: "A", is_current: true, company_id: company });
+      if (e2) throw e2;
+      return { id, code };
+    },
+    onSuccess: ({ id, code }) => {
+      toast.success(`สร้างงานย่อย ${code} แล้ว`);
+      qcFin.invalidateQueries({ queryKey: ["projects"] });
+      void navigateTo({ to: "/projects/$projectId", params: { projectId: id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const changeStatus = (next: number) => {
     if (next >= 4 && opts.length > 0 && !project.selected_option) {
       toast.error("ต้องเลือก Option ที่ลูกค้าเลือกก่อนเปลี่ยนสถานะเป็นขั้น 4 ขึ้นไป");
@@ -364,6 +414,38 @@ function OverviewTab({
       </section>
 
       <section className="grid gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-3">
+        <Field label="เลขงาน P/J">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{isJobNo(project.code) ? project.code : "ยังไม่มี"}</span>
+            {!isJobNo(project.code) && project.status >= 4 && canEditSales ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={issueJobNo.isPending}
+                onClick={() => {
+                  if (confirm("ออกเลข P/J ตอนนี้ (ก่อนรับมัดจำ)?\nถ้าไม่กด ระบบจะออกให้เองเมื่อรับมัดจำครบหรือ CEO อนุมัติ")) issueJobNo.mutate();
+                }}
+              >
+                ออกเลข P/J
+              </Button>
+            ) : !isJobNo(project.code) ? (
+              <span className="text-xs text-muted-foreground">ออกให้เองเมื่อรับมัดจำ</span>
+            ) : canEditSales ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={addPart.isPending}
+                title="อีกส่วนของงานเดียวกัน (พื้นที่ / PO แยก) ลูกค้าและสถานที่เดิม แต่มีใบเสนอราคาและงวดเงินของตัวเอง"
+                onClick={() => {
+                  const name = window.prompt(`ชื่องานย่อยของ ${jobBase(project.code)} (เช่น ${project.name} (LANDSCAPE))`, project.name);
+                  if (name?.trim()) addPart.mutate(name.trim());
+                }}
+              >
+                + งานย่อย (/1, /2)
+              </Button>
+            ) : null}
+          </div>
+        </Field>
         <Field label="สถานะงาน">
           <select
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"

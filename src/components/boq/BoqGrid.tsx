@@ -11,6 +11,7 @@ import { LinearDialog, type LinearTarget } from "@/components/boq/LinearDialog";
 import { parseLinear, type LinearConfig } from "@/lib/linear";
 import { ClipsoDialog, type ClipsoTarget } from "@/components/boq/ClipsoDialog";
 import { parseClipso, type ClipsoConfig } from "@/lib/clipso";
+import { healRowIds } from "@/lib/finalRev";
 import { NeonDialog, type NeonTarget } from "@/components/boq/NeonDialog";
 import { parseNeon, type NeonConfig } from "@/lib/neon";
 import { rebalanceNeon } from "@/lib/neonSync";
@@ -177,6 +178,21 @@ export function BoqGrid({
         const bid = r.note?.split(" ")[1];
         if (bid) rowBlock.set(r.quote_line_id, bid);
       }
+      // a new Rev copies the settings with the old Rev's row ids: find the rows of each block again
+      const ordered = lines.map((l) => l.id);
+      const withMaterials = new Set([...fo.data, ...lin.data, ...clp.data, ...neo.data, ...pvf.data, ...cno.data].map((d) => d.quote_line_id));
+      const heal = (map: Map<string, { rowIds: string[] }>, rows: Map<string, string>) => {
+        for (const [bid, cfg] of map) {
+          const tagged = [...rows].filter(([, b]) => b === bid).map(([id]) => id);
+          cfg.rowIds = healRowIds(cfg.rowIds, ordered, tagged, withMaterials, (id) => lines.find((l) => l.id === id)?.kind);
+          for (const id of cfg.rowIds) rows.set(id, bid);
+        }
+      };
+      heal(blocks, rowBlock);
+      heal(clpBlocks, clpRow);
+      heal(neoBlocks, neoRow);
+      heal(pvfBlocks, pvfRow);
+      heal(cnoBlocks, cnoRow);
       return { fo: new Set(fo.data.map((d) => d.quote_line_id)), blocks, rowBlock, clpBlocks, clpRow, neoBlocks, neoRow, pvfBlocks, pvfRow, cnoBlocks, cnoRow };
     },
   });
@@ -458,6 +474,34 @@ export function BoqGrid({
     qc.invalidateQueries({ queryKey: key });
   };
 
+  /** A row of a builder block can't go alone: the block's materials and settings belong together. */
+  const removeBlock = async (rowIds: string[], setName: string, isNeon: boolean) => {
+    if (!window.confirm(`บรรทัดนี้เป็นส่วนหนึ่งของ${setName} — ลบทั้งชุด ${rowIds.length} บรรทัด?\nถ้าจะแก้บางส่วน ให้กด แก้${setName}`)) return;
+    setLocal((rows) => rows.filter((r) => !rowIds.includes(r.id)));
+    const { error } = await supabase.from("quote_lines").delete().in("id", rowIds);
+    if (error) toast.error(error.message);
+    if (!error && isNeon) await rebalanceNeon(quotationId).catch((e: Error) => toast.error(e.message));
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ queryKey: ["set_lines"] });
+  };
+
+  /** A line's own materials are totals for the line: they follow when its quantity is changed by hand. */
+  const scaleLineRecipes = async (lineId: string, ratio: number) => {
+    const { data, error } = await supabase.from("line_recipes").select("id, qty").eq("quote_line_id", lineId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    for (const r of data) {
+      const { error: e } = await supabase.from("line_recipes").update({ qty: Math.round(Number(r.qty) * ratio * 1000) / 1000 }).eq("id", r.id);
+      if (e) toast.error(e.message);
+    }
+    if (data.length) {
+      qc.invalidateQueries({ queryKey: ["line_recipes", lineId] });
+      qc.invalidateQueries({ queryKey: ["boq_costs"] });
+    }
+  };
+
   const duplicateCircuit = async (index: number) => {
     let end = index + 1;
     while (end < lines.length && lines[end]!.kind !== "heading") end++;
@@ -557,6 +601,7 @@ export function BoqGrid({
     const cur = l[k] === null || l[k] === undefined ? null : numeric ? Number(l[k]) : l[k];
     if (v === cur) return false;
     update.mutate({ id: l.id, patch: { [k]: v } as TablesUpdate<"quote_lines"> });
+    if (k === "qty" && Number(cur) > 0 && Number(v) > 0) void scaleLineRecipes(l.id, Number(v) / Number(cur));
     return true;
   };
 
@@ -679,7 +724,7 @@ export function BoqGrid({
                         data-boq-cell={`${r}:4`}
                         className={cellCls}
                         value={l.kind}
-                        disabled={!canEdit}
+                        disabled={!canEdit || isFo}
                         onKeyDown={(e) => onKey(e, r, 4)}
                         onChange={(e) => update.mutate({ id: l.id, patch: { kind: e.target.value } })}
                       >
@@ -775,7 +820,7 @@ export function BoqGrid({
                           >
                             สูตรภายใน
                           </Button>
-                        ) : heading && canEdit ? (
+                        ) : heading && canEdit && !block ? (
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => duplicateCircuit(r)}>
                             คัดลอกวงจร
                           </Button>
@@ -785,7 +830,12 @@ export function BoqGrid({
                             <Button size="sm" variant="ghost" className="h-7 px-2" title="แทรกบรรทัดด้านล่าง" onClick={() => addRowAfter(r)}>
                               +
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => removeRow(l.id)}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-destructive"
+                              onClick={() => (block ? removeBlock(block.rowIds, setName, !!neo) : removeRow(l.id))}
+                            >
                               ลบ
                             </Button>
                           </>

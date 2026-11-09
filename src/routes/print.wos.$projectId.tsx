@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useWorkSheet } from "@/components/work/WorkSheet";
+import { LineText, useWorkSheet } from "@/components/work/WorkSheet";
 import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { useMeasurements } from "@/hooks/useMeasurements";
 import { companyOf, useCompanies } from "@/lib/companies";
@@ -11,7 +11,8 @@ import { quotationRevisionSuffix } from "@/lib/boq";
 import { formatCutSpecWos, parseCutSpec, runsFromPieces } from "@/lib/cutSpec";
 import { formatQty } from "@/lib/format";
 import { buildA4Pdf } from "@/lib/pdf";
-import { attachNotes, blockConfigs, explodeLine, type WosRecipe, type WosSku } from "@/lib/wos";
+import { useWosParts } from "@/hooks/useWosParts";
+import { attachNotes, explodeLine } from "@/lib/wos";
 
 export const Route = createFileRoute("/print/wos/$projectId")({
   ssr: false,
@@ -67,32 +68,12 @@ function PrintWos() {
   });
   // real materials of builder lines: quantities for the team, not on the customer's quotation
   const lineIds = lines.map((l) => l.id);
-  const { data: parts } = useQuery({
-    queryKey: ["wos_parts", projectId, lineIds.join(",")],
-    enabled: lineIds.length > 0,
-    queryFn: async () => {
-      const { data: rec, error } = await supabase
-        .from("line_recipes")
-        .select("quote_line_id, sku_id, qty, note")
-        .in("quote_line_id", lineIds);
-      if (error) throw error;
-      const ids = [...new Set((rec ?? []).map((r) => r.sku_id))];
-      const { data: sk, error: e2 } = ids.length
-        ? await supabase.from("skus").select("id, code, name, unit").in("id", ids)
-        : { data: [] as WosSku[], error: null };
-      if (e2) throw e2;
-      const byLine = new Map<string, WosRecipe[]>();
-      for (const r of rec ?? []) byLine.set(r.quote_line_id, [...(byLine.get(r.quote_line_id) ?? []), r]);
-      return { byLine, all: (rec ?? []) as WosRecipe[], skus: new Map((sk ?? []).map((s) => [s.id, s as WosSku])) };
-    },
-  });
+  const { recipesOf, skuOf, configs } = useWosParts(projectId, lineIds);
 
   if (isLoading || !p) return <p className="p-6 text-sm text-muted-foreground">กำลังโหลด…</p>;
   const co = companyOf(companies, q?.company_id);
   // internal notes go in the remark column of the line above; WOS only, never on the quotation
   const { rows, notes } = attachNotes(lines);
-  const configs = blockConfigs(parts?.all ?? []);
-  const skuOf = (id: string) => parts?.skus.get(id);
   const noteLines = (id: string) =>
     (notes.get(id) ?? []).map((t, i) => (
       <div key={i} className="whitespace-pre-line text-destructive">
@@ -207,7 +188,7 @@ function PrintWos() {
                     </tr>
                   </Fragment>
                 );
-              const ex = explodeLine(name, parts?.byLine.get(l.id) ?? [], skuOf, configs);
+              const ex = explodeLine(name, recipesOf(l.id), skuOf, configs);
               const spec = m?.cut_spec ? parseCutSpec(m.cut_spec) : null;
               // measured notation → measured pieces → contract pieces
               const pieces = m?.cut_lengths?.length ? m.cut_lengths : l.cut_lengths;
@@ -227,7 +208,7 @@ function PrintWos() {
                   <tr>
                     <td className={cell + " text-center"}>{l.item_no}</td>
                     <td className={cell + " whitespace-pre-line"}>
-                      {intro}
+                      <LineText text={intro} spec={m?.cut_spec} />
                       {specText ? <div>- L = {specText}</div> : null}
                     </td>
                     <td className={cell + " text-right tabular-nums"}>
