@@ -1,3 +1,4 @@
+import type { BlockRecipe } from "@/components/boq/BoqGrid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -50,7 +51,7 @@ export function CanoeDialog({
   target: CanoeTarget;
   quotationId: string;
   canSeeCost: boolean;
-  replaceRows: (oldIds: string[], rows: Partial<GridLine>[]) => Promise<void>;
+  replaceRows: (oldIds: string[], rows: Partial<GridLine>[], recipes?: BlockRecipe[]) => Promise<void>;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -166,12 +167,8 @@ export function CanoeDialog({
         circuit_note: null,
         cut_lengths: r.cut_lengths,
       }));
-      await replaceRows(editing?.config.rowIds ?? [], rows);
       const recipes = built.rows.flatMap((r) => r.recipes.map((x) => ({ ...x, quote_line_id: r.id })));
-      if (recipes.length) {
-        const { error } = await supabase.from("line_recipes").insert(recipes);
-        if (error) throw error;
-      }
+      await replaceRows(editing?.config.rowIds ?? [], rows, recipes);
     },
     onSuccess: () => {
       toast.success(editing ? "อัปเดตชุด Canoe แล้ว" : "เพิ่มชุด Canoe แล้ว");

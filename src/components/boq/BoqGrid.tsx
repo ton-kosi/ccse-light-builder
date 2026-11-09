@@ -12,6 +12,10 @@ import { parseLinear, type LinearConfig } from "@/lib/linear";
 import { ClipsoDialog, type ClipsoTarget } from "@/components/boq/ClipsoDialog";
 import { parseClipso, type ClipsoConfig } from "@/lib/clipso";
 import { healRowIds } from "@/lib/finalRev";
+import { isMissingInDb, untypedRpc } from "@/lib/untypedRpc";
+
+/** A material of a builder row, saved with the row. */
+export type BlockRecipe = { quote_line_id: string; sku_id: string; qty: number; note: string | null };
 import { NeonDialog, type NeonTarget } from "@/components/boq/NeonDialog";
 import { parseNeon, type NeonConfig } from "@/lib/neon";
 import { rebalanceNeon } from "@/lib/neonSync";
@@ -409,21 +413,55 @@ export function BoqGrid({
     }
   };
 
-  /** Used by the linear dialog: remove the block's old rows and put the new ones in the same place. */
-  const replaceRows = async (oldIds: string[], rows: Partial<GridLine>[]) => {
+  /**
+   * Used by the builder windows: the block's new rows and materials take the place of the old ones.
+   * Done in one database step (all or nothing). Until that step exists in the database, the new rows
+   * are written first and the old ones removed last, so a failure never loses the block.
+   */
+  const replaceRows = async (oldIds: string[], rows: Partial<GridLine>[], recipes: BlockRecipe[] = []) => {
     const old = new Set(oldIds);
     const first = lines.findIndex((l) => old.has(l.id));
     const keep = lines.filter((l) => !old.has(l.id));
     const at = first < 0 ? keep.length : lines.slice(0, first).filter((l) => !old.has(l.id)).length;
-    if (oldIds.length) {
-      const { error } = await supabase.from("quote_lines").delete().in("id", oldIds);
-      if (error) throw error;
-    }
     const fresh = rows.map((r) => ({ ...blankRow(), ...r }) as GridLine);
     const next = [...keep];
     next.splice(at, 0, ...fresh);
-    const ok = await persistOrder(next, fresh);
-    if (!ok) throw new Error("บันทึกบรรทัดไม่สำเร็จ");
+    const withOrder = next.map((r, i) => ({ ...r, sort_order: (i + 1) * 10 }));
+    const freshIds = new Set(fresh.map((r) => r.id));
+    const payload = withOrder
+      .filter((r) => freshIds.has(r.id))
+      .map(({ sales_components: _c, created_at: _a, updated_at: _b, ...rest }) => rest);
+    const prev = new Map(lines.map((l) => [l.id, l.sort_order]));
+    const order = withOrder.filter((r) => !freshIds.has(r.id) && prev.get(r.id) !== r.sort_order).map((r) => ({ id: r.id, sort_order: r.sort_order }));
+    try {
+      const { error } = await untypedRpc("replace_quote_block", {
+        _quotation_id: quotationId,
+        _old_ids: oldIds,
+        _lines: payload,
+        _recipes: recipes,
+        _order: order,
+      });
+      if (error && !isMissingInDb(error.message)) throw new Error(error.message);
+      if (error) {
+        const { error: e1 } = await supabase.from("quote_lines").insert(payload);
+        if (e1) throw e1;
+        if (recipes.length) {
+          const { error: e2 } = await supabase.from("line_recipes").insert(recipes);
+          if (e2) {
+            await supabase.from("quote_lines").delete().in("id", [...freshIds]);
+            throw e2;
+          }
+        }
+        if (oldIds.length) {
+          const { error: e3 } = await supabase.from("quote_lines").delete().in("id", oldIds);
+          if (e3) throw new Error(`บันทึกชุดใหม่แล้ว แต่ลบชุดเดิมไม่ได้ — ลบบรรทัดเดิมเอง (${e3.message})`);
+        }
+        await Promise.all(order.map((o) => supabase.from("quote_lines").update({ sort_order: o.sort_order }).eq("id", o.id)));
+      }
+      setLocal(() => withOrder);
+    } finally {
+      qc.invalidateQueries({ queryKey: key });
+    }
   };
 
   /** Used by the FO set dialog: append a line at the end and return its id once saved. */

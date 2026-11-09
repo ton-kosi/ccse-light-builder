@@ -2,7 +2,7 @@
  * Automatic numbers, issued in the database (migration 0034_doc_numbers):
  * quotation ref QC26-11-07-001 (QO for One Engineering; count restarts daily), P/J no 69-048.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { untypedRpc } from "./untypedRpc";
 
 /** A number issued by the system or a job number typed in the same style: 69-047, 68-013/1. */
 export const isJobNo = (code: string | null | undefined) => /^\d{2}-\d{3,}(\/\d+)?$/.test(code ?? "");
@@ -23,9 +23,7 @@ export function nextPartCode(code: string, existing: string[]): string {
 /** True when the database functions are not there yet (migration still waiting in Lovable). */
 export const numbersNotReady = (message: string) => /next_quote_ref|assign_job_no|doc_counters|schema cache|does not exist/i.test(message);
 
-// not in the generated types until Lovable applies the migration
-type Rpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
-const rpc: Rpc = (fn, args) => (supabase.rpc as unknown as (this: typeof supabase, f: string, a: object) => ReturnType<Rpc>).call(supabase, fn, args);
+const rpc = untypedRpc;
 
 export async function nextQuoteRef(companyId: string): Promise<string> {
   const { data, error } = await rpc("next_quote_ref", { _company_id: companyId });

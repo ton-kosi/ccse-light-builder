@@ -32,7 +32,7 @@ export function QuotationSection({
   projectId,
   projectCode,
   selectedOption,
-  canEdit,
+  canEdit: canEditQuote,
   canSeeCost,
   canManagePayments = false,
 }: {
@@ -60,6 +60,21 @@ export function QuotationSection({
   });
   const { quotation, lines } = useCurrentQuotation(projectId, true);
   const { isAdmin } = useMe();
+  // a bill was issued from this version: it is frozen, changes go into a new Rev
+  const { data: billed } = useQuery({
+    queryKey: ["quotation_billed", quotation?.id],
+    enabled: !!quotation?.id,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("billing_docs")
+        .select("id", { count: "exact", head: true })
+        .eq("quotation_id", quotation!.id)
+        .is("cancelled_at", null);
+      if (error) return false;
+      return (count ?? 0) > 0;
+    },
+  });
+  const canEdit = canEditQuote && !billed;
 
   const { data: revisions } = useQuery({
     queryKey: ["quotation_revs", projectId],
@@ -147,7 +162,7 @@ export function QuotationSection({
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">ใบเสนอราคา (BOQ)</h2>
         <p className="mt-1 text-sm text-muted-foreground">ยังไม่มีใบเสนอราคาสำหรับงานนี้</p>
-        {canEdit ? (
+        {canEditQuote ? (
           <Button size="sm" className="mt-3" onClick={() => createQuotation.mutate()}>
             สร้างใบเสนอราคา
           </Button>
@@ -193,10 +208,10 @@ export function QuotationSection({
               ออกใบเบิกเงิน
             </Button>
           ) : null}
-          {canEdit ? (
+          {canEditQuote ? (
             <Button
               size="sm"
-              variant="outline"
+              variant={billed ? "default" : "outline"}
               disabled={newRev.isPending}
               onClick={() => newRev.mutate()}
             >
@@ -206,12 +221,18 @@ export function QuotationSection({
         </div>
       </div>
 
+      {billed ? (
+        <div className="mt-3 rounded-md border border-warning bg-warning/10 px-3 py-2 text-sm">
+          ฉบับนี้ออกใบเบิกเงินไปแล้ว จึงล็อกไว้ ไม่ให้แก้รายการหรือยอด — ถ้าต้องแก้ ให้กด <b>สร้าง Rev ใหม่</b> (ใบเบิกที่ออกไปแล้วยังอ้างฉบับนี้)
+        </div>
+      ) : null}
+
       <FinalRevPanel
         projectId={projectId}
         lines={lines}
         selectedOption={selectedOption}
         vatPercent={vatPct}
-        canEdit={canEdit}
+        canEdit={canEditQuote}
         canSeeMoney
       />
 
