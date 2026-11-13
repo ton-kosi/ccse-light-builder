@@ -25,16 +25,20 @@ import { Route as AuthenticatedRepairsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
+import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedWorkSummaryRouteImport } from './routes/_authenticated/work-summary'
 import { Route as PrintSkuLabelsRouteImport } from './routes/print.sku-labels'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
+import { Route as AuthenticatedPurchaseOrdersIndexRouteImport } from './routes/_authenticated/purchase-orders/index'
+import { Route as AuthenticatedPurchaseOrdersPoIdRouteImport } from './routes/_authenticated/purchase-orders/$poId'
 import { Route as AuthenticatedWorkOrdersIndexRouteImport } from './routes/_authenticated/work-orders/index'
 import { Route as AuthenticatedWorkOrdersWoIdRouteImport } from './routes/_authenticated/work-orders/$woId'
 import { Route as PrintBillingDocIdRouteImport } from './routes/print.billing.$docId'
 import { Route as PrintHandoverWoIdRouteImport } from './routes/print.handover.$woId'
 import { Route as PrintMaterialsProjectIdRouteImport } from './routes/print.materials.$projectId'
+import { Route as PrintPoPoIdRouteImport } from './routes/print.po.$poId'
 import { Route as PrintProductionProjectIdRouteImport } from './routes/print.production.$projectId'
 import { Route as PrintQuotationQuotationIdRouteImport } from './routes/print.quotation.$quotationId'
 import { Route as PrintReminderBillIdRouteImport } from './routes/print.reminder.$billId'
@@ -123,6 +127,11 @@ const AuthenticatedStockRoute = AuthenticatedStockRouteImport.update({
   path: '/stock',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
+  id: '/suppliers',
+  path: '/suppliers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -151,6 +160,18 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPurchaseOrdersIndexRoute =
+  AuthenticatedPurchaseOrdersIndexRouteImport.update({
+    id: '/purchase-orders/',
+    path: '/purchase-orders/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPurchaseOrdersPoIdRoute =
+  AuthenticatedPurchaseOrdersPoIdRouteImport.update({
+    id: '/purchase-orders/$poId',
+    path: '/purchase-orders/$poId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedWorkOrdersIndexRoute =
   AuthenticatedWorkOrdersIndexRouteImport.update({
     id: '/work-orders/',
@@ -176,6 +197,11 @@ const PrintHandoverWoIdRoute = PrintHandoverWoIdRouteImport.update({
 const PrintMaterialsProjectIdRoute = PrintMaterialsProjectIdRouteImport.update({
   id: '/print/materials/$projectId',
   path: '/print/materials/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrintPoPoIdRoute = PrintPoPoIdRouteImport.update({
+  id: '/print/po/$poId',
+  path: '/print/po/$poId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrintProductionProjectIdRoute =
@@ -227,14 +253,17 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
+  '/suppliers': typeof AuthenticatedSuppliersRoute
   '/users': typeof AuthenticatedUsersRoute
   '/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/purchase-orders/$poId': typeof AuthenticatedPurchaseOrdersPoIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
+  '/print/po/$poId': typeof PrintPoPoIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/reminder/$billId': typeof PrintReminderBillIdRoute
@@ -242,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/purchase-orders/': typeof AuthenticatedPurchaseOrdersIndexRoute
   '/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -260,14 +290,17 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
+  '/suppliers': typeof AuthenticatedSuppliersRoute
   '/users': typeof AuthenticatedUsersRoute
   '/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/purchase-orders/$poId': typeof AuthenticatedPurchaseOrdersPoIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
+  '/print/po/$poId': typeof PrintPoPoIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/reminder/$billId': typeof PrintReminderBillIdRoute
@@ -275,6 +308,7 @@ export interface FileRoutesByTo {
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/projects': typeof AuthenticatedProjectsIndexRoute
+  '/purchase-orders': typeof AuthenticatedPurchaseOrdersIndexRoute
   '/work-orders': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRoutesById {
@@ -295,14 +329,17 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
+  '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
+  '/_authenticated/purchase-orders/$poId': typeof AuthenticatedPurchaseOrdersPoIdRoute
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
   '/print/billing/$docId': typeof PrintBillingDocIdRoute
   '/print/handover/$woId': typeof PrintHandoverWoIdRoute
   '/print/materials/$projectId': typeof PrintMaterialsProjectIdRoute
+  '/print/po/$poId': typeof PrintPoPoIdRoute
   '/print/production/$projectId': typeof PrintProductionProjectIdRoute
   '/print/quotation/$quotationId': typeof PrintQuotationQuotationIdRoute
   '/print/reminder/$billId': typeof PrintReminderBillIdRoute
@@ -310,6 +347,7 @@ export interface FileRoutesById {
   '/print/work/$projectId': typeof PrintWorkProjectIdRoute
   '/print/wos/$projectId': typeof PrintWosProjectIdRoute
   '/_authenticated/projects/': typeof AuthenticatedProjectsIndexRoute
+  '/_authenticated/purchase-orders/': typeof AuthenticatedPurchaseOrdersIndexRoute
   '/_authenticated/work-orders/': typeof AuthenticatedWorkOrdersIndexRoute
 }
 export interface FileRouteTypes {
@@ -330,14 +368,17 @@ export interface FileRouteTypes {
     | '/settings'
     | '/skus'
     | '/stock'
+    | '/suppliers'
     | '/users'
     | '/work-summary'
     | '/print/sku-labels'
     | '/projects/$projectId'
+    | '/purchase-orders/$poId'
     | '/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
     | '/print/materials/$projectId'
+    | '/print/po/$poId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/reminder/$billId'
@@ -345,6 +386,7 @@ export interface FileRouteTypes {
     | '/print/work/$projectId'
     | '/print/wos/$projectId'
     | '/projects/'
+    | '/purchase-orders/'
     | '/work-orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -363,14 +405,17 @@ export interface FileRouteTypes {
     | '/settings'
     | '/skus'
     | '/stock'
+    | '/suppliers'
     | '/users'
     | '/work-summary'
     | '/print/sku-labels'
     | '/projects/$projectId'
+    | '/purchase-orders/$poId'
     | '/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
     | '/print/materials/$projectId'
+    | '/print/po/$poId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/reminder/$billId'
@@ -378,6 +423,7 @@ export interface FileRouteTypes {
     | '/print/work/$projectId'
     | '/print/wos/$projectId'
     | '/projects'
+    | '/purchase-orders'
     | '/work-orders'
   id:
     | '__root__'
@@ -397,14 +443,17 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/skus'
     | '/_authenticated/stock'
+    | '/_authenticated/suppliers'
     | '/_authenticated/users'
     | '/_authenticated/work-summary'
     | '/print/sku-labels'
     | '/_authenticated/projects/$projectId'
+    | '/_authenticated/purchase-orders/$poId'
     | '/_authenticated/work-orders/$woId'
     | '/print/billing/$docId'
     | '/print/handover/$woId'
     | '/print/materials/$projectId'
+    | '/print/po/$poId'
     | '/print/production/$projectId'
     | '/print/quotation/$quotationId'
     | '/print/reminder/$billId'
@@ -412,6 +461,7 @@ export interface FileRouteTypes {
     | '/print/work/$projectId'
     | '/print/wos/$projectId'
     | '/_authenticated/projects/'
+    | '/_authenticated/purchase-orders/'
     | '/_authenticated/work-orders/'
   fileRoutesById: FileRoutesById
 }
@@ -423,6 +473,7 @@ export interface RootRouteChildren {
   PrintBillingDocIdRoute: typeof PrintBillingDocIdRoute
   PrintHandoverWoIdRoute: typeof PrintHandoverWoIdRoute
   PrintMaterialsProjectIdRoute: typeof PrintMaterialsProjectIdRoute
+  PrintPoPoIdRoute: typeof PrintPoPoIdRoute
   PrintProductionProjectIdRoute: typeof PrintProductionProjectIdRoute
   PrintQuotationQuotationIdRoute: typeof PrintQuotationQuotationIdRoute
   PrintReminderBillIdRoute: typeof PrintReminderBillIdRoute
@@ -545,6 +596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStockRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/suppliers': {
+      id: '/_authenticated/suppliers'
+      path: '/suppliers'
+      fullPath: '/suppliers'
+      preLoaderRoute: typeof AuthenticatedSuppliersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/users': {
       id: '/_authenticated/users'
       path: '/users'
@@ -580,6 +638,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/purchase-orders/': {
+      id: '/_authenticated/purchase-orders/'
+      path: '/purchase-orders'
+      fullPath: '/purchase-orders/'
+      preLoaderRoute: typeof AuthenticatedPurchaseOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/purchase-orders/$poId': {
+      id: '/_authenticated/purchase-orders/$poId'
+      path: '/purchase-orders/$poId'
+      fullPath: '/purchase-orders/$poId'
+      preLoaderRoute: typeof AuthenticatedPurchaseOrdersPoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/work-orders/': {
       id: '/_authenticated/work-orders/'
       path: '/work-orders'
@@ -613,6 +685,13 @@ declare module '@tanstack/react-router' {
       path: '/print/materials/$projectId'
       fullPath: '/print/materials/$projectId'
       preLoaderRoute: typeof PrintMaterialsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/print/po/$poId': {
+      id: '/print/po/$poId'
+      path: '/print/po/$poId'
+      fullPath: '/print/po/$poId'
+      preLoaderRoute: typeof PrintPoPoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/print/production/$projectId': {
@@ -674,11 +753,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
   AuthenticatedStockRoute: typeof AuthenticatedStockRoute
+  AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedWorkSummaryRoute: typeof AuthenticatedWorkSummaryRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
+  AuthenticatedPurchaseOrdersPoIdRoute: typeof AuthenticatedPurchaseOrdersPoIdRoute
   AuthenticatedWorkOrdersWoIdRoute: typeof AuthenticatedWorkOrdersWoIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
+  AuthenticatedPurchaseOrdersIndexRoute: typeof AuthenticatedPurchaseOrdersIndexRoute
   AuthenticatedWorkOrdersIndexRoute: typeof AuthenticatedWorkOrdersIndexRoute
 }
 
@@ -696,11 +778,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
   AuthenticatedStockRoute: AuthenticatedStockRoute,
+  AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedWorkSummaryRoute: AuthenticatedWorkSummaryRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
+  AuthenticatedPurchaseOrdersPoIdRoute: AuthenticatedPurchaseOrdersPoIdRoute,
   AuthenticatedWorkOrdersWoIdRoute: AuthenticatedWorkOrdersWoIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,
+  AuthenticatedPurchaseOrdersIndexRoute: AuthenticatedPurchaseOrdersIndexRoute,
   AuthenticatedWorkOrdersIndexRoute: AuthenticatedWorkOrdersIndexRoute,
 }
 
@@ -715,6 +800,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrintBillingDocIdRoute: PrintBillingDocIdRoute,
   PrintHandoverWoIdRoute: PrintHandoverWoIdRoute,
   PrintMaterialsProjectIdRoute: PrintMaterialsProjectIdRoute,
+  PrintPoPoIdRoute: PrintPoPoIdRoute,
   PrintProductionProjectIdRoute: PrintProductionProjectIdRoute,
   PrintQuotationQuotationIdRoute: PrintQuotationQuotationIdRoute,
   PrintReminderBillIdRoute: PrintReminderBillIdRoute,

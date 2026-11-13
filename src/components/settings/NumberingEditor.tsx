@@ -16,7 +16,11 @@ const counters = () => (supabase as unknown as { from: (t: string) => ReturnType
 };
 
 // QC / QO count restarts every day by itself; only the P/J count runs through the year
-const SLOTS = [{ kind: "job", company_id: "-", label: "เลขงาน P/J" }];
+const SLOTS = [
+  { kind: "job", company_id: "-", label: "เลขงาน P/J" },
+  { kind: "po", company_id: "ccse", label: "ใบสั่งซื้อ CCSE (26-…)" },
+  { kind: "po", company_id: "one", label: "ใบสั่งซื้อ ONE (69-…)" },
+];
 
 /** The last P/J number used this year, so the automatic count carries on from the paper files. */
 export function NumberingEditor() {
@@ -40,9 +44,16 @@ export function NumberingEditor() {
   }, [data]);
 
   async function save() {
-    const rows = SLOTS.map((s) => ({ kind: s.kind, company_id: s.company_id, year, last_no: Number(form[key(s)]) }));
-    if (rows.some((r) => !Number.isInteger(r.last_no) || r.last_no < 0)) {
+    const all = SLOTS.map((s) => ({ kind: s.kind, company_id: s.company_id, year, last_no: Number(form[key(s)]) }));
+    if (all.some((r) => !Number.isInteger(r.last_no) || r.last_no < 0)) {
       toast.error("กรุณากรอกเลขจำนวนเต็ม");
+      return;
+    }
+    // only what changed (PO counters need migration 0039 before they can be saved)
+    const was = (r: { kind: string; company_id: string }) => data?.find((c) => c.kind === r.kind && c.company_id === r.company_id)?.last_no ?? 0;
+    const rows = all.filter((r) => r.last_no !== was(r));
+    if (!rows.length) {
+      toast.success("ไม่มีอะไรเปลี่ยน");
       return;
     }
     if (!(await askPassword({ title: "ตั้งเลขล่าสุดที่ใช้" }))) return;
@@ -62,7 +73,7 @@ export function NumberingEditor() {
         <p className="mt-2 text-xs text-muted-foreground">ยังใช้ไม่ได้ — ให้ Lovable รันไฟล์ docs/sql/doc_numbers.sql ก่อน</p>
       ) : (
         <>
-          <p className="mt-1 text-xs text-muted-foreground">เลข P/J ล่าสุดที่ใช้ไปแล้ว ระบบจะออกเลขถัดจากนี้ · ใบเสนอราคา QC / QO เริ่ม 001 ใหม่ทุกวัน</p>
+          <p className="mt-1 text-xs text-muted-foreground">เลขล่าสุดที่ใช้ไปแล้ว ระบบจะออกเลขถัดจากนี้ · ใบเสนอราคา QC / QO เริ่ม 001 ใหม่ทุกวัน</p>
           <div className="mt-3 space-y-2">
             {SLOTS.map((s) => (
               <div key={key(s)} className="grid grid-cols-[1fr_6rem] items-center gap-2">

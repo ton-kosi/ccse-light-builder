@@ -492,6 +492,21 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   an adjustment and the SKU cost is recalculated. A purchase received from a
   purchase request keeps its SKU.
 - ✅ Delete a purchase (admin only): stock taken back out, cost recalculated.
+- 🟡 **Suppliers (ผู้ขาย, `/suppliers`):** code, name, contact, phone, fax, email, tax ID, branch, credit days, address,
+  note; search. Admin and purchase team edit; accounting reads. To be filled from Easy-Acc (579) and the PO
+  workbooks' supplier sheets (about 380) once the migration is applied.
+- 🟡 **Purchase orders (ใบสั่งซื้อ, `/purchase-orders`)** from the owner's PO-CH / PO-ONE workbooks: per company,
+  numbered automatically — **CCSE 26-061** (Western year, as in PO-CH) and **ONE 69-093** (Buddhist year, as in
+  PO-ONE), running through the year; the last numbers used are set in ตั้งค่า. Supplier (picked from the list or typed),
+  ATTN, phone, fax, date, project or STOCK (RUN printed), lines (optional SKU, description, qty, unit, price, discount
+  %), VAT, delivery, ship to, credit terms. Draft → สั่งแล้ว → รับของครบ / ยกเลิก; **ฉบับแก้ไข R.1, R.2** keeps the same
+  number and the old one as "มีฉบับแก้ไขแล้ว" (only before anything is received). Printed A4 in the workbook layout
+  (`/print/po/$poId`).
+- 🟡 **Receive against a PO (รับของ):** lines with a SKU are received into stock as purchases at the PO's net price
+  (after discount), with the supplier's bill no.; each line shows received / still to come and the PO becomes
+  รับของครบ when every SKU line is in. Lines without a SKU are printed only.
+- Costs privacy: a PO holds costs, so admin sees every PO and the purchase team sees POs without imported SKUs (the
+  same rule as purchases). Migration `0040_suppliers_purchase_orders` pending in Lovable.
 
 ### 6.7 Work orders (`/work-orders`) ✅
 - Types: **วัดหน้างาน (survey)**, production, installation, service. Statuses:
@@ -637,6 +652,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 13/11/2026 | **Suppliers and purchase orders:** supplier list; PO per company (CCSE 26-061, ONE 69-093) with R.1 revisions, A4 print, receive into stock against PO lines. Migration `0040_suppliers_purchase_orders` pending in Lovable. |
 | 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
 | 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. |
 | 13/11/2026 | Customer addresses, tax IDs, phones and contacts filled in from the Easy-Acc backup (only empty fields). |
