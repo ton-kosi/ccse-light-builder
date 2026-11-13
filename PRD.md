@@ -566,6 +566,17 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
   รับแจ้ง → ลงคิวช่างแล้ว → ซ่อมเสร็จ / เสนอราคาใหม่ → ปิดงาน / ยกเลิก. Tickets also
   listed on the project page.
 
+### 6.7e Work summary — สรุปงาน (`/work-summary`) ✅
+- Replaces the Excel **Work_Request summary** (Sum CCSE / Sum ONE): one row per job that has payment terms — Run no.
+  (P/J), QC / QO, project, client, contract total before VAT, paid, remaining, status (**รอมัดจำ / มัดจำแล้ว / จ่ายครบ
+  100%**), every payment received with its date, the next payment with its status and date, designer.
+- Totals at the top per status (paid jobs' contract total; money still to collect for the others). Filters: company
+  (CCSE / ONE), status (default: not fully paid), search. Download as CSV for Excel.
+- Built from the payment schedule of each project's current quotation; "paid" counts money recorded in งวดเงิน
+  including withholding tax. Admin, sale team and payment team.
+- **Designer** field on the project (ผู้ออกแบบ). Migration `0038_project_designer` pending in Lovable; the field appears
+  once it is applied.
+
 ### 6.7d Collections — ทวงเงิน (Phase D) 🟡
 - **ทวงเงิน** page (`/collections`, admin / accounting): totals outstanding / overdue /
   to chase today; **ต้องทวงวันนี้** = bills whose next follow-up date has come, whose
@@ -627,6 +638,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. Designer field on projects (migration `0038_project_designer` pending in Lovable). |
 | 13/11/2026 | Customer addresses, tax IDs, phones and contacts filled in from the Easy-Acc backup (only empty fields). |
 | 13/11/2026 | Imported 1,083 customers (code + name) from the old system. Customers page search; all lists read past 1,000 rows; searchable customer picker for new projects. |
 | 09/11/2026 | Lovable applied the numbering and safety migrations (0036, 0037). Tested on a throwaway project (deleted, counters set back to 0): QO26-11-09-001, Rev R.01, P/J by button and automatically at status 6, one-step save refused a bad material without losing the old line. |

@@ -26,6 +26,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSkusRouteImport } from './routes/_authenticated/skus'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedWorkSummaryRouteImport } from './routes/_authenticated/work-summary'
 import { Route as PrintSkuLabelsRouteImport } from './routes/print.sku-labels'
 import { Route as AuthenticatedProjectsIndexRouteImport } from './routes/_authenticated/projects/index'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects/$projectId'
@@ -127,6 +128,12 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedWorkSummaryRoute =
+  AuthenticatedWorkSummaryRouteImport.update({
+    id: '/work-summary',
+    path: '/work-summary',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const PrintSkuLabelsRoute = PrintSkuLabelsRouteImport.update({
   id: '/print/sku-labels',
   path: '/print/sku-labels',
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
@@ -253,6 +261,7 @@ export interface FileRoutesByTo {
   '/skus': typeof AuthenticatedSkusRoute
   '/stock': typeof AuthenticatedStockRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
@@ -287,6 +296,7 @@ export interface FileRoutesById {
   '/_authenticated/skus': typeof AuthenticatedSkusRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/_authenticated/work-summary': typeof AuthenticatedWorkSummaryRoute
   '/print/sku-labels': typeof PrintSkuLabelsRoute
   '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
   '/_authenticated/work-orders/$woId': typeof AuthenticatedWorkOrdersWoIdRoute
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/stock'
     | '/users'
+    | '/work-summary'
     | '/print/sku-labels'
     | '/projects/$projectId'
     | '/work-orders/$woId'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/skus'
     | '/stock'
     | '/users'
+    | '/work-summary'
     | '/print/sku-labels'
     | '/projects/$projectId'
     | '/work-orders/$woId'
@@ -386,6 +398,7 @@ export interface FileRouteTypes {
     | '/_authenticated/skus'
     | '/_authenticated/stock'
     | '/_authenticated/users'
+    | '/_authenticated/work-summary'
     | '/print/sku-labels'
     | '/_authenticated/projects/$projectId'
     | '/_authenticated/work-orders/$woId'
@@ -539,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/work-summary': {
+      id: '/_authenticated/work-summary'
+      path: '/work-summary'
+      fullPath: '/work-summary'
+      preLoaderRoute: typeof AuthenticatedWorkSummaryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/print/sku-labels': {
       id: '/print/sku-labels'
       path: '/print/sku-labels'
@@ -655,6 +675,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSkusRoute: typeof AuthenticatedSkusRoute
   AuthenticatedStockRoute: typeof AuthenticatedStockRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
+  AuthenticatedWorkSummaryRoute: typeof AuthenticatedWorkSummaryRoute
   AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
   AuthenticatedWorkOrdersWoIdRoute: typeof AuthenticatedWorkOrdersWoIdRoute
   AuthenticatedProjectsIndexRoute: typeof AuthenticatedProjectsIndexRoute
@@ -676,6 +697,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSkusRoute: AuthenticatedSkusRoute,
   AuthenticatedStockRoute: AuthenticatedStockRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
+  AuthenticatedWorkSummaryRoute: AuthenticatedWorkSummaryRoute,
   AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
   AuthenticatedWorkOrdersWoIdRoute: AuthenticatedWorkOrdersWoIdRoute,
   AuthenticatedProjectsIndexRoute: AuthenticatedProjectsIndexRoute,

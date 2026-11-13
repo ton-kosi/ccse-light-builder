@@ -267,6 +267,13 @@
       "when": 1794207067671,
       "tag": "0037_quote_safety",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794556250006,
+      "tag": "0038_project_designer",
+      "breakpoints": true
     }
   ]
 }

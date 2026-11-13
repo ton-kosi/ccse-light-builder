@@ -513,6 +513,21 @@ function OverviewTab({
         {textField("สถานที่ติดตั้ง", "site_address", "md:col-span-3")}
         {textField("ติดต่อหน้างาน (ชื่อ : เบอร์)", "site_contacts", "md:col-span-2")}
         {textField("กำหนดการ (ประกอบ / ติดตั้ง / ส่ง)", "schedule_note")}
+        {"designer" in project ? (
+          <Field label="ผู้ออกแบบ / Designer">
+            <Input
+              key={String((project as { designer?: string | null }).designer ?? "")}
+              defaultValue={(project as { designer?: string | null }).designer ?? ""}
+              disabled={!canEditSales}
+              placeholder="บริษัทออกแบบ / สถาปนิก"
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v === ((project as { designer?: string | null }).designer ?? "")) return;
+                onUpdate({ designer: v || null } as unknown as TablesUpdate<"projects">);
+              }}
+            />
+          </Field>
+        ) : null}
         {numField("วันติดตั้งต่ำสุด", "install_days_min")}
         {numField("วันติดตั้งสูงสุด", "install_days_max")}
         {canManagePayments ? (
