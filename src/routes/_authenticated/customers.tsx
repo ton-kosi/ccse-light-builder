@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
 import { formatDate } from "@/lib/format";
+import { fetchAll, matchesSearch } from "@/lib/fetchAll";
+
+const SHOW = 200;
 
 export const Route = createFileRoute("/_authenticated/customers")({
   head: () => ({
@@ -43,18 +46,19 @@ function CustomersPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ["customers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      fetchAll((from, to) =>
+        supabase.from("customers").select("*").order("code", { ascending: true, nullsFirst: true }).order("name").range(from, to),
+      ),
   });
+  const found = (customers ?? []).filter((c) =>
+    matchesSearch(search, [c.code, c.name, c.contact_person, c.phone, c.email, c.tax_id, c.notes]),
+  );
+  const shown = found.slice(0, SHOW);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -174,6 +178,22 @@ function CustomersPage() {
         </form>
       ) : null}
 
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <Input
+          className="max-w-sm"
+          placeholder="ค้นหา รหัส ชื่อ ผู้ติดต่อ โทร เลขภาษี"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <span className="text-xs text-muted-foreground">
+          {customers
+            ? found.length > SHOW
+              ? `แสดง ${SHOW} จาก ${found.length.toLocaleString()} ราย — พิมพ์ค้นหาเพื่อหาให้ตรงขึ้น`
+              : `${found.length.toLocaleString()} ราย${search.trim() ? ` จากทั้งหมด ${customers.length.toLocaleString()}` : ""}`
+            : ""}
+        </span>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-left text-xs text-muted-foreground">
@@ -191,8 +211,8 @@ function CustomersPage() {
               <tr>
                 <Td colSpan={6}>กำลังโหลด...</Td>
               </tr>
-            ) : customers?.length ? (
-              customers.map((c) => (
+            ) : shown.length ? (
+              shown.map((c) => (
                 <tr
                   key={c.id}
                   className={
@@ -228,7 +248,7 @@ function CustomersPage() {
               ))
             ) : (
               <tr>
-                <Td colSpan={6}>ยังไม่มีข้อมูลลูกค้า</Td>
+                <Td colSpan={6}>{customers?.length ? "ไม่พบลูกค้าที่ค้นหา" : "ยังไม่มีข้อมูลลูกค้า"}</Td>
               </tr>
             )}
           </tbody>

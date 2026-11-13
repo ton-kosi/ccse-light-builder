@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 09/11/2026
+> Last updated: 13/11/2026
 
 ## 1. Overview
 
@@ -232,6 +232,12 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 
 ### 6.3 Customers (`/customers`) ✅
 - Customer master (code, name, contact, phone, email, address, tax ID).
+- **Imported from the old system (13/11/2026):** 1,083 customers from รายชื่อลูกค้า.pdf, code + name only
+  (the report has no phone, address or tax ID). Names the old system marked (`**`, "ยกเลิก", "เปลี่ยนชื่อ") keep a note.
+  Two sample customers (อัศวอินทรา, ศาลา บางปะอิน) got their old codes instead of a second copy.
+- **Search** on the customers page (code, name, contact, phone, email, tax ID; Thai ำ / ํา either way), sorted by code,
+  first 200 matches shown. Lists read every page, since one request returns at most 1,000 rows.
+- **Customer picker** on a new project: type part of a code or name, pick from the matches.
 - Technicians see customer names only, never contact details.
 
 ### 6.4 Projects (`/projects`, `/projects/$projectId`) ✅
@@ -618,6 +624,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 13/11/2026 | Imported 1,083 customers (code + name) from the old system. Customers page search; all lists read past 1,000 rows; searchable customer picker for new projects. |
 | 09/11/2026 | Lovable applied the numbering and safety migrations (0036, 0037). Tested on a throwaway project (deleted, counters set back to 0): QO26-11-09-001, Rev R.01, P/J by button and automatically at status 6, one-step save refused a bad material without losing the old line. |
 | 09/11/2026 | **Safe builder save** (one step, all or nothing) and **billed quotation locked** (changes through a new Rev). Migration `0035_quote_safety` pending in Lovable. |
 | 09/11/2026 | Quotation ref count restarts every day (owner): QC26-11-09-001. **Parts of a job:** "+ งานย่อย" creates 69-037/1, /2 … with its own quotation. |

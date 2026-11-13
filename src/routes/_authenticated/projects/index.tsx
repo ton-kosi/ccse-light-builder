@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useMe } from "@/hooks/useMe";
+import { CustomerPicker } from "@/components/CustomerPicker";
 import { nextQuoteRef, numbersNotReady } from "@/lib/docNumbers";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
 import { formatDate } from "@/lib/format";
@@ -56,14 +57,6 @@ function ProjectsPage() {
     },
   });
 
-  const { data: customers } = useQuery({
-    queryKey: ["customers", "options"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name").order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const create = useMutation({
     mutationFn: async () => {
@@ -159,18 +152,7 @@ function ProjectsPage() {
             />
           </Field>
           <Field label="ลูกค้า">
-            <select
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={form.customer_id}
-              onChange={(e) => setForm({ ...form, customer_id: e.target.value })}
-            >
-              <option value="">— ไม่ระบุ —</option>
-              {(customers ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CustomerPicker value={form.customer_id} onChange={(id) => setForm({ ...form, customer_id: id })} />
           </Field>
           <Field label="เรียน (Attn)">
             <Input value={form.attn} onChange={(e) => setForm({ ...form, attn: e.target.value })} />
