@@ -1077,6 +1077,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string | null
+          designer: string | null
           id: string
           install_days_actual: number | null
           install_days_max: number | null
@@ -1100,6 +1101,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          designer?: string | null
           id?: string
           install_days_actual?: number | null
           install_days_max?: number | null
@@ -1123,6 +1125,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          designer?: string | null
           id?: string
           install_days_actual?: number | null
           install_days_max?: number | null
