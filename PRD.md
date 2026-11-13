@@ -574,8 +574,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
   (CCSE / ONE), status (default: not fully paid), search. Download as CSV for Excel.
 - Built from the payment schedule of each project's current quotation; "paid" counts money recorded in งวดเงิน
   including withholding tax. Admin, sale team and payment team.
-- **Designer** field on the project (ผู้ออกแบบ). Migration `0038_project_designer` pending in Lovable; the field appears
-  once it is applied.
+- **Designer** field on the project (ผู้ออกแบบ), stored on the project and shown in the work summary. Database change applied as `0039_project_designer`.
 
 ### 6.7d Collections — ทวงเงิน (Phase D) 🟡
 - **ทวงเงิน** page (`/collections`, admin / accounting): totals outstanding / overdue /
@@ -638,7 +637,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
-| 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. Designer field on projects (migration `0038_project_designer` pending in Lovable). |
+| 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
+| 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. |
 | 13/11/2026 | Customer addresses, tax IDs, phones and contacts filled in from the Easy-Acc backup (only empty fields). |
 | 13/11/2026 | Imported 1,083 customers (code + name) from the old system. Customers page search; all lists read past 1,000 rows; searchable customer picker for new projects. |
 | 09/11/2026 | Lovable applied the numbering and safety migrations (0036, 0037). Tested on a throwaway project (deleted, counters set back to 0): QO26-11-09-001, Rev R.01, P/J by button and automatically at status 6, one-step save refused a bad material without losing the old line. |

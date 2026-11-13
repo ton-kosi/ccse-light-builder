@@ -1,4 +1,5 @@
 # Tasks
+- [x] Apply `docs/sql/project_designer.sql` as a database migration and verify the nullable designer field on projects.
 - [x] Apply synced migrations 0024_team_access → 0025_cost_privacy → 0026_finance_close_project unchanged in journal order via checkpoint 0027; verified hashes, RLS/grants, local/import cost policies, enabled source guard and restricted finance-close functions; generated types refreshed and 28 tests passed.
 - [ ] Verify finance closing end to end on a project with payment terms; blocked by no projects in the database. Signed-in projects page verified; no test records created.
 - [x] Apply migration 0022_install_starts_status8 unchanged; verify its source hash, enabled trigger, 6–7 → 8 guard and permissions via checkpoint 0023.
