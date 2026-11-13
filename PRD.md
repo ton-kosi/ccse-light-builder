@@ -235,6 +235,9 @@ Status: ✅ built · 🟡 partly built / in preview · ⬜ planned
 - **Imported from the old system (13/11/2026):** 1,083 customers from รายชื่อลูกค้า.pdf, code + name only
   (the report has no phone, address or tax ID). Names the old system marked (`**`, "ยกเลิก", "เปลี่ยนชื่อ") keep a note.
   Two sample customers (อัศวอินทรา, ศาลา บางปะอิน) got their old codes instead of a second copy.
+  **Filled from the Easy-Acc backup (13/11/2026, ARFILE01.DAT):** address on 1,079, tax ID on 561, phone on 177
+  (address lines that were only phone numbers moved to the phone field), contact on 30, Easy-Acc remarks added to
+  the note. Only empty fields were filled; nothing typed in the app was overwritten.
 - **Search** on the customers page (code, name, contact, phone, email, tax ID; Thai ำ / ํา either way), sorted by code,
   first 200 matches shown. Lists read every page, since one request returns at most 1,000 rows.
 - **Customer picker** on a new project: type part of a code or name, pick from the matches.
@@ -624,6 +627,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 13/11/2026 | Customer addresses, tax IDs, phones and contacts filled in from the Easy-Acc backup (only empty fields). |
 | 13/11/2026 | Imported 1,083 customers (code + name) from the old system. Customers page search; all lists read past 1,000 rows; searchable customer picker for new projects. |
 | 09/11/2026 | Lovable applied the numbering and safety migrations (0036, 0037). Tested on a throwaway project (deleted, counters set back to 0): QO26-11-09-001, Rev R.01, P/J by button and automatically at status 6, one-step save refused a bad material without losing the old line. |
 | 09/11/2026 | **Safe builder save** (one step, all or nothing) and **billed quotation locked** (changes through a new Rev). Migration `0035_quote_safety` pending in Lovable. |
