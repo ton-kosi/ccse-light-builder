@@ -506,7 +506,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   (after discount), with the supplier's bill no.; each line shows received / still to come and the PO becomes
   รับของครบ when every SKU line is in. Lines without a SKU are printed only.
 - Costs privacy: a PO holds costs, so admin sees every PO and the purchase team sees POs without imported SKUs (the
-  same rule as purchases). Migration `0040_suppliers_purchase_orders` pending in Lovable.
+  same rule as purchases). Migration `0041_suppliers_purchase_orders` applied; supplier, PO and PO-line access is restricted by role policies.
 
 ### 6.7 Work orders (`/work-orders`) ✅
 - Types: **วัดหน้างาน (survey)**, production, installation, service. Statuses:
@@ -652,7 +652,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
-| 13/11/2026 | **Suppliers and purchase orders:** supplier list; PO per company (CCSE 26-061, ONE 69-093) with R.1 revisions, A4 print, receive into stock against PO lines. Migration `0040_suppliers_purchase_orders` pending in Lovable. |
+| 13/11/2026 | **Suppliers and purchase orders:** applied migration `0041_suppliers_purchase_orders`; created suppliers, purchase orders and lines, role-based cost visibility, PO numbering, and automatic received-quantity/status sync. |
 | 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
 | 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. |
 | 13/11/2026 | Customer addresses, tax IDs, phones and contacts filled in from the Easy-Acc backup (only empty fields). |
