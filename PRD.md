@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 13/11/2026
+> Last updated: 14/11/2026
 
 ## 1. Overview
 
@@ -492,21 +492,24 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   an adjustment and the SKU cost is recalculated. A purchase received from a
   purchase request keeps its SKU.
 - ✅ Delete a purchase (admin only): stock taken back out, cost recalculated.
-- 🟡 **Suppliers (ผู้ขาย, `/suppliers`):** code, name, contact, phone, fax, email, tax ID, branch, credit days, address,
-  note; search. Admin and purchase team edit; accounting reads. To be filled from Easy-Acc (579) and the PO
-  workbooks' supplier sheets (about 380) once the migration is applied.
-- 🟡 **Purchase orders (ใบสั่งซื้อ, `/purchase-orders`)** from the owner's PO-CH / PO-ONE workbooks: per company,
+- ✅ **Suppliers (ผู้ขาย, `/suppliers`):** code, name, contact, phone, fax, email, tax ID, branch, credit days, address,
+  note; search. Admin and purchase team edit; accounting reads. **Imported 14/11/2026:** 682 suppliers — 579 from
+  Easy-Acc (code, name, address, tax ID) plus 103 found only in the PO workbooks' supplier sheets; 30 matched both and
+  got the workbook's contact / phone / fax. Thai and English spellings of one company may still appear twice.
+- ✅ **Purchase orders (ใบสั่งซื้อ, `/purchase-orders`)** from the owner's PO-CH / PO-ONE workbooks: per company,
   numbered automatically — **CCSE 26-061** (Western year, as in PO-CH) and **ONE 69-093** (Buddhist year, as in
   PO-ONE), running through the year; the last numbers used are set in ตั้งค่า. Supplier (picked from the list or typed),
   ATTN, phone, fax, date, project or STOCK (RUN printed), lines (optional SKU, description, qty, unit, price, discount
   %), VAT, delivery, ship to, credit terms. Draft → สั่งแล้ว → รับของครบ / ยกเลิก; **ฉบับแก้ไข R.1, R.2** keeps the same
   number and the old one as "มีฉบับแก้ไขแล้ว" (only before anything is received). Printed A4 in the workbook layout
   (`/print/po/$poId`).
-- 🟡 **Receive against a PO (รับของ):** lines with a SKU are received into stock as purchases at the PO's net price
+- ✅ **Receive against a PO (รับของ):** lines with a SKU are received into stock as purchases at the PO's net price
   (after discount), with the supplier's bill no.; each line shows received / still to come and the PO becomes
   รับของครบ when every SKU line is in. Lines without a SKU are printed only.
 - Costs privacy: a PO holds costs, so admin sees every PO and the purchase team sees POs without imported SKUs (the
   same rule as purchases). Migration `0041_suppliers_purchase_orders` applied; supplier, PO and PO-line access is restricted by role policies.
+  Tested 14/11/2026 with a throwaway PO 26-001 (deleted, counter set back to 0): 5 × 990 + transport 300 − 10 % = 5,220
+  + VAT 365.40; received 2 then 3 → รับของครบ; A4 print.
 
 ### 6.7 Work orders (`/work-orders`) ✅
 - Types: **วัดหน้างาน (survey)**, production, installation, service. Statuses:
@@ -635,6 +638,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 ## 9. Open questions / backlog
 
 - ⬜ Saving from the builder windows has not been run end to end because selling prices are not set.
+- ⬜ Deleting the last purchase of a SKU leaves its latest cost in place (the cost refresh only runs when a purchase
+  remains). Found while testing POs; the test cost was removed by hand.
 - ⬜ Restrict `user_roles` and `recipe_items` reads to users who have a role.
 - ⬜ Turn off public sign-ups in Supabase Auth (invite-only is intended).
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
@@ -652,6 +657,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
 | 13/11/2026 | **Suppliers and purchase orders:** applied migration `0041_suppliers_purchase_orders`; created suppliers, purchase orders and lines, role-based cost visibility, PO numbering, and automatic received-quantity/status sync. |
 | 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
 | 13/11/2026 | **สรุปงาน (work summary)** page from the Excel Work_Request summary: per job total, paid, remaining, status, payments, next payment, designer; CSV download. |
