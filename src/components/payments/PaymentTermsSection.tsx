@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { TablesUpdate } from "@/integrations/supabase/types";
+import type { Tables, TablesUpdate } from "@/integrations/supabase/types";
 import { Field, Td, Th } from "@/routes/_authenticated/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { usePasswordConfirm } from "@/components/ConfirmPasswordDialog";
 import { formatDate, formatQty, formatTHB, toNumber } from "@/lib/format";
 import { methodLabel, PAY_METHODS } from "@/lib/payments";
 import { BillingPreviewDialog, IssueBillingDialog } from "@/components/payments/BillingDialogs";
+import { issueReceipt, retentionFor, type ReceiptExtra } from "@/lib/receipts";
+import { isMissingInDb } from "@/lib/untypedRpc";
 
 export const PAY_TRIGGERS: { value: string; label: string }[] = [
   { value: "deposit", label: "มัดจำ (ขั้น 4)" },
@@ -68,6 +70,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
   const [viewDoc, setViewDoc] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Term | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [issueFor, setIssueFor] = useState<(Tables<"payment_receipts"> & ReceiptExtra) | null>(null);
 
   const { data: quote } = useQuery({
     queryKey: ["payment_quote", projectId],
@@ -276,7 +279,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                             <div className="mb-1 text-xs font-semibold">รายการรับเงิน</div>
                             <table className="w-full text-xs">
                               <thead className="text-left text-muted-foreground">
-                                <tr><th className="py-1">วันที่</th><th>จำนวน</th><th>ภาษีหัก</th><th>วิธี</th><th>ธนาคาร/เลขเช็ค</th><th>สลิป</th><th></th></tr>
+                                <tr><th className="py-1">วันที่</th><th>จำนวน</th><th>ภาษีหัก</th><th>วิธี</th><th>ธนาคาร/เลขเช็ค</th><th>สลิป</th><th>ใบเสร็จ</th><th></th></tr>
                               </thead>
                               <tbody>
                                 {rs.map((r) => (
@@ -287,6 +290,16 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                                     <td>{methodLabel(r.method)}</td>
                                     <td>{r.bank_ref ?? "-"}{r.note ? ` · ${r.note}` : ""}</td>
                                     <td>{r.slip_path ? <button className="text-primary underline" onClick={() => openSlip(r.slip_path!)}>ดู</button> : "-"}</td>
+                                    <td className="whitespace-nowrap">
+                                      {r.voided_at ? "-" : (r as ReceiptExtra).receipt_no ? (
+                                        <>
+                                          <a className="text-primary underline" href={`/print/receipt/${r.id}`} target="_blank" rel="noopener">พิมพ์ {(r as ReceiptExtra).receipt_no}</a>
+                                          {readOnly ? null : <button className="ml-2 text-muted-foreground underline" onClick={() => setIssueFor(r)}>แก้</button>}
+                                        </>
+                                      ) : readOnly ? "-" : (
+                                        <Button size="sm" variant="outline" className="h-6" onClick={() => setIssueFor(r)}>ออกใบเสร็จ</Button>
+                                      )}
+                                    </td>
                                     <td>
                                       {r.voided_at ? <span className="no-underline">ลบแล้ว: {r.void_reason}</span> : isAdmin ? (
                                         <Button size="sm" variant="ghost" className="h-6" onClick={async () => {
@@ -300,7 +313,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
                                     </td>
                                   </tr>
                                 ))}
-                                {rs.length === 0 ? <tr><td colSpan={7} className="py-1 text-muted-foreground">ยังไม่มีการรับเงิน</td></tr> : null}
+                                {rs.length === 0 ? <tr><td colSpan={8} className="py-1 text-muted-foreground">ยังไม่มีการรับเงิน</td></tr> : null}
                               </tbody>
                             </table>
                           </div>
@@ -353,6 +366,7 @@ export function PaymentTermsSection({ projectId }: { projectId: string }) {
           onIssued={(id) => { setBillFor(null); setViewDoc(id); refresh(); }} />
       ) : null}
       {viewDoc ? <BillingPreviewDialog docId={viewDoc} onClose={() => { setViewDoc(null); refresh(); }} /> : null}
+      {issueFor ? <IssueReceiptDialog receipt={issueFor} vatPercent={Number((quote as { vat_percent?: number }).vat_percent ?? 7)} onClose={() => setIssueFor(null)} onDone={refresh} /> : null}
       {payFor ? <ReceiptDialog term={payFor} onClose={() => setPayFor(null)} onSaved={() => afterReceipt(payFor.id)} /> : null}
     </section>
   );
@@ -408,6 +422,49 @@ function ReceiptDialog({ term, onClose, onSaved }: { term: Term; onClose: () => 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>ยกเลิก</Button>
           <Button type="submit" form="receipt-form" disabled={save.isPending}>บันทึก</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Give a recorded payment its receipt number, the tax invoice it refers to and any retention kept back. */
+function IssueReceiptDialog({ receipt, vatPercent, onClose, onDone }: { receipt: Tables<"payment_receipts"> & ReceiptExtra; vatPercent: number; onClose: () => void; onDone: () => void }) {
+  const [taxNo, setTaxNo] = useState(receipt.tax_invoice_no ?? "");
+  const [retention, setRetention] = useState(receipt.retention_amount ? String(receipt.retention_amount) : "");
+  const cashWht = Number(receipt.amount) + Number(receipt.wht_amount);
+  const save = useMutation({
+    mutationFn: () => issueReceipt(receipt.id, taxNo, toNumber(retention) ?? 0),
+    onSuccess: (no) => {
+      toast.success(`ใบเสร็จ ${no}`);
+      onDone();
+      onClose();
+      window.open(`/print/receipt/${receipt.id}`, "_blank", "noopener");
+    },
+    onError: (e: Error) => toast.error(isMissingInDb(e.message) ? "ยังใช้ไม่ได้ — ต้องให้ Lovable ติดตั้ง migration 0042_receipts ก่อน" : e.message),
+  });
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{receipt.receipt_no ? `แก้ใบเสร็จ ${receipt.receipt_no}` : "ออกใบเสร็จรับเงิน"}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          รับเงิน {formatDate(receipt.received_date)} · {formatTHB(Number(receipt.amount))} บาท
+          {Number(receipt.wht_amount) > 0 ? ` + ภาษีหัก ${formatTHB(Number(receipt.wht_amount))}` : ""}
+          {receipt.receipt_no ? "" : " · เลขที่ใบเสร็จออกให้อัตโนมัติ (ปี พ.ศ.-เดือน-ลำดับ เช่น 69-11001)"}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="เลขที่ใบกำกับภาษี"><Input value={taxNo} placeholder="เช่น 69-11004" onChange={(e) => setTaxNo(e.target.value)} /></Field>
+          <Field label="เงินประกันผลงานที่ลูกค้าหักไว้ (บาท)">
+            <div className="flex gap-1">
+              <Input value={retention} placeholder="ถ้ามี" onChange={(e) => setRetention(e.target.value)} />
+              <Button type="button" variant="outline" onClick={() => setRetention(String(retentionFor(cashWht, 5, vatPercent)))}>5%</Button>
+            </div>
+          </Field>
+        </div>
+        <p className="text-xs text-muted-foreground">เงินประกันผลงานคิด 5% ของยอดก่อน VAT · งวดนี้ยังค้างรับเท่ายอดประกันจนกว่าลูกค้าจะคืน</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>ยกเลิก</Button>
+          <Button disabled={save.isPending} onClick={() => save.mutate()}>{receipt.receipt_no ? "บันทึก" : "ออกใบเสร็จ"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -295,6 +295,13 @@
       "when": 1794558257300,
       "tag": "0041_suppliers_purchase_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794797857194,
+      "tag": "0042_receipts",
+      "breakpoints": true
     }
   ]
 }
