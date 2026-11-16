@@ -832,13 +832,19 @@ export type Database = {
           id: string
           method: string
           note: string | null
+          receipt_company_id: string | null
+          receipt_no: string | null
           received_date: string
+          retention_amount: number
           slip_path: string | null
+          tax_invoice_no: string | null
           term_id: string
           void_reason: string | null
           voided_at: string | null
           voided_by: string | null
           wht_amount: number
+          wht_cert_no: string | null
+          wht_cert_received_on: string | null
         }
         Insert: {
           amount: number
@@ -848,13 +854,19 @@ export type Database = {
           id?: string
           method: string
           note?: string | null
+          receipt_company_id?: string | null
+          receipt_no?: string | null
           received_date: string
+          retention_amount?: number
           slip_path?: string | null
+          tax_invoice_no?: string | null
           term_id: string
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null
           wht_amount?: number
+          wht_cert_no?: string | null
+          wht_cert_received_on?: string | null
         }
         Update: {
           amount?: number
@@ -864,15 +876,28 @@ export type Database = {
           id?: string
           method?: string
           note?: string | null
+          receipt_company_id?: string | null
+          receipt_no?: string | null
           received_date?: string
+          retention_amount?: number
           slip_path?: string | null
+          tax_invoice_no?: string | null
           term_id?: string
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null
           wht_amount?: number
+          wht_cert_no?: string | null
+          wht_cert_received_on?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_receipts_receipt_company_id_fkey"
+            columns: ["receipt_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_receipts_term_id_fkey"
             columns: ["term_id"]
@@ -2734,6 +2759,10 @@ export type Database = {
         }
         Returns: string
       }
+      issue_receipt: {
+        Args: { _id: string; _retention: number; _tax_invoice_no: string }
+        Returns: string
+      }
       material_demand: {
         Args: never
         Returns: {
@@ -2802,6 +2831,10 @@ export type Database = {
           _quotation_id: string
           _recipes: Json
         }
+        Returns: undefined
+      }
+      set_wht_certificate: {
+        Args: { _cert_no: string; _id: string; _received_on: string }
         Returns: undefined
       }
       sync_quotation_clauses: { Args: { _qid: string }; Returns: undefined }

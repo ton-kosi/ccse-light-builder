@@ -437,7 +437,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   retention → WHT → net received, amount in words, paid by, signatures. The amounts come from the payment: cash +
   WHT + retention = total incl. VAT. A term with retention stays open (คงค้าง = the retention) until the customer pays
   it back. Numbers and receipt fields are set only through database functions (payment roles). Migration
-  `0042_receipts` waits for Lovable.
+  `0042_receipts` applied on 16/11/2026; receipt fields, numbering functions and certificate updates verified.
 - 🟡 **Receipts page (`/receipts`, ใบเสร็จรับเงิน)**: register of every receipt (filters company / month / search, totals,
   CSV); **หนังสือรับรองหักภาษี 3 %** tab lists receipts with WHT whose certificate has not arrived, with "ได้รับแล้ว"
   (date + certificate no.); **เงินประกันผลงาน** tab lists retention still owed. Admin, sale team (read only), payment team.
@@ -670,7 +670,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
-| 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` pending in Lovable. |
+| 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |
 | 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
 | 13/11/2026 | **Suppliers and purchase orders:** applied migration `0041_suppliers_purchase_orders`; created suppliers, purchase orders and lines, role-based cost visibility, PO numbering, and automatic received-quantity/status sync. |
 | 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
