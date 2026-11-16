@@ -429,7 +429,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
 - ✅ Cancel a bill or void a receipt: admin only, reason required, kept on
   record.
 - ✅ Audit log of every billing / receipt action.
-- 🟡 **Receipts (ใบเสร็จรับเงิน)** — replaces ใบเสร็จรับเงิน 2569.xlsx. In งวดเงิน → รายละเอียด each recorded payment has
+- ✅ **Receipts (ใบเสร็จรับเงิน)** — replaces ใบเสร็จรับเงิน 2569.xlsx. In งวดเงิน → รายละเอียด each recorded payment has
   **ออกใบเสร็จ**: asks the tax invoice number (CCSE still issues tax invoices in Easy-Acc) and any **retention**
   (เงินประกันผลงาน, button for 5 % of the amount before VAT), gives the number automatically — Buddhist year-month-count
   per company, restarting each month (69-11001) — and opens the A4 print (ต้นฉบับ / สำเนา, PDF): letterhead, received
@@ -438,7 +438,7 @@ Tabs: **ภาพรวม** (overview) · **BOQ** · **ใบ Work** · **ง�
   WHT + retention = total incl. VAT. A term with retention stays open (คงค้าง = the retention) until the customer pays
   it back. Numbers and receipt fields are set only through database functions (payment roles). Migration
   `0042_receipts` applied on 16/11/2026; receipt fields, numbering functions and certificate updates verified.
-- 🟡 **Receipts page (`/receipts`, ใบเสร็จรับเงิน)**: register of every receipt (filters company / month / search, totals,
+- ✅ **Receipts page (`/receipts`, ใบเสร็จรับเงิน)**: register of every receipt (filters company / month / search, totals,
   CSV); **หนังสือรับรองหักภาษี 3 %** tab lists receipts with WHT whose certificate has not arrived, with "ได้รับแล้ว"
   (date + certificate no.); **เงินประกันผลงาน** tab lists retention still owed. Admin, sale team (read only), payment team.
 - ⬜ Tax invoices (ใบกำกับภาษี) in the app: waiting for the accountant's decision.
@@ -671,6 +671,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 | Date | Change |
 |---|---|
 | 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |
+| 16/11/2026 | Receipts tested end to end on the live database (throwaway project): 69-11001 matches the paper receipt (116,384.50 + VAT 8,146.92 = 124,531.42, retention 5,819.23, net 118,712.19), second receipt 69-11002, re-issue keeps the number, WHT certificate tick, register and tabs, term stays open for the retention. Test data deleted, counter reset to 0. |
 | 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
 | 13/11/2026 | **Suppliers and purchase orders:** applied migration `0041_suppliers_purchase_orders`; created suppliers, purchase orders and lines, role-based cost visibility, PO numbering, and automatic received-quantity/status sync. |
 | 13/11/2026 | Applied the project designer field (`0039_project_designer`) for the work summary. |
