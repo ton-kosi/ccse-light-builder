@@ -2292,18 +2292,27 @@ export type Database = {
       }
       sku_costs: {
         Row: {
+          pre_purchase_cost: number | null
+          pre_purchase_supplier: string | null
+          purchase_id: string | null
           sku_id: string
           supplier: string | null
           unit_cost: number
           updated_at: string
         }
         Insert: {
+          pre_purchase_cost?: number | null
+          pre_purchase_supplier?: string | null
+          purchase_id?: string | null
           sku_id: string
           supplier?: string | null
           unit_cost?: number
           updated_at?: string
         }
         Update: {
+          pre_purchase_cost?: number | null
+          pre_purchase_supplier?: string | null
+          purchase_id?: string | null
           sku_id?: string
           supplier?: string | null
           unit_cost?: number

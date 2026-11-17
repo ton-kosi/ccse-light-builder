@@ -316,6 +316,13 @@
       "when": 1794890510865,
       "tag": "0044_purchase_cost_restore",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794890725113,
+      "tag": "0045_purchase_cost_restore",
+      "breakpoints": true
     }
   ]
 }

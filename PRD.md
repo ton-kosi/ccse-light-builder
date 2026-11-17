@@ -651,8 +651,8 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 ## 9. Open questions / backlog
 
 - ⬜ Saving from the builder windows has not been run end to end because selling prices are not set.
-- 🟡 Deleting the last purchase of a SKU left its latest cost in place. Fixed in `0044_purchase_cost_restore`
-  (waits for Lovable): the SKU cost remembers which purchase it came from and the hand-entered cost it replaced; when no
+- ✅ Deleting the last purchase of a SKU no longer leaves its latest cost in place. Applied as `0045_purchase_cost_restore`
+  on 17/11/2026: the SKU cost remembers which purchase it came from and the hand-entered cost it replaced; when no
   purchase is left the hand-entered cost comes back, or the cost is cleared if there was none. Changing the cost by
   hand (SKU page, CSV) makes it a hand cost again.
 - ⬜ Restrict `user_roles` and `recipe_items` reads to users who have a role.
@@ -672,7 +672,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
-| 17/11/2026 | Fix: deleting the last purchase of a SKU no longer leaves its cost behind — the hand-entered cost comes back, or the cost is cleared. Migration `0044_purchase_cost_restore` pending in Lovable. |
+| 17/11/2026 | Applied `0044_purchase_cost_restore` as `0045_purchase_cost_restore`; verified purchase-linked cost tracking fields. Deleting the last purchase now restores a prior hand-entered cost or clears the purchase-derived cost. |
 | 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |
 | 16/11/2026 | Receipts tested end to end on the live database (throwaway project): 69-11001 matches the paper receipt (116,384.50 + VAT 8,146.92 = 124,531.42, retention 5,819.23, net 118,712.19), second receipt 69-11002, re-issue keeps the number, WHT certificate tick, register and tabs, term stays open for the retention. Test data deleted, counter reset to 0. |
 | 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
