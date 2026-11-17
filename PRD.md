@@ -673,6 +673,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 | Date | Change |
 |---|---|
 | 17/11/2026 | Applied `0044_purchase_cost_restore` as `0045_purchase_cost_restore`; verified purchase-linked cost tracking fields. Deleting the last purchase now restores a prior hand-entered cost or clears the purchase-derived cost. |
+| 17/11/2026 | Cost restore tested on the live database with a throwaway SKU: purchase with no hand cost → deleted → cost cleared; hand cost 100 → purchase 55 → deleted → back to 100; hand edit after a purchase is kept when the purchase is deleted. Test SKU removed. |
 | 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |
 | 16/11/2026 | Receipts tested end to end on the live database (throwaway project): 69-11001 matches the paper receipt (116,384.50 + VAT 8,146.92 = 124,531.42, retention 5,819.23, net 118,712.19), second receipt 69-11002, re-issue keeps the number, WHT certificate tick, register and tabs, term stays open for the retention. Test data deleted, counter reset to 0. |
 | 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
