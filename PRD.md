@@ -2,7 +2,7 @@
 
 > **Living document.** Update this file whenever a feature, rule, role, screen or
 > data model changes, and add a line to the [Change log](#10-change-log).
-> Last updated: 16/11/2026
+> Last updated: 17/11/2026
 
 ## 1. Overview
 
@@ -651,8 +651,10 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 ## 9. Open questions / backlog
 
 - ⬜ Saving from the builder windows has not been run end to end because selling prices are not set.
-- ⬜ Deleting the last purchase of a SKU leaves its latest cost in place (the cost refresh only runs when a purchase
-  remains). Found while testing POs; the test cost was removed by hand.
+- 🟡 Deleting the last purchase of a SKU left its latest cost in place. Fixed in `0044_purchase_cost_restore`
+  (waits for Lovable): the SKU cost remembers which purchase it came from and the hand-entered cost it replaced; when no
+  purchase is left the hand-entered cost comes back, or the cost is cleared if there was none. Changing the cost by
+  hand (SKU page, CSV) makes it a hand cost again.
 - ⬜ Restrict `user_roles` and `recipe_items` reads to users who have a role.
 - ⬜ Turn off public sign-ups in Supabase Auth (invite-only is intended).
 - ⬜ Confirm whether payment-term amounts are before VAT (current assumption)
@@ -670,6 +672,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 17/11/2026 | Fix: deleting the last purchase of a SKU no longer leaves its cost behind — the hand-entered cost comes back, or the cost is cleared. Migration `0044_purchase_cost_restore` pending in Lovable. |
 | 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |
 | 16/11/2026 | Receipts tested end to end on the live database (throwaway project): 69-11001 matches the paper receipt (116,384.50 + VAT 8,146.92 = 124,531.42, retention 5,819.23, net 118,712.19), second receipt 69-11002, re-issue keeps the number, WHT certificate tick, register and tabs, term stays open for the retention. Test data deleted, counter reset to 0. |
 | 14/11/2026 | Suppliers imported (682: Easy-Acc + PO workbooks). PO tested end to end on the live database: create, lines, receive in two parts → รับของครบ, print; test data removed. |
