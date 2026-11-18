@@ -14,6 +14,7 @@ import { fetchAll, matchesSearch } from "@/lib/fetchAll";
 import { formatDate, formatTHB } from "@/lib/format";
 import { receiptMath, receiptsCsv, registerTotals, setWhtCertificate, type ReceiptExtra, type RegisterRow } from "@/lib/receipts";
 import { isMissingInDb } from "@/lib/untypedRpc";
+import { allPaymentSchedule } from "@/lib/paymentSchedule";
 
 export const Route = createFileRoute("/_authenticated/receipts")({
   head: () => ({
@@ -54,8 +55,8 @@ function ReceiptsPage() {
       const projectIds = [...new Set(quotes.map((q) => q.project_id))];
       const projects = projectIds.length ? await fetchAll((f, t) => supabase.from("projects").select("id, code, name, customer_id").in("id", projectIds).range(f, t)) : [];
       const bills = termIds.length ? await fetchAll((f, t) => supabase.from("billing_docs").select("term_id, customer_name, vat_percent").in("term_id", termIds).is("cancelled_at", null).range(f, t)) : [];
-      const { data: sched } = await supabase.rpc("payment_schedule", {});
-      return { recs, terms, quotes, projects, bills, sched: sched ?? [] };
+      const sched = await allPaymentSchedule();
+      return { recs, terms, quotes, projects, bills, sched };
     },
   });
 

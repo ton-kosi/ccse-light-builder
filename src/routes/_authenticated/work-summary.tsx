@@ -11,7 +11,8 @@ import { useCustomerNames } from "@/hooks/useCustomerNames";
 import { useMe } from "@/hooks/useMe";
 import { fetchAll, matchesSearch } from "@/lib/fetchAll";
 import { formatDate, formatTHB } from "@/lib/format";
-import { JOB_STATUS_LABEL, jobsCsv, statusTotals, summarizeJobs, type JobStatus, type ScheduleRow } from "@/lib/workSummary";
+import { JOB_STATUS_LABEL, jobsCsv, statusTotals, summarizeJobs, withoutVat, type JobStatus, type ScheduleRow } from "@/lib/workSummary";
+import { allPaymentSchedule } from "@/lib/paymentSchedule";
 
 export const Route = createFileRoute("/_authenticated/work-summary")({
   head: () => ({
@@ -45,28 +46,30 @@ function WorkSummaryPage() {
     queryKey: ["payment_schedule", "all", "work-summary"],
     enabled: canViewPayments,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("payment_schedule", {});
-      if (error) throw error;
-      return (data ?? []) as unknown as ScheduleRow[];
+      return (await allPaymentSchedule()) as unknown as ScheduleRow[];
     },
   });
-  const jobs = useMemo(() => summarizeJobs(schedule ?? []), [schedule]);
-  const projectIds = jobs.map((j) => j.projectId);
-  const quotationIds = jobs.map((j) => j.quotationId);
+  // every project and current quotation, page by page (800+ jobs since the Work_Request summary import)
   const { data: extra } = useQuery({
-    queryKey: ["work-summary-extra", projectIds.join(",")],
-    enabled: projectIds.length > 0,
+    queryKey: ["work-summary-extra"],
+    enabled: canViewPayments,
     queryFn: async () => {
       const [projects, quotes] = await Promise.all([
-        fetchAll((f, t) => supabase.from("projects").select("*").in("id", projectIds).range(f, t)),
-        fetchAll((f, t) => supabase.from("quotations").select("id, company_id").in("id", quotationIds).range(f, t)),
+        fetchAll((f, t) => supabase.from("projects").select("*").order("id").range(f, t)),
+        fetchAll((f, t) => supabase.from("quotations").select("id, company_id, vat_percent").eq("is_current", true).order("id").range(f, t)),
       ]);
       return {
         project: new Map(projects.map((p) => [p.id, p as typeof p & { designer?: string | null }])),
         company: new Map(quotes.map((q) => [q.id, q.company_id as string])),
+        vat: new Map(quotes.map((q) => [q.id, Number(q.vat_percent ?? 0)])),
       };
     },
   });
+  // the payment schedule is VAT-inclusive; the summary is before VAT like the Excel
+  const jobs = useMemo(
+    () => summarizeJobs(schedule ?? []).map((j) => withoutVat(j, extra?.vat.get(j.quotationId) ?? 7)),
+    [schedule, extra],
+  );
 
   const rows = jobs
     .map((j) => {

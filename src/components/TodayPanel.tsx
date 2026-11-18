@@ -9,6 +9,7 @@ import { useMe } from "@/hooks/useMe";
 import { chaseList } from "@/lib/collections";
 import { woTypeLabel } from "@/lib/erp";
 import { isoDate, runsOn } from "@/lib/jobs";
+import { allPaymentSchedule } from "@/lib/paymentSchedule";
 
 /** "What to do today" at the top of the dashboard: jobs today, money to chase / bill, open repairs. */
 export function TodayPanel() {
@@ -36,9 +37,7 @@ export function TodayPanel() {
     queryKey: ["payment_schedule", "all"],
     enabled: canManagePayments,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("payment_schedule", {});
-      if (error) throw error;
-      return data ?? [];
+      return allPaymentSchedule();
     },
   });
 

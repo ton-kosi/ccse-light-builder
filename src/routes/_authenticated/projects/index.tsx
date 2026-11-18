@@ -14,6 +14,7 @@ import { CustomerPicker } from "@/components/CustomerPicker";
 import { nextQuoteRef, numbersNotReady } from "@/lib/docNumbers";
 import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
 import { formatDate } from "@/lib/format";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const Route = createFileRoute("/_authenticated/projects/")({
   head: () => ({
@@ -48,12 +49,14 @@ function ProjectsPage() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects", "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id, code, name, status, po_number, updated_at, customer_id, customers(name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      return fetchAll((from, to) =>
+        supabase
+          .from("projects")
+          .select("id, code, name, status, po_number, updated_at, customer_id, customers(name)")
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 

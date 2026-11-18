@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMe } from "@/hooks/useMe";
 import { formatDate, formatQty, toNumber } from "@/lib/format";
+import { fetchAll } from "@/lib/fetchAll";
 
 type Search = { sku?: string | undefined; qty?: number | undefined; kind?: string | undefined };
 
@@ -77,9 +78,7 @@ function PurchaseRequestsPage() {
   const { data: projects } = useQuery({
     queryKey: ["projects", "pick"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, code, name").order("code");
-      if (error) throw error;
-      return data;
+      return fetchAll((from, to) => supabase.from("projects").select("id, code, name").order("code").order("id").range(from, to));
     },
   });
   const { data: prs } = useQuery({

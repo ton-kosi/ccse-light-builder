@@ -14,6 +14,7 @@ import { useMe } from "@/hooks/useMe";
 import { formatDate } from "@/lib/format";
 import { isoDate } from "@/lib/jobs";
 import { COVERAGE_LABEL, coverage } from "@/lib/warranty";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const ticketsKey = ["service_tickets"];
 export const TICKET_STATUSES: { value: string; label: string }[] = [
@@ -90,9 +91,7 @@ export function TicketDialog({ projectId: fixed, onClose }: { projectId?: string
     queryKey: ["projects", "repair-pick"],
     enabled: !fixed,
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("id, code, name").order("code", { ascending: false });
-      if (error) throw error;
-      return data;
+      return fetchAll((from, to) => supabase.from("projects").select("id, code, name").order("code", { ascending: false }).order("id").range(from, to));
     },
   });
   const { start, items } = useProjectWarranty(projectId);

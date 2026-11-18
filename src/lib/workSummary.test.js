@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { jobsCsv, statusTotals, summarizeJobs } from "./workSummary.ts";
+import { jobsCsv, statusTotals, summarizeJobs, withoutVat } from "./workSummary.ts";
 
 const term = (p, seq, trigger, amount, outstanding, extra = {}) => ({
   project_id: p,
@@ -72,4 +72,11 @@ test("CSV opens in Excel with Thai and a column per payment", () => {
   expect(head).toContain("Date2,Payment 2");
   expect(row).toContain('"บริษัท ""ก"" จำกัด"');
   expect(row).toContain("จ่ายครบ 100%");
+});
+
+test("amounts before VAT, like the Excel summary", () => {
+  const j = { projectId: "p", code: "69-001", name: "x", status: 6, quotationId: "q", ref: "QC", rev: "A", total: 107, paid: 53.5, remaining: 53.5, jobStatus: "deposit_paid", payments: [{ seq: 1, name: "มัดจำ", date: "2026-11-01", amount: 53.5 }], next: { seq: 2, name: "งวด 2", dueStatus: "not_yet", date: null, amount: 53.5 } };
+  const e = withoutVat(j, 7);
+  expect([e.total, e.paid, e.remaining, e.payments[0].amount, e.next.amount]).toEqual([100, 50, 50, 50, 50]);
+  expect(withoutVat(j, 0).total).toBe(107);
 });

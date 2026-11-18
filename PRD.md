@@ -606,6 +606,19 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 - Built from the payment schedule of each project's current quotation; "paid" counts money recorded in งวดเงิน
   including withholding tax. Admin, sale team and payment team.
 - **Designer** field on the project (ผู้ออกแบบ), stored on the project and shown in the work summary. Database change applied as `0039_project_designer`.
+- ✅ Amounts on this page are **before VAT** like the Excel: each job is divided by its quotation's VAT % (the payment
+  schedule itself includes VAT).
+- ✅ **Jobs imported from Work_Request summary.xlsm (17/11/2026):** 800 jobs from Sum CCSE + Sum ONE (paid, deposit paid,
+  waiting for deposit) — one project per Run no. (status 11 / 6 with released_by "รับมัดจำ" / 5), a current quotation
+  with the QC / QO ref and rev, **no BOQ lines**, payment terms with fixed amounts (one per recorded payment + the balance)
+  and the payments as receipts (Excel before-VAT × 1.07, note "นำเข้าจาก Work_Request summary"). Customers linked by name
+  (605 rows); 151 rows (71 names) left unlinked with the Excel name in the project notes. Three jobs already in the app
+  (QC21-50-213, QC24-53-479, QC25-54-314) were skipped. Open money matches the Excel rows (23,436,195.62 before VAT).
+  Duplicate run numbers got " ONE" / " (2)". P/J counter for 2026 set to 53 (next 69-054). Check list for the owner:
+  นำเข้างาน_ตรวจสอบ_17112026.xlsx (amounts that did not add up in Excel, undated payments, renamed numbers, unlinked
+  customers). To undo: delete projects whose notes start "นำเข้าจาก Work_Request summary".
+- ✅ Lists that can pass 1,000 rows read page by page: the whole payment schedule (`allPaymentSchedule`: dashboard,
+  today panel, ทวงเงิน, สรุปงาน, ใบเสร็จ) and the project lists (projects, dashboard, ใบขอซื้อ, งานซ่อม).
 
 ### 6.7d Collections — ทวงเงิน (Phase D) 🟡
 - **ทวงเงิน** page (`/collections`, admin / accounting): totals outstanding / overdue /
@@ -672,6 +685,7 @@ Tested end to end on 24/10/2026 (assign, uploads, queue, handover with signature
 
 | Date | Change |
 |---|---|
+| 17/11/2026 | **Jobs imported** from Work_Request summary.xlsm: 800 projects with quotation ref, fixed payment terms and past payments (before VAT × 1.07); open balance matches Excel. Work summary now shows amounts before VAT. Payment schedule and project lists read page by page (over 1,000 rows). |
 | 17/11/2026 | Applied `0044_purchase_cost_restore` as `0045_purchase_cost_restore`; verified purchase-linked cost tracking fields. Deleting the last purchase now restores a prior hand-entered cost or clears the purchase-derived cost. |
 | 17/11/2026 | Cost restore tested on the live database with a throwaway SKU: purchase with no hand cost → deleted → cost cleared; hand cost 100 → purchase 55 → deleted → back to 100; hand edit after a purchase is kept when the purchase is deleted. Test SKU removed. |
 | 16/11/2026 | **Receipts, WHT certificates, retention:** ออกใบเสร็จ from a recorded payment (auto number 69-MMnnn per company, tax invoice no., retention 5 %), A4 receipt print, `/receipts` register with WHT-certificate and retention tabs. Migration `0042_receipts` applied and verified in Lovable. |

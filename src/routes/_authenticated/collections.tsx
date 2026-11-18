@@ -10,6 +10,7 @@ import { useMe } from "@/hooks/useMe";
 import { CHASE_LABEL, chaseList, latestByBill } from "@/lib/collections";
 import { formatDate, formatTHB } from "@/lib/format";
 import { isoDate } from "@/lib/jobs";
+import { allPaymentSchedule } from "@/lib/paymentSchedule";
 
 export const Route = createFileRoute("/_authenticated/collections")({
   head: () => ({
@@ -37,9 +38,8 @@ function CollectionsPage() {
     queryKey: ["payment_schedule", "all", "collections"],
     enabled: canManagePayments,
     queryFn: async (): Promise<Open[]> => {
-      const { data, error } = await supabase.rpc("payment_schedule", {});
-      if (error) throw error;
-      return (data ?? [])
+      const data = await allPaymentSchedule();
+      return data
         .filter((t) => t.bill_id && Number(t.outstanding) > 0.005)
         .map((t) => ({
           bill_id: t.bill_id,

@@ -91,6 +91,20 @@ export function summarizeJobs(rows: ScheduleRow[]): JobSummary[] {
   return out.sort((a, b) => b.code.localeCompare(a.code));
 }
 
+/** The same job with every amount before VAT (the payment schedule includes VAT). */
+export function withoutVat(j: JobSummary, vatPercent: number): JobSummary {
+  const k = 1 + (vatPercent || 0) / 100;
+  const ex = (x: number) => r2(x / k);
+  return {
+    ...j,
+    total: ex(j.total),
+    paid: ex(j.paid),
+    remaining: ex(j.remaining),
+    payments: j.payments.map((p) => ({ ...p, amount: ex(p.amount) })),
+    next: j.next ? { ...j.next, amount: ex(j.next.amount) } : null,
+  };
+}
+
 /** Totals per money status, like the header of the Excel summary. */
 export function statusTotals(jobs: JobSummary[]) {
   const t = { paid: { jobs: 0, total: 0 }, deposit_paid: { jobs: 0, remaining: 0 }, waiting_deposit: { jobs: 0, remaining: 0 } };

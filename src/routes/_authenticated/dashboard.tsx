@@ -14,6 +14,8 @@ import { PROJECT_STATUSES, statusLabel } from "@/lib/erp";
 import { formatDate, formatTHB } from "@/lib/format";
 import { methodLabel } from "@/lib/payments";
 import type { ReactNode } from "react";
+import { allPaymentSchedule } from "@/lib/paymentSchedule";
+import { fetchAll } from "@/lib/fetchAll";
 
 type PayRow = { key: string; projectId?: string | undefined; project: string; cells: ReactNode[]; money: number };
 
@@ -83,12 +85,14 @@ function Dashboard() {
   const { data: projects } = useQuery({
     queryKey: ["projects", "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id, code, name, status, updated_at, customer_id, customers(name)")
-        .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      return fetchAll((from, to) =>
+        supabase
+          .from("projects")
+          .select("id, code, name, status, updated_at, customer_id, customers(name)")
+          .order("updated_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 
@@ -108,9 +112,7 @@ function Dashboard() {
     queryKey: ["payment_schedule", "all"],
     enabled: canManagePayments,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("payment_schedule", {});
-      if (error) throw error;
-      return data ?? [];
+      return allPaymentSchedule();
     },
   });
   const { data: recentReceipts } = useQuery({
